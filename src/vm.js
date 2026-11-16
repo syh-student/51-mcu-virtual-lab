@@ -26,19 +26,140 @@
     return (this.line ? '第 ' + this.line + ' 行：' : '') + this.message;
   };
 
-  /* ---------------- 预处理：#define 文本替换 ---------------- */
+  /* ---------------- 预处理：条件编译 + 宏 ---------------- */
+  /* 支持：#define（对象式与函数式）、#undef、#ifdef/#ifndef/#if/#elif/#else/#endif。
+     include 由工程层先展开，这里遇到 #include 直接留空行。 */
+  function parseDefine(rest, macros) {
+    var nm = /^([A-Za-z_]\w*)/.exec(rest);
+    if (!nm) return;
+    var name = nm[1];
+    var after = rest.slice(name.length);
+    if (after.charAt(0) === '(') {
+      var close = after.indexOf(')');
+      if (close < 0) return;
+      var raw = after.slice(1, close).trim();
+      macros[name] = {
+        params: raw ? raw.split(',').map(function (s) { return s.trim(); }) : [],
+        body: after.slice(close + 1).trim()
+      };
+      return;
+    }
+    macros[name] = { params: null, body: after.trim() };
+  }
+
+  function evalIf(expr, macros) {
+    var e = String(expr || '').trim();
+    if (!e) return true;
+    e = e.replace(/defined\s*\(\s*([A-Za-z_]\w*)\s*\)/g, function (_, n) {
+      return macros[n] ? '1' : '0';
+    });
+    e = e.replace(/\bdefined\s+([A-Za-z_]\w*)/g, function (_, n) {
+      return macros[n] ? '1' : '0';
+    });
+    e = e.replace(/\b[A-Za-z_]\w*\b/g, '0');
+    if (!/^[\s0-9()!<>=+\-*/%&|^~]*$/.test(e)) return true;
+    try {
+      /* eslint-disable no-new-func */
+      return !!new Function('return (' + e + ');')();
+    } catch (err) { return true; }
+  }
+
+  function readMacroArgs(text, openIdx) {
+    var depth = 0, args = [], cur = '';
+    for (var i = openIdx; i < text.length; i++) {
+      var c = text[i];
+      if (c === '(') {
+        depth++;
+        if (depth === 1) continue;
+      } else if (c === ')') {
+        depth--;
+        if (depth === 0) { args.push(cur); return { args: args, end: i }; }
+      }
+      if (depth === 1 && c === ',') { args.push(cur); cur = ''; continue; }
+      cur += c;
+    }
+    return null;
+  }
+
+  function expandMacros(text, macros) {
+    for (var round = 0; round < 6; round++) {
+      var before = text;
+      Object.keys(macros).forEach(function (name) {
+        var m = macros[name];
+        if (!m.params) {
+          text = text.replace(new RegExp('\\b' + name + '\\b', 'g'), m.body);
+          return;
+        }
+        var re = new RegExp('\\b' + name + '\\s*\\(', 'g');
+        var out = '', last = 0, hit;
+        while ((hit = re.exec(text))) {
+          var openIdx = text.indexOf('(', hit.index);
+          var got = readMacroArgs(text, openIdx);
+          if (!got) break;
+          var body = m.body;
+          m.params.forEach(function (p, idx) {
+            var v = (got.args[idx] || '').trim();
+            body = body.replace(new RegExp('\\b' + p + '\\b', 'g'), v);
+          });
+          out += text.slice(last, hit.index) + body;
+          last = got.end + 1;
+          re.lastIndex = last;
+        }
+        if (last) text = out + text.slice(last);
+      });
+      if (text === before) break;
+    }
+    return text;
+  }
+
   function preprocess(src) {
-    var defs = {};
+    var macros = {};
+    var stack = [];                   /* 每层：{ on: 本层是否生效, taken: 本层是否已有分支命中 } */
+    function live() {
+      for (var i = 0; i < stack.length; i++) if (!stack[i].on) return false;
+      return true;
+    }
     var lines = src.replace(/\r\n?/g, '\n').split('\n').map(function (l) {
-      var m = /^\s*#define\s+([A-Za-z_]\w*)\s+(.+?)\s*$/.exec(l);
-      if (m) { defs[m[1]] = m[2]; return ''; }
-      return l;
+      var m = /^\s*#\s*(include|define|undef|ifdef|ifndef|if|elif|else|endif)\b([\s\S]*)$/.exec(l);
+      if (!m) return live() ? l : '';
+      var kw = m[1], rest = m[2].trim();
+      if (kw === 'include') return '';
+      if (kw === 'define' || kw === 'undef') {
+        if (live()) {
+          if (kw === 'define') parseDefine(rest, macros);
+          else delete macros[rest.split(/\s+/)[0]];
+        }
+        return '';
+      }
+      if (kw === 'ifdef' || kw === 'ifndef' || kw === 'if') {
+        var parentOn = live();
+        var cond = false;
+        if (parentOn) {
+          if (kw === 'ifdef') cond = !!macros[rest.split(/\s+/)[0]];
+          else if (kw === 'ifndef') cond = !macros[rest.split(/\s+/)[0]];
+          else cond = evalIf(rest, macros);
+        }
+        stack.push({ on: parentOn && cond, taken: parentOn && cond });
+        return '';
+      }
+      if (kw === 'elif') {
+        var top = stack[stack.length - 1];
+        if (top) {
+          var ok = !top.taken && live() && evalIf(rest, macros);
+          top.on = ok;
+          top.taken = top.taken || ok;
+        }
+        return '';
+      }
+      if (kw === 'else') {
+        var tp = stack[stack.length - 1];
+        if (tp) { tp.on = !tp.taken && live(); tp.taken = true; }
+        return '';
+      }
+      if (kw === 'endif') { stack.pop(); return ''; }
+      return '';
     });
-    var out = lines.join('\n');
-    Object.keys(defs).forEach(function (k) {
-      out = out.replace(new RegExp('\\b' + k + '\\b', 'g'), defs[k]);
-    });
-    return out;
+    return expandMacros(lines.join('\n'), macros);
   }
 
   /* ---------------- 词法分析 ---------------- */
@@ -216,7 +337,8 @@
     if (this.is('=')) { this.next(); init = this.parseInit(); }
     /* static 局部变量：函数退出后不销毁，讲义里 Timer0_Routine 里的 T0Count 就是它 */
     var stat = !!(type && type.mods && type.mods.indexOf('static') >= 0);
-    return { name: name, size: size, init: init, ptr: ptr, type: type, stat: stat };
+    var ext = !!(type && type.mods && type.mods.indexOf('extern') >= 0);
+    return { name: name, size: size, init: init, ptr: ptr, type: type, stat: stat, ext: ext };
   };
   Parser.prototype.parseInit = function () {
     if (this.is('{')) {
@@ -1145,22 +1267,28 @@
       var b = baseName(f.path).toLowerCase();
       if (!byBase[b]) byBase[b] = f;
     });
-    var out = [], map = [], seen = {};
+    var out = [], map = [], seen = {}, missing = [];
     function pushLine(text, f, line) { out.push(text); map.push({ file: f, line: line }); }
     function walk(f, depth) {
       if (depth > 8) return;
       String(f.content == null ? '' : f.content).replace(/\r\n?/g, '\n').split('\n').forEach(function (row, i) {
-        var m = /^\s*#\s*include\s*[<"]([^>"]+)[>"]/.exec(row);
+        var m = /^\s*#\s*include\s*([<"])([^>"]+)[>"]/.exec(row);
         if (!m) { pushLine(row, f.path, i + 1); return; }
-        var hit = byPath[m[1]] || byBase[baseName(m[1]).toLowerCase()];
-        if (!hit || seen[hit.path]) { pushLine('', f.path, i + 1); return; }
+        var hit = byPath[m[2]] || byBase[baseName(m[2]).toLowerCase()];
+        if (!hit) {
+          pushLine('', f.path, i + 1);
+          /* 尖括号当系统头（寄存器名解释器内置），引号头找不到就是真错误 */
+          if (m[1] === '"') missing.push({ file: f.path, line: i + 1, name: m[2] });
+          return;
+        }
+        if (seen[hit.path]) { pushLine('', f.path, i + 1); return; }
         seen[hit.path] = 1;
         pushLine('/* ===== ' + hit.path + ' ===== */', f.path, i + 1);
         walk(hit, depth + 1);
       });
     }
     walk(file, 0);
-    return { path: file.path, src: out.join('\n'), lines: out.length, map: map };
+    return { path: file.path, src: out.join('\n'), lines: out.length, map: map, missing: missing };
   }
 
   /* files: [{path, content}] → 可执行的合并 AST。
@@ -1210,24 +1338,74 @@
     function declare(name, loc, kind) {
       if (!name) return;
       if (defined[name]) {
+        var hint = /\.h$/i.test(loc.file)
+          ? '（定义写在头文件里，会被每个包含它的 .c 各复制一份；把定义放回 .c，头文件里只留 extern 声明）'
+          : '';
         errors.push({
           file: loc.file, line: loc.line,
           msg: kind + '「' + name + '」重复定义：' + loc.file + '(' + loc.line + ') 与 '
-            + defined[name].file + '(' + defined[name].line + ')'
+            + defined[name].file + '(' + defined[name].line + ')' + hint
         });
         return;
       }
       defined[name] = loc;
     }
+    var regKey = {};
+    var externRef = {};
+    var drop = [];
     body.forEach(function (d) {
       if (d.t === 'func') {
         declare(d.name, where(d.line), '函数');
       } else if (d.t === 'globaldecl') {
         var lg = where(d.line);
-        d.vars.forEach(function (v) { declare(v.name, lg, '变量'); });
+        d.vars.forEach(function (v) {
+          if (v.ext) {
+            /* extern 只是声明，不进定义表；最后再检查有没有人真的定义它 */
+            externRef[v.name] = lg;
+            drop.push(d);
+            return;
+          }
+          declare(v.name, lg, '变量');
+        });
       } else if (d.t === 'sbit' || d.t === 'sfr') {
-        declare(d.name, where(d.line), '寄存器位');
+        var ls = where(d.line);
+        var key = d.t === 'sbit' ? ('sbit ' + d.port + '^' + d.bit) : ('sfr ' + d.name);
+        if (regKey[d.name] !== undefined) {
+          /* 头文件被多个 .c 包含时，同一条 sbit 会出现很多次，属于重复声明 */
+          if (regKey[d.name] !== key) {
+            errors.push({
+              file: ls.file, line: ls.line,
+              msg: '寄存器「' + d.name + '」在两处定义不一致：' + ls.file + '(' + ls.line + ') 与 '
+                + defined[d.name].file + '(' + defined[d.name].line + ')'
+            });
+          }
+          drop.push(d);
+          return;
+        }
+        regKey[d.name] = key;
+        declare(d.name, ls, '寄存器位');
       }
+    });
+    if (drop.length) {
+      body = body.filter(function (d) { return drop.indexOf(d) < 0; });
+    }
+
+    var missSeen = {};
+    units.forEach(function (u) {
+      (u.missing || []).forEach(function (mi) {
+        var key = mi.file + ':' + mi.name;
+        if (missSeen[key]) return;
+        missSeen[key] = 1;
+        errors.push({ file: mi.file, line: mi.line, msg: '找不到头文件「' + mi.name + '」' });
+      });
+    });
+
+    Object.keys(externRef).forEach(function (n) {
+      if (defined[n]) return;
+      errors.push({
+        file: externRef[n].file, line: externRef[n].line,
+        msg: '变量「' + n + '」声明为 extern，但工程里没有它的定义'
+      });
     });
 
     if (!defined.main) {

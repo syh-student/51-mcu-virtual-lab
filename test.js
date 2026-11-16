@@ -462,5 +462,83 @@ void main()
   check('断点：能打在 void main() 这一行', stoppedAt === 4, 'stoppedAt=' + stoppedAt);
 }
 
+/* 26. sbit 写在头文件里，被多个 .c 包含 */
+{
+  const { vm } = makeProjVM([
+    { path: 'main.c', content: '#include <REGX52.H>\n#include "led.h"\nvoid main(){ LED = 0; while(1){} }\n' },
+    { path: 'led.h', content: '#ifndef LED_H\n#define LED_H\nsbit LED = P2^0;\nvoid other(void);\n#endif\n' },
+    { path: 'led.c', content: '#include <REGX52.H>\n#include "led.h"\nvoid other(void){ LED = 1; }\n' }
+  ]);
+  run(vm, 8);
+  check('sbit：头文件被多个 .c 包含不报重复', true, '');
+  check('sbit：两个文件共用同一个位', vm.ports.P2 === 0xFE, 'P2=0x' + vm.ports.P2.toString(16));
+}
+
+/* 27. sbit 同名但定义不同 → 报冲突 */
+{
+  const unit = C51.compileProject([
+    { path: 'main.c', content: '#include <REGX52.H>\nsbit LED = P2^0;\nvoid main(){ while(1){} }\n' },
+    { path: 'b.c', content: '#include <REGX52.H>\nsbit LED = P2^1;\n' }
+  ]);
+  check('sbit：同名不同引脚报冲突',
+    unit.errors.some(e => /不一致/.test(e.msg)), JSON.stringify(unit.errors));
+}
+
+/* 28. extern 变量：一边声明一边定义 */
+{
+  const { vm } = makeProjVM([
+    { path: 'main.c', content: 'extern unsigned char flag;\nvoid main(){ flag = 5; P2 = flag; while(1){} }\n' },
+    { path: 'g.c', content: 'unsigned char flag;\n' }
+  ]);
+  run(vm, 8);
+  check('extern：不再误报重复定义', !vm.error, vm.error);
+  check('extern：读写的是同一个变量', vm.ports.P2 === 5, 'P2=' + vm.ports.P2);
+}
+
+/* 29. extern 只有声明没有定义 → 报错 */
+{
+  const unit = C51.compileProject([
+    { path: 'main.c', content: 'extern unsigned char ghost;\nvoid main(){ ghost = 1; while(1){} }\n' }
+  ]);
+  check('extern：缺定义能报出来', unit.errors.some(e => /没有它的定义/.test(e.msg)),
+    JSON.stringify(unit.errors));
+}
+
+/* 30. 函数式宏 */
+{
+  const { vm } = makeProjVM([
+    { path: 'main.c', content: '#define MAX(a,b) ((a)>(b)?(a):(b))\nvoid main(){ P2 = MAX(1,2); while(1){} }\n' }
+  ]);
+  run(vm, 8);
+  check('宏：函数式宏能展开', vm.ports.P2 === 2, 'P2=' + vm.ports.P2);
+  check('宏：不再误报未定义函数', !vm.error, vm.error);
+}
+
+/* 31. 条件编译 */
+{
+  const { vm } = makeProjVM([
+    { path: 'main.c', content: '#define USE_LED\nvoid main(){\n#ifdef USE_LED\n P2 = 0xFE;\n#else\n P2 = 0xFF;\n#endif\n while(1){}\n}\n' }
+  ]);
+  run(vm, 8);
+  check('#ifdef：走命中分支', vm.ports.P2 === 0xFE, 'P2=0x' + vm.ports.P2.toString(16));
+
+  const u2 = C51.compileProject([
+    { path: 'main.c', content: 'void main(){\n#if 0\n P2 = 0x11;\n#endif\n P2 = 0x22;\n while(1){}\n}\n' }
+  ]);
+  const hw2 = HW.createHardware();
+  const vm2 = new C51.VM('', hw2, u2.ast);
+  run(vm2, 8);
+  check('#if 0：被屏蔽的分支不执行', vm2.ports.P2 === 0x22, 'P2=0x' + vm2.ports.P2.toString(16));
+}
+
+/* 32. 引号头文件找不到 → 报错 */
+{
+  const unit = C51.compileProject([
+    { path: 'main.c', content: '#include "nope.h"\nvoid main(){ while(1){} }\n' }
+  ]);
+  check('include：缺头文件报错', unit.errors.some(e => /找不到头文件/.test(e.msg)),
+    JSON.stringify(unit.errors));
+}
+
 console.log('\n结果：' + pass + ' 通过 / ' + fail + ' 失败');
 process.exit(fail ? 1 : 0);

@@ -3661,7 +3661,11 @@
     }
     lastUnit = unit;
     var srcPaths = unit.units.map(function (u) { return u.path; });
-    buildLine('compiling ' + unit.count + ' file(s): ' + srcPaths.join(', '), 'dim');
+    unit.units.forEach(function (u) {
+      var bad = unit.errors.filter(function (er) { return er.file === u.path; }).length;
+      buildLine('compiling ' + u.path + (bad ? '   (' + bad + ' error)' : ''), bad ? 'err' : 'dim');
+    });
+    if (srcPaths.length > 1) buildLine('compiling ' + srcPaths.length + ' file(s) 完成', 'dim');
     if (unit.errors.length) {
       unit.errors.forEach(function (er) {
         buildLine(er.file + '(' + er.line + '): error: ' + er.msg, 'err', er.line, er.file);
