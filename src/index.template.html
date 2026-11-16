@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#14100E">
+<title>51 单片机 · 虚拟实验台</title>
+<style>
+/*__STYLE__*/
+</style>
+</head>
+<body>
+
+<header class="page-head">
+  <div class="brand">
+    <b>51 单片机</b><i></i><span>虚拟实验台</span>
+    <em>STC89C52RC · 12 MHz</em>
+  </div>
+  <div class="head-right">
+    <span class="head-note">例程 01—15 · 离线可用</span>
+    <span class="build-tag" id="build-tag">__BUILD__</span>
+    <span id="status" class="status">已停止</span>
+  </div>
+</header>
+
+<div class="appbar">
+  <nav class="capsule" id="capsule" aria-label="页面导航">
+    <span class="hover-pill" aria-hidden="true"></span>
+    <span class="blob" aria-hidden="true"></span>
+    <button class="nav-item" type="button" data-page="code">写代码</button>
+    <button class="nav-item" type="button" data-page="board">开发板</button>
+    <button class="nav-item" type="button" data-page="scope">时序图</button>
+    <button class="nav-item" type="button" data-page="notes">讲义</button>
+  </nav>
+  <div class="sp"></div>
+  <div class="controls">
+    <button class="play" id="btn-run" type="button">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true">
+        <path d="M5 3.4v9.2l7.6-4.6-7.6-4.6z"/>
+      </svg>
+      <span id="btn-run-label">运行</span>
+    </button>
+    <button class="circle" id="btn-pause" type="button" title="暂停" aria-label="暂停">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <path d="M6 3.6v8.8M10 3.6v8.8"/>
+      </svg>
+    </button>
+    <button class="circle" id="btn-step" type="button" title="单步进入（F11）：进到函数里面" aria-label="单步进入">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M8 2.8v6.6"/><path d="M5.4 6.8L8 9.4l2.6-2.6"/><path d="M3.2 13h9.6"/>
+      </svg>
+    </button>
+    <button class="circle" id="btn-step-over" type="button" title="单步越过（F10）：整段跳过函数调用" aria-label="单步越过">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3.4 12.6c.4-4.6 2.2-7 4.6-7s4.2 2.4 4.6 7"/><path d="M10.4 5.6l2.2 1.4-1.4 2"/>
+      </svg>
+    </button>
+    <button class="circle" id="btn-step-out" type="button" title="单步跳出（Shift+F11）：跑完当前函数" aria-label="单步跳出">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M8 12.8V5"/><path d="M5.4 7.6L8 5l2.6 2.6"/><path d="M3.2 3h9.6"/>
+      </svg>
+    </button>
+    <button class="circle" id="btn-reset" type="button" title="复位" aria-label="复位">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4.3 5.1A4.4 4.4 0 1 1 3.6 8"/><path d="M4.5 2.3v2.9h2.9"/>
+      </svg>
+    </button>
+    <label class="speed">速度
+      <input id="speed" type="range" min="0.25" max="8" step="0.25" value="1" aria-label="运行速度">
+      <b id="speed-val">1×</b>
+    </label>
+  </div>
+</div>
+
+<main>
+
+  <!-- ==================== 页面 1：写代码 ==================== -->
+  <section class="page page-code active" id="page-code">
+    <div class="pane-col">
+
+      <div class="panel editor-panel" id="editor-panel">
+        <div class="panel-h">
+          <button id="btn-tree" class="ghost icon" type="button" title="显示 / 隐藏工程树" aria-label="显示或隐藏工程树">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true">
+              <path d="M2.6 4.5h10.8M2.6 8h10.8M2.6 11.5h10.8"/>
+            </svg>
+          </button>
+          <div class="tabs" id="tabs" role="tablist" aria-label="打开的文件"></div>
+          <span class="sp"></span>
+          <label class="sel">
+            <select id="ex-select" aria-label="选择讲义例程"></select>
+          </label>
+          <button id="btn-restore" class="ghost" title="还原成讲义原始代码">还原</button>
+          <button id="btn-format" class="ghost" title="缩进改 4 空格、清行尾空白">整理</button>
+          <button id="btn-share" class="ghost" title="复制带工程的分享链接">分享</button>
+        </div>
+
+        <div class="findbar" id="findbar" hidden>
+          <input id="find-input" type="text" placeholder="查找" spellcheck="false" autocomplete="off">
+          <span class="fc" id="find-count">0/0</span>
+          <button id="find-prev" class="mini" type="button" title="上一个（Shift + Enter）">↑</button>
+          <button id="find-next" class="mini" type="button" title="下一个（Enter）">↓</button>
+          <input id="replace-input" type="text" placeholder="替换为" spellcheck="false" autocomplete="off">
+          <button id="find-replace" class="ghost" type="button" title="替换当前匹配">替换</button>
+          <button id="find-all" class="ghost" type="button" title="替换全部">全部</button>
+          <button id="find-close" class="mini" type="button" title="关闭（Esc）">×</button>
+        </div>
+
+        <div class="editor-body">
+          <aside class="proj" id="proj">
+            <div class="proj-h">
+              <div class="seg seg-sm" id="proj-tabs">
+                <button type="button" data-ptab="tree" class="on">工程</button>
+                <button type="button" data-ptab="outline">大纲</button>
+              </div>
+              <span class="sp"></span>
+              <span class="fs-dot" id="fs-dot" title="还没连接电脑上的文件夹"></span>
+              <button id="btn-refresh" class="mini" type="button" title="重新读取磁盘上的目录" hidden>↻</button>
+            </div>
+
+            <button id="btn-open-dir" class="proj-open" type="button" title="选择电脑上的文件夹，直接读写里面的真实文件">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" aria-hidden="true">
+                <path d="M1.8 4.2h4l1.3 1.6h6.1v6.4a1 1 0 0 1-1 1H2.8a1 1 0 0 1-1-1z"/>
+                <path d="M1.8 5.8h11.4"/>
+              </svg>
+              <span id="btn-open-dir-label">打开文件夹</span>
+            </button>
+
+            <div class="proj-acts">
+              <button id="btn-new-file" type="button" title="新建 .c / .h 文件（写 driver/led.c 会自动建子目录）">＋文件</button>
+              <button id="btn-new-dir" type="button" title="新建文件夹">＋目录</button>
+              <button id="btn-import" type="button" title="从电脑选择 .c / .h 文件，也可以直接把文件拖进来">导入</button>
+            </div>
+
+            <div class="proj-tree" id="proj-tree"></div>
+            <div class="proj-tree" id="outline" hidden></div>
+
+            <div class="proj-stat">
+              <span id="proj-stat-text">浏览器内工程 · 不写盘</span>
+              <button id="btn-close-dir" class="linky" type="button" title="断开磁盘文件夹，回到浏览器内工程" hidden>断开</button>
+            </div>
+
+            <div class="proj-f">
+              <button id="btn-save" type="button" title="把所有改动写回磁盘（Ctrl + S）" hidden>保存</button>
+              <button id="btn-export" type="button" title="把整个工程打包成 zip（Keil 能直接用）">导出 zip</button>
+            </div>
+          </aside>
+
+          <div class="editor-wrap">
+            <div id="gutter"></div>
+            <div class="code-box">
+              <div class="marks" id="marks" aria-hidden="true"></div>
+              <pre id="hl" aria-hidden="true"></pre>
+              <textarea id="code" spellcheck="false" aria-label="C51 代码编辑器"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="editor-foot">
+          <span id="cur-file">main.c</span>
+          <span id="cur-line">行 1，列 1</span>
+          <span>UTF-8</span>
+          <span id="vtime">0 ms</span>
+          <span id="steps">0 条语句</span>
+        </div>
+      </div>
+
+      <div class="panel build-panel">
+        <div class="panel-h">
+          <div class="seg seg-sm" id="bottom-tabs">
+            <button type="button" data-tab="build" class="on">编译输出</button>
+            <button type="button" data-tab="debug">调试</button>
+            <button type="button" data-tab="serial">串口</button>
+          </div>
+          <span class="sp"></span>
+          <span id="build-sum" class="hint">就绪</span>
+          <button id="btn-build" class="ghost">编译</button>
+        </div>
+        <div id="build-log" class="build-log"></div>
+        <div id="debug-view" class="debug-view" hidden>
+          <div class="dbg-line" id="dbg-state">还没运行。按 F5 运行，或点工具栏的播放键。</div>
+          <div class="dbg-k">调用栈</div>
+          <div class="stack" id="callstack"></div>
+          <div class="dbg-k">断点<span class="dbg-tip">点行号切换 F9</span></div>
+          <div class="stack" id="bp-list"></div>
+        </div>
+        <div id="serial-view" class="serial-view" hidden>
+          <pre id="serial-out" class="serial-out">（串口还没有输出）</pre>
+          <div class="serial-bar">
+            <span class="hint">程序写 SBUF 出现在这里 · 相当于 Keil 的 UART #1 窗口</span>
+            <span class="sp"></span>
+            <input id="serial-tx" class="serial-tx" type="text" placeholder="输入文本发到板子（写进 SBUF、置 RI）" />
+            <button id="btn-serial-send" type="button">发送</button>
+            <button id="btn-serial-clear" class="ghost" type="button">清空</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="slot" id="slot-code-board"></div>
+  </section>
+
+  <!-- ==================== 页面 2：开发板 ==================== -->
+  <section class="page page-board" id="page-board">
+    <div class="slot" id="slot-board-main"></div>
+    <aside class="side">
+      <div class="panel">
+        <div class="panel-h">
+          <span class="idx">04</span><h2>端口监视</h2><span class="sp"></span>
+        </div>
+        <div id="ports" class="ports"></div>
+        <div class="ports-legend">实心 = 高电平 1 · 空心 = 低电平 0</div>
+      </div>
+      <div class="panel watch-panel">
+        <div class="panel-h">
+          <span class="idx">05</span><h2>变量监视</h2><span class="sp"></span>
+          <span class="hint">Watch</span>
+        </div>
+        <div id="watch" class="watch"></div>
+      </div>
+      <div class="panel console-panel">
+        <div class="panel-h">
+          <span class="idx">06</span><h2>控制台</h2><span class="sp"></span>
+          <button id="btn-clear" class="ghost">清空</button>
+        </div>
+        <div id="console"></div>
+      </div>
+    </aside>
+  </section>
+
+  <!-- ==================== 页面 3：时序图 ==================== -->
+  <section class="page page-scope" id="page-scope">
+    <div class="panel scope-panel">
+      <div class="panel-h">
+        <span class="idx">07</span>
+        <h2>时序图 · 逻辑分析仪</h2>
+        <span class="hint" id="scope-hint">整次运行的完整波形，下次运行自动清空</span>
+        <span class="sp"></span>
+        <div class="seg" id="scope-span" role="group" aria-label="时间窗口">
+          <button type="button" data-ms="0" class="on">全程</button>
+          <button type="button" data-ms="200">200ms</button>
+          <button type="button" data-ms="1000">1s</button>
+          <button type="button" data-ms="5000">5s</button>
+        </div>
+        <div class="seg seg-sm" id="scope-zoom" role="group" aria-label="横向缩放" title="放大后波形变宽，用下面的横向滚动条左右查看；1× = 每毫秒 1 像素">
+          <button type="button" data-zoom="0" class="on">适应</button>
+          <button type="button" data-zoom="1">1×</button>
+          <button type="button" data-zoom="4">4×</button>
+          <button type="button" data-zoom="16">16×</button>
+        </div>
+      </div>
+      <div class="scope-body">
+        <div class="scope-scroll" id="scope-scroll">
+          <div class="scope-spacer" id="scope-spacer"></div>
+          <canvas id="scope" aria-label="引脚电平时序图" title="单击放 A 光标，再点一下放 B 光标量时间差，双击清除；移动鼠标可读任意时刻的端口值"></canvas>
+        </div>
+        <div class="scope-empty" id="scope-empty">
+          <b>还没有波形</b>
+          <span>点上面的「运行」或按 F5，这里会记下这一次运行的全部引脚变化</span>
+          <span>下次点「运行」自动清空重画；暂停后继续算同一次运行</span>
+        </div>
+      </div>
+      <div class="scope-foot">
+        <span id="scope-info">——</span>
+        <span class="sp"></span>
+        <span class="scope-btns">
+          <button id="btn-scope-png" class="ghost" type="button" title="把当前波形存成图片">导出 PNG</button>
+          <button id="btn-scope-csv" class="ghost" type="button" title="把本次运行的全部电平变化存成表格">导出 CSV</button>
+        </span>
+        <span>相当于 Keil 的 Logic Analyzer</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 页面 4：讲义 ==================== -->
+  <section class="page page-notes" id="page-notes">
+    <div class="panel">
+      <div class="panel-h">
+        <span class="idx">01</span><h2>讲义例程</h2>
+        <span class="hint">点一条就能打开</span>
+        <span class="sp"></span>
+      </div>
+      <div class="panel-b" id="notes-list">
+        <div id="ex-list" class="ex-list"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-h">
+        <span class="idx">02</span><h2>本节要点</h2>
+        <span class="sp"></span>
+      </div>
+      <div class="panel-b" id="notes-scroll">
+        <div id="ex-chapter" class="chapter"></div>
+        <div id="ex-goal" class="goal"></div>
+        <h3>要点</h3>
+        <ul id="ex-points"></ul>
+        <div id="quiz-wrap">
+          <h3>动手试一试</h3>
+          <ul id="ex-quiz" class="quiz"></ul>
+        </div>
+        <div class="ex-code-wrap">
+          <h3>本节代码 <button id="btn-open-code" class="ghost" type="button">在编辑器打开</button></h3>
+          <pre id="ex-code" class="ex-code"></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- 开发板卡片：在“写代码”和“开发板”两个页面之间整块搬动 -->
+<div class="panel board-panel" id="board-card">
+  <div class="panel-h">
+    <span class="idx">03</span>
+    <h2>虚拟开发板</h2>
+    <span class="hint">移到元件上看引脚</span>
+    <span class="sp"></span>
+    <button id="btn-sound" class="ghost">声音 关</button>
+    <button id="btn-zoom" class="ghost">放大看板</button>
+  </div>
+  <div class="board-stage" id="board-wrap">
+    <div id="board"></div>
+    <div class="reticle" id="reticle" aria-hidden="true">
+      <span class="corner tl"></span>
+      <span class="corner tr"></span>
+      <span class="corner bl"></span>
+      <span class="corner br"></span>
+      <span class="reticle-label" id="reticle-label"></span>
+    </div>
+  </div>
+  <div id="board-tip" class="board-tip">把鼠标移到板上的元件上，这里会写出它的名称、接的引脚，以及在仿真里能不能用。</div>
+</div>
+
+<input id="file-input" type="file" multiple accept=".c,.h,.inc,.txt,text/plain" hidden>
+
+<div class="dlg-mask" id="dlg" aria-hidden="true">
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+    <h3 id="dlg-title">新建文件</h3>
+    <p id="dlg-msg" class="dlg-msg"></p>
+    <input id="dlg-input" type="text" spellcheck="false" autocomplete="off">
+    <div class="dlg-f">
+      <button id="dlg-cancel" class="ghost" type="button">取消</button>
+      <button id="dlg-ok" class="play sm" type="button">确定</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/*__VM__*/
+</script>
+<script>
+/*__HW__*/
+</script>
+<script>
+/*__EXAMPLES__*/
+</script>
+<script>
+/*__APP__*/
+</script>
+</body>
+</html>
