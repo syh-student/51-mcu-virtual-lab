@@ -127,8 +127,8 @@
             </button>
 
             <div class="proj-acts">
-              <button id="btn-new-file" type="button" title="新建 .c / .h 文件（写 driver/led.c 会自动建子目录）">＋文件</button>
-              <button id="btn-new-dir" type="button" title="新建文件夹">＋目录</button>
+              <button id="btn-new-file" type="button" title="新建 .c / .h / .txt 文件">＋文件</button>
+              <button id="btn-new-group" type="button" title="新建分组（Keil 的 Source Group）">＋分组</button>
               <button id="btn-import" type="button" title="从电脑选择 .c / .h 文件，也可以直接把文件拖进来">导入</button>
             </div>
 
@@ -342,6 +342,29 @@
     <div class="dlg-f">
       <button id="dlg-cancel" class="ghost" type="button">取消</button>
       <button id="dlg-ok" class="play sm" type="button">确定</button>
+    </div>
+  </div>
+</div>
+
+<div class="dlg-mask" id="dlg-new" aria-hidden="true">
+  <div class="dlg dlg-item" role="dialog" aria-modal="true" aria-labelledby="dlg-new-title">
+    <h3 id="dlg-new-title">Add New Item to Group</h3>
+    <div class="item-body">
+      <ul class="item-types" id="item-types" role="listbox" aria-label="文件类型">
+        <li data-ext="c" class="on"><b>C</b><span>C 源文件（.c）</span></li>
+        <li data-ext="h"><b>H</b><span>头文件（.h）</span></li>
+        <li data-ext="txt"><b>·</b><span>文本文件（.txt）</span></li>
+      </ul>
+      <div class="item-fields">
+        <label class="item-row"><i>类型</i><input id="item-type-name" type="text" readonly></label>
+        <label class="item-row"><i>名称</i><input id="item-name" type="text" spellcheck="false" autocomplete="off"></label>
+        <label class="item-row"><i>位置</i><select id="item-group"></select></label>
+        <p class="dlg-msg" id="item-msg"></p>
+      </div>
+    </div>
+    <div class="dlg-f">
+      <button id="item-cancel" class="ghost" type="button">取消</button>
+      <button id="item-ok" class="play sm" type="button">创建</button>
     </div>
   </div>
 </div>

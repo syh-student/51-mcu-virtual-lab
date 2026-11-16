@@ -797,7 +797,8 @@
   var SKIP_DIRS = { objects: 1, listings: 1, '.git': 1, node_modules: 1, '.vscode': 1, '.idea': 1, debugconfig: 1 };
   var TEXT_EXT = /\.(c|h|inc|s|asm|a51|cpp|hpp|txt|md|ini|json|uvprojx|uvoptx)$/i;
 
-  var project = { name: '工程', files: [], folders: [], open: [], active: '', fs: false };
+  var project = { name: '工程', files: [], folders: [], groups: [], open: [], active: '', fs: false };
+  var GROUP_DEFAULT = 'Source Group 1';
   var collapsed = {};
   var lastUnit = null;
   var errFile = '';
@@ -823,6 +824,57 @@
       if (project.files[i].path === path) return project.files[i];
     }
     return null;
+  }
+
+  /* ---------------- 分组（Keil 的 Source Group） ---------------- */
+  /* 旧存档没有 groups 字段，读入时补一个默认组，把已有文件全放进去。 */
+  function ensureGroups(p) {
+    p.groups = (p.groups || []).filter(function (g) { return g && typeof g.name === 'string' && g.name; });
+    if (!p.groups.length) p.groups = [{ name: GROUP_DEFAULT, files: [] }];
+    var seen = {};
+    p.groups.forEach(function (g) {
+      g.files = (g.files || []).filter(function (path) {
+        if (seen[path]) return false;
+        for (var i = 0; i < p.files.length; i++) {
+          if (p.files[i].path === path) { seen[path] = 1; return true; }
+        }
+        return false;
+      });
+    });
+    p.files.forEach(function (f) { if (!seen[f.path]) p.groups[0].files.push(f.path); });
+    return p;
+  }
+  function groupOf(path) {
+    for (var i = 0; i < project.groups.length; i++) {
+      if (project.groups[i].files.indexOf(path) >= 0) return project.groups[i];
+    }
+    return null;
+  }
+  function addToGroup(path, groupName) {
+    var g = null;
+    for (var i = 0; i < project.groups.length; i++) {
+      if (project.groups[i].name === groupName) { g = project.groups[i]; break; }
+    }
+    if (!g) g = project.groups[0];
+    project.groups.forEach(function (x) {
+      x.files = x.files.filter(function (p) { return p !== path; });
+    });
+    if (g) g.files.push(path);
+  }
+  function removeFromGroups(path) {
+    project.groups.forEach(function (g) {
+      g.files = g.files.filter(function (p) { return p !== path; });
+    });
+  }
+  function renameInGroups(oldPath, newPath) {
+    project.groups.forEach(function (g) {
+      g.files = g.files.map(function (p) { return p === oldPath ? newPath : p; });
+    });
+  }
+  function uniqueGroupName(base) {
+    var name = base, n = 2;
+    while (project.groups.some(function (g) { return g.name === name; })) name = base + ' ' + (n++);
+    return name;
   }
   function dirtyCount() {
     var n = 0;
@@ -858,34 +910,15 @@
       if (!p.active || !p.files.some(function (f) { return f.path === p.active; })) p.active = p.open[0];
       p.name = p.name || '工程';
       p.fs = false;
-      return p;
+      return ensureGroups(p);
     } catch (e) { return null; }
   }
 
-  /* ---------------- 拼翻译单元 + 行号映射 ---------------- */
-  function rankOf(p) { return /(^|\/)main\.c$/i.test(p) ? 1 : 0; }
-  function buildUnit() {
-    var hdrs = [], srcs = [];
-    project.files.forEach(function (f) {
-      if (/\.h$/i.test(f.path)) hdrs.push(f);
-      else if (/\.(c|inc)$/i.test(f.path)) srcs.push(f);
-    });
-    srcs.sort(function (a, b) { return rankOf(a.path) - rankOf(b.path) || cmpName(a.path, b.path); });
-    var lines = [], map = [];
-    function add(list) {
-      list.forEach(function (f) {
-        lines.push('/* ===== ' + f.path + ' ===== */');
-        map.push({ file: f.path, line: 0 });
-        String(f.content).replace(/\r\n?/g, '\n').split('\n').forEach(function (row, i) {
-          lines.push(row);
-          map.push({ file: f.path, line: i + 1 });
-        });
-      });
-    }
-    add(hdrs);
-    add(srcs);
-    return { src: lines.join('\n'), map: map, count: hdrs.length + srcs.length };
+  /* ---------------- 工程编译：逐文件解析 + 链接（实现放在 vm.js） ---------------- */
+  function buildProgram() {
+    return C51.compileProject(project.files);
   }
+
   function mapUnitLine(n) {
     if (!lastUnit || !lastUnit.map) return null;
     return lastUnit.map[n - 1] || null;
@@ -961,38 +994,13 @@
   }
 
   /* ---------------- 工程树 ---------------- */
-  function treeModel() {
-    var root = { dirs: {}, files: [] };
-    function dirOf(parts) {
-      var node = root;
-      for (var i = 0; i < parts.length; i++) {
-        var k = parts[i];
-        if (!node.dirs[k]) node.dirs[k] = { dirs: {}, files: [] };
-        node = node.dirs[k];
-      }
-      return node;
-    }
-    project.folders.forEach(function (p) { if (p) dirOf(String(p).split('/')); });
-    project.files.forEach(function (f) {
-      var parts = f.path.split('/');
-      var name = parts.pop();
-      dirOf(parts).files.push({ name: name, path: f.path, dirty: !!f.dirty, handle: !!f.handle });
+  function countInGroup(g) { return g && g.files ? g.files.length : 0; }
+  function countDirtyInGroup(g) {
+    var n = 0;
+    (g ? g.files : []).forEach(function (p) {
+      var f = fileOf(p);
+      if (f && f.dirty) n++;
     });
-    return root;
-  }
-  function countUnder(path) {
-    var n = 0;
-    for (var i = 0; i < project.files.length; i++) {
-      if (project.files[i].path.indexOf(path + '/') === 0) n++;
-    }
-    return n;
-  }
-  function countDirtyUnder(path) {
-    var n = 0;
-    for (var i = 0; i < project.files.length; i++) {
-      var f = project.files[i];
-      if (f.dirty && f.path.indexOf(path + '/') === 0) n++;
-    }
     return n;
   }
 
@@ -1000,7 +1008,8 @@
     var row = document.createElement('div');
     row.className = 'p-row' + (kind === 'dir' ? ' dir' : '') +
       (kind === 'file' && path === project.active ? ' on' : '');
-    row.style.paddingLeft = (5 + depth * 12) + 'px';
+    row.style.paddingLeft = (5 + depth * 10) + 'px';
+    row.setAttribute('title', label);
     var ic = document.createElement('span');
     ic.className = 'ico';
     ic.textContent = icon;
@@ -1029,73 +1038,109 @@
         pn.parentNode.setAttribute('title', project.fs ? '磁盘文件夹：' + FS.name : '工程：' + (project.name || ''));
       }
     }
-    var root = treeModel();
+    ensureGroups(project);
 
-    function walk(node, prefix, depth) {
-      Object.keys(node.dirs).sort(cmpName).forEach(function (k) {
-        var full = joinPath(prefix, k);
-        var dirNode = node.dirs[k];
-        var open = !collapsed[full];
-        var row = projRow('dir', full, k + '/', depth, open ? '\u25be' : '\u25b8');
-        var cnt = document.createElement('span');
-        cnt.className = 'cnt';
-        cnt.textContent = String(countUnder(full));
-        if (countDirtyUnder(full)) {
-          var dd = document.createElement('span');
-          dd.className = 'dirty';
-          row.appendChild(dd);
-        }
-        row.insertBefore(cnt, row.closeBtn);
-        row.addEventListener('click', function () {
-          collapsed[full] = !!open;
-          renderTree();
-        });
-        row.addEventListener('dblclick', function (ev) {
-          if (ev && ev.stopPropagation) ev.stopPropagation();
-          renameFolder(full);
-        });
-        row.closeBtn.addEventListener('click', function (ev) {
-          if (ev && ev.stopPropagation) ev.stopPropagation();
-          removeFolder(full);
-        });
-        host.appendChild(row);
-        if (open) walk(dirNode, full, depth + 1);
+    var pOpen = !collapsed.p;
+    var pRow = projRow('dir', 'p', 'Project: ' + (project.name || '工程'), 0, pOpen ? '\u25be' : '\u25b8');
+    pRow.closeBtn.style.display = 'none';
+    pRow.addEventListener('click', function () { collapsed.p = !!pOpen; renderTree(); });
+    host.appendChild(pRow);
+    if (!pOpen) return finish();
+
+    var tOpen = !collapsed.t;
+    var tRow = projRow('dir', 't', 'Target 1', 1, tOpen ? '\u25be' : '\u25b8');
+    tRow.closeBtn.style.display = 'none';
+    tRow.addEventListener('click', function () { collapsed.t = !!tOpen; renderTree(); });
+    host.appendChild(tRow);
+    if (!tOpen) return finish();
+
+    project.groups.forEach(function (g) {
+      var key = 'g:' + g.name;
+      var open = !collapsed[key];
+      var row = projRow('dir', key, g.name, 2, open ? '\u25be' : '\u25b8');
+      var cnt = document.createElement('span');
+      cnt.className = 'cnt';
+      cnt.textContent = String(countInGroup(g));
+      row.insertBefore(cnt, row.closeBtn);
+      if (countDirtyInGroup(g)) {
+        var gd = document.createElement('span');
+        gd.className = 'dirty';
+        row.insertBefore(gd, row.closeBtn);
+      }
+      row.addEventListener('click', function () { collapsed[key] = !!open; renderTree(); });
+      row.addEventListener('dblclick', function (ev) {
+        if (ev && ev.stopPropagation) ev.stopPropagation();
+        renameGroup(g.name);
       });
-      node.files.sort(function (a, b) { return cmpName(a.name, b.name); }).forEach(function (f) {
-        var ext = (/\.([a-z0-9]+)$/i.exec(f.path) || [])[1];
-        var row = projRow('file', f.path, f.name, depth, /^h$/i.test(ext || '') ? 'H' : (/^c$/i.test(ext || '') ? 'C' : '\u00b7'));
+      row.closeBtn.addEventListener('click', function (ev) {
+        if (ev && ev.stopPropagation) ev.stopPropagation();
+        removeGroup(g.name);
+      });
+      row.addEventListener('dragover', function (ev) {
+        if (ev && ev.preventDefault) ev.preventDefault();
+      });
+      row.addEventListener('drop', function (ev) {
+        if (!ev) return;
+        ev.preventDefault();
+        if (ev.stopPropagation) ev.stopPropagation();
+        var path = ev.dataTransfer ? ev.dataTransfer.getData('text/plain') : '';
+        if (!path || !fileOf(path) || groupOf(path) === g) return;
+        addToGroup(path, g.name);
+        saveProject();
+        renderTree();
+        log('已把 ' + path + ' 移到「' + g.name + '」', 'dim');
+      });
+      host.appendChild(row);
+      if (!open) return;
+      g.files.slice().sort(cmpName).forEach(function (path) {
+        var f = fileOf(path);
+        if (!f) return;
+        var name = baseName(path);
+        var ext = (/\.([a-z0-9]+)$/i.exec(path) || [])[1];
+        var frow = projRow('file', path, name, 3,
+          /^h$/i.test(ext || '') ? 'H' : (/^c$/i.test(ext || '') ? 'C' : '\u00b7'));
+        frow.setAttribute('draggable', 'true');
+        frow.setAttribute('title', path);
         if (f.dirty) {
           var dd = document.createElement('span');
           dd.className = 'dirty';
           dd.title = '还没写回磁盘';
-          row.insertBefore(dd, row.closeBtn);
+          frow.insertBefore(dd, frow.closeBtn);
         }
-        row.addEventListener('click', function () { openFile(f.path); });
-        row.addEventListener('dblclick', function (ev) {
+        frow.addEventListener('click', function () { openFile(path); });
+        frow.addEventListener('dblclick', function (ev) {
           if (ev && ev.stopPropagation) ev.stopPropagation();
-          renameFile(f.path);
+          renameFile(path);
         });
-        row.closeBtn.addEventListener('click', function (ev) {
+        frow.addEventListener('dragstart', function (ev) {
+          if (ev && ev.dataTransfer) {
+            ev.dataTransfer.setData('text/plain', path);
+            ev.dataTransfer.effectAllowed = 'move';
+          }
+        });
+        frow.closeBtn.addEventListener('click', function (ev) {
           if (ev && ev.stopPropagation) ev.stopPropagation();
-          removeFile(f.path);
+          removeFile(path);
         });
-        host.appendChild(row);
+        host.appendChild(frow);
       });
-    }
-    walk(root, '', 0);
+    });
+    finish();
 
-    if (!project.files.length) {
-      var e = document.createElement('div');
-      e.className = 'proj-empty';
-      e.textContent = '这个工程还是空的。点上面的「＋文件」新建 main.c，';
-      var link = document.createElement('button');
-      link.type = 'button';
-      link.className = 'linky';
-      link.textContent = '或载入一个多文件示例';
-      link.addEventListener('click', function () { createDemo(); });
-      e.appendChild(link);
-      e.appendChild(document.createTextNode('。'));
-      host.appendChild(e);
+    function finish() {
+      if (!project.files.length) {
+        var e = document.createElement('div');
+        e.className = 'proj-empty';
+        e.textContent = '这个工程还是空的。点上面的「＋文件」新建 main.c，';
+        var link = document.createElement('button');
+        link.type = 'button';
+        link.className = 'linky';
+        link.textContent = '或载入一个多文件示例';
+        link.addEventListener('click', function () { createDemo(); });
+        e.appendChild(link);
+        e.appendChild(document.createTextNode('。'));
+        host.appendChild(e);
+      }
     }
   }
 
@@ -1139,6 +1184,105 @@
     if (e.key === 'Enter') { e.preventDefault(); closeDlg(dlgInput.value); }
     else if (e.key === 'Escape') { e.preventDefault(); closeDlg(null); }
   });
+
+  /* ---------------- 新建文件：先选类型，再填名字和分组 ---------------- */
+  var ITEM_TYPES = [
+    { ext: 'c', label: 'C 源文件（.c）', def: 'new.c' },
+    { ext: 'h', label: '头文件（.h）', def: 'new.h' },
+    { ext: 'txt', label: '文本文件（.txt）', def: 'note.txt' }
+  ];
+  var itemExt = 'c';
+
+  function itemSkeleton(ext, path) {
+    if (ext === 'h') {
+      var g = baseName(path).replace(/[^A-Za-z0-9]/g, '_').toUpperCase() || 'HEADER_H';
+      return '#ifndef ' + g + '\n#define ' + g + '\n\n/* 函数声明、宏、引脚定义放这里 */\n\n#endif\n';
+    }
+    if (ext === 'c') {
+      /* 工程里还没有 main.c 时给一份能直接跑的骨架，否则只给空壳，
+         免得每个 .c 都带一个 main 撞车 */
+      if (!fileOf('main.c')) {
+        return '#include <REGX52.H>\n\nvoid main()\n{\n    while(1)\n    {\n    }\n}\n';
+      }
+      return '#include <REGX52.H>\n\n\n';
+    }
+    return '';
+  }
+  function itemMsg(text) {
+    var el = $('item-msg');
+    if (el) el.textContent = text || '';
+  }
+  function setItemType(ext) {
+    var t = ITEM_TYPES.filter(function (x) { return x.ext === ext; })[0] || ITEM_TYPES[0];
+    itemExt = t.ext;
+    if ($('item-type-name')) $('item-type-name').value = t.label;
+    var nm = $('item-name');
+    if (nm) nm.value = t.def;
+    var list = $('item-types');
+    if (list && list.children) {
+      Array.prototype.forEach.call(list.children, function (li) {
+        li.className = li.getAttribute('data-ext') === t.ext ? 'on' : '';
+      });
+    }
+  }
+  function openNewItem(groupName) {
+    var el = $('dlg-new');
+    if (!el) return;
+    ensureGroups(project);
+    var sel = $('item-group');
+    if (sel) {
+      sel.innerHTML = '';
+      project.groups.forEach(function (g) {
+        var o = document.createElement('option');
+        o.value = g.name;
+        o.textContent = g.name;
+        sel.appendChild(o);
+      });
+      var cur = groupOf(project.active);
+      sel.value = groupName || (cur ? cur.name : project.groups[0].name);
+    }
+    setItemType(itemExt || 'c');
+    itemMsg('');
+    el.classList.add('on');
+    var nm = $('item-name');
+    if (nm && nm.focus) { try { nm.focus(); nm.select(); } catch (e) {} }
+  }
+  function closeNewItem() {
+    var el = $('dlg-new');
+    if (el) el.classList.remove('on');
+  }
+  function submitNewItem() {
+    var raw = $('item-name') ? String($('item-name').value || '').trim() : '';
+    if (!raw) { itemMsg('请填文件名'); return; }
+    var path = normPath(raw);
+    var m = /\.[a-z0-9]+$/i.exec(path);
+    if (!m) path += '.' + itemExt;
+    else if (m[0].toLowerCase() !== '.' + itemExt) {
+      path = path.slice(0, m.index) + '.' + itemExt;
+    }
+    if (fileOf(path)) { itemMsg('已经有同名文件：' + path); return; }
+    var group = $('item-group') ? $('item-group').value : project.groups[0].name;
+    closeNewItem();
+    createFile(path, group, itemSkeleton(itemExt, path));
+  }
+  (function () {
+    var list = $('item-types');
+    if (list) list.addEventListener('click', function (e) {
+      var n = e && e.target;
+      while (n && n !== list && n.getAttribute && !n.getAttribute('data-ext')) n = n.parentNode;
+      if (n && n !== list && n.getAttribute) setItemType(n.getAttribute('data-ext'));
+    });
+    if ($('item-cancel')) $('item-cancel').onclick = closeNewItem;
+    if ($('item-ok')) $('item-ok').onclick = submitNewItem;
+    var nm = $('item-name');
+    if (nm) nm.addEventListener('keydown', function (e) {
+      if (!e) return;
+      if (e.key === 'Enter') { e.preventDefault(); submitNewItem(); }
+      else if (e.key === 'Escape') { e.preventDefault(); closeNewItem(); }
+    });
+    var mask = $('dlg-new');
+    if (mask) mask.addEventListener('click', function (e) { if (e && e.target === mask) closeNewItem(); });
+  })();
 
   /* ---------------- IndexedDB：记住上次打开的文件夹 ---------------- */
   function idbOpen() {
@@ -1231,6 +1375,7 @@
       project.name = dir.name;
       project.files = out.files;
       project.folders = out.folders;
+      ensureGroups(project);
       var keep = project.open.filter(function (p) {
         return out.files.some(function (f) { return f.path === p; });
       });
@@ -1387,6 +1532,7 @@
         }
       ]
     };
+    ensureGroups(project);
     codeEl.value = fileOf('main.c').content;
     histMap = {};
     histReset('main.c', codeEl.value);
@@ -1434,11 +1580,11 @@
     }
   }
 
-  function createFile(rawPath) {
+  function createFile(rawPath, groupName, content) {
     var path = normPath(rawPath);
     if (!path) return;
     if (fileOf(path)) { log('已经有同名文件：' + path, 'err'); return; }
-    var content = templateFor(path);
+    content = content == null ? templateFor(path) : content;
     if (project.fs) {
       var parts = path.split('/');
       var name = parts.pop();
@@ -1447,6 +1593,7 @@
       }).then(function (fh) {
         return writeHandle(fh, content).then(function () {
           project.files.push({ path: path, content: content, handle: fh, dirty: false });
+          addToGroup(path, groupName || project.groups[0].name);
           addFolders(path);
           expand(path);
           openFile(path);
@@ -1460,6 +1607,7 @@
       return;
     }
     project.files.push({ path: path, content: content, handle: null, dirty: false });
+    addToGroup(path, groupName || project.groups[0].name);
     addFolders(path);
     expand(path);
     openFile(path);
@@ -1490,9 +1638,58 @@
     log('已新建文件夹 ' + path + '/', 'ok');
   }
 
+  function createGroup() {
+    var name = uniqueGroupName('Source Group');
+    project.groups.push({ name: name, files: [] });
+    collapsed['g:' + name] = false;
+    saveProject();
+    renderTree();
+    log('已新建分组「' + name + '」', 'ok');
+  }
+
+  function renameGroup(oldName) {
+    askModal('重命名分组', { msg: '只改显示名，不影响文件路径', value: oldName, ok: '改名' })
+      .then(function (v) {
+        var name = String(v == null ? '' : v).trim();
+        if (!name || name === oldName) return;
+        var dup = project.groups.some(function (g) { return g.name === name; });
+        if (dup) { log('已经有同名分组：' + name, 'err'); return; }
+        project.groups.forEach(function (g) { if (g.name === oldName) g.name = name; });
+        if ('g:' + oldName in collapsed) {
+          collapsed['g:' + name] = collapsed['g:' + oldName];
+          delete collapsed['g:' + oldName];
+        }
+        saveProject();
+        renderTree();
+      });
+  }
+
+  function removeGroup(name) {
+    if (project.groups.length <= 1) { log('至少要留一个分组', 'err'); return; }
+    var idx = -1;
+    project.groups.forEach(function (g, i) { if (g.name === name) idx = i; });
+    if (idx < 0) return;
+    var g = project.groups[idx];
+    var target = project.groups[idx === 0 ? 1 : 0];
+    askModal('删除分组', {
+      msg: '删掉分组「' + name + '」？组里的 ' + g.files.length + ' 个文件会移到「'
+        + target.name + '」，文件本身不会删除。',
+      input: false, ok: '删除'
+    }).then(function (yes) {
+      if (!yes) return;
+      g.files.forEach(function (p) { if (target.files.indexOf(p) < 0) target.files.push(p); });
+      project.groups.splice(idx, 1);
+      delete collapsed['g:' + name];
+      saveProject();
+      renderTree();
+      log('已删除分组「' + name + '」', 'dim');
+    });
+  }
+
   function detachFile(path, nextActive) {
     project.files = project.files.filter(function (f) { return f.path !== path; });
     project.open = project.open.filter(function (p) { return p !== path; });
+    removeFromGroups(path);
     delete collapsed[path];
     if (project.active === path) {
       project.active = '';
@@ -1541,6 +1738,9 @@
       var go = function () {
         project.files = project.files.filter(function (f) { return f.path.indexOf(path + '/') !== 0; });
         project.folders = project.folders.filter(function (f) { return f !== path && f.indexOf(path + '/') !== 0; });
+        project.groups.forEach(function (g) {
+          g.files = g.files.filter(function (p) { return p.indexOf(path + '/') !== 0; });
+        });
         Object.keys(collapsed).forEach(function (k) {
           if (k === path || k.indexOf(path + '/') === 0) delete collapsed[k];
         });
@@ -1580,6 +1780,7 @@
     Object.keys(collapsed).forEach(function (k) {
       if (k === oldPath) { collapsed[newPath] = collapsed[k]; delete collapsed[k]; }
     });
+    renameInGroups(oldPath, newPath);
     addFolders(newPath);
     expand(newPath);
   }
@@ -1704,6 +1905,7 @@
     });
     chain.then(function () {
       if (!added.length) { log('没有可导入的文本文件（支持 .c .h .inc .s .asm .txt 等）。', 'err'); return; }
+      added.forEach(function (p) { addToGroup(p, project.groups[0].name); });
       added.forEach(addFolders);
       expand(added[0]);
       openFile(added[0]);
@@ -1722,6 +1924,7 @@
     var done = 0, added = [];
     function after() {
       if (!added.length) { log('没有读取到任何文件。', 'err'); return; }
+      added.forEach(function (p) { addToGroup(p, project.groups[0].name); });
       added.forEach(addFolders);
       expand(added[0]);
       openFile(added[0]);
@@ -1986,14 +2189,8 @@
     go();
   }
 
-  if ($('btn-new-file')) $('btn-new-file').onclick = function () {
-    askModal('新建文件', { msg: '写文件名，也可以带上目录，例如 driver/led.c', value: 'new.c', ok: '创建' })
-      .then(function (v) { if (v) createFile(v); });
-  };
-  if ($('btn-new-dir')) $('btn-new-dir').onclick = function () {
-    askModal('新建文件夹', { msg: '写文件夹名，可以多级，例如 driver/led', value: 'driver', ok: '创建' })
-      .then(function (v) { if (v) createFolder(v); });
-  };
+  if ($('btn-new-file')) $('btn-new-file').onclick = function () { openNewItem(); };
+  if ($('btn-new-group')) $('btn-new-group').onclick = function () { createGroup(); };
   if ($('btn-import')) $('btn-import').onclick = function () { pickImport(); };
   if ($('file-input')) $('file-input').onchange = function () {
     importFiles(this.files);
@@ -2054,6 +2251,7 @@
       };
     }
     if (!project.name) project.name = ex.title;
+    ensureGroups(project);
     codeEl.value = fileOf(project.active) ? fileOf(project.active).content : '';
     histMap = {};
     histReset(project.active, codeEl.value);
@@ -2616,7 +2814,7 @@
     } else {
       url = base + '#ex=' + id + '&p=' + b64enc(JSON.stringify({
         name: project.name, files: project.files,
-        folders: project.folders, open: project.open, active: project.active
+        folders: project.folders, groups: project.groups, open: project.open, active: project.active
       }));
     }
     copyText(url).then(function () {
@@ -3446,18 +3644,32 @@
     buildLine('Build target \'STC89C52RC\'  (仿真解释器，不是真正的 C51 编译器)', 'dim');
     var unit;
     try {
-      unit = buildUnit();
+      unit = buildProgram();
     } catch (e) {
       buildLine('error: 工程读取失败 ' + (e && e.message ? e.message : e), 'err');
       setBuildSum('1 Error(s)', 'err');
       return false;
     }
     lastUnit = unit;
-    buildLine('compiling ' + unit.count + ' file(s): '
-      + project.files.map(function (f) { return f.path; }).join(', '), 'dim');
+    var srcPaths = unit.units.map(function (u) { return u.path; });
+    buildLine('compiling ' + unit.count + ' file(s): ' + srcPaths.join(', '), 'dim');
+    if (unit.errors.length) {
+      unit.errors.forEach(function (er) {
+        buildLine(er.file + '(' + er.line + '): error: ' + er.msg, 'err', er.line, er.file);
+      });
+      setBuildSum(unit.errors.length + ' Error(s)', 'err');
+      setStatus('error', '编译失败');
+      return false;
+    }
+    buildLine('linking...', 'dim');
+    if (unit.warnings.length) {
+      unit.warnings.forEach(function (w) {
+        buildLine(w.file + '(' + w.line + '): warning: ' + w.msg, 'warn', w.line, w.file);
+      });
+    }
     try {
       hw = C51HW.createHardware();
-      vm = new C51.VM(unit.src, hw);
+      vm = new C51.VM('', hw, unit.ast);
       hw.syncAll(vm);
       reapplyMatrix();
       lastGutterLine = -1;
@@ -3497,8 +3709,9 @@
             + '本仿真不会触发（支持 0/2 外部中断、1/3 定时器、4 串口）。', 'warn');
         }
       }
-      buildLine('0 Error(s), 0 Warning(s)', 'ok');
-      setBuildSum('0 Error(s), 0 Warning(s)', 'ok');
+      var nw = unit.warnings.length;
+      buildLine('0 Error(s), ' + nw + ' Warning(s)', nw ? 'warn' : 'ok');
+      setBuildSum('0 Error(s), ' + nw + ' Warning(s)', nw ? 'warn' : 'ok');
       setStatus('stopped', '已就绪');
       paintCode();
       paintMarks();
@@ -4143,11 +4356,13 @@
           files: shared.files.filter(function (f) { return f && f.path; })
             .map(function (f) { return { path: f.path, content: String(f.content == null ? '' : f.content) }; }),
           folders: shared.folders || [],
+          groups: shared.groups || [],
           open: (shared.open || []).filter(function (x) {
             return shared.files.some(function (f) { return f.path === x; });
           }),
           active: shared.active || shared.files[0].path
         };
+        ensureGroups(project);
         if (!project.open.length) project.open = [project.files[0].path];
         if (!fileOf(project.active)) project.active = project.files[0].path;
         codeEl.value = fileOf(project.active).content;

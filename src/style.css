@@ -575,7 +575,7 @@ main {
 .editor-body { flex: 1; min-height: 0; display: flex; }
 .proj {
   flex: none;
-  width: 178px;
+  width: 206px;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -807,6 +807,63 @@ main {
 .dlg input[type="hidden"] { display: none; }
 .dlg-f { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
 .play.sm { height: 32px; padding: 0 16px; font-size: 12px; border-radius: 10px; box-shadow: none; }
+
+/* 新建文件：左边类型列表，右边名称和分组 */
+.dlg-item { width: min(560px, 92vw); }
+.item-body { display: flex; gap: 14px; margin: 12px 0 4px; }
+.item-types {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  width: 190px;
+  flex: none;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, .22);
+}
+.item-types li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.item-types li b {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, .07);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink);
+}
+.item-types li:hover { background: rgba(255, 255, 255, .05); color: var(--ink); }
+.item-types li.on { background: rgba(255, 179, 122, .14); color: var(--ink); }
+.item-types li.on b { background: rgba(255, 179, 122, .28); }
+.item-fields { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.item-row { display: flex; align-items: center; gap: 8px; }
+.item-row i { width: 34px; flex: none; font-style: normal; font-size: 11px; color: var(--muted); }
+.item-row input,
+.item-row select {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 9px;
+  background: rgba(0, 0, 0, .3);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 12px;
+  outline: none;
+}
+.item-row select { font-family: var(--sans); }
+.item-row input[readonly] { color: var(--muted); }
 .sel { position: relative; display: inline-flex; }
 .sel select {
   appearance: none;

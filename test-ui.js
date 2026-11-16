@@ -22,6 +22,12 @@ class El {
   setAttribute(k, v) { this.attrs[k] = v; }
   getAttribute(k) { return this.attrs[k]; }
   appendChild(c) { this.children.push(c); c.parentNode = this; return c; }
+  insertBefore(c, ref) {
+    const i = this.children.indexOf(ref);
+    if (i < 0) this.children.push(c); else this.children.splice(i, 0, c);
+    c.parentNode = this;
+    return c;
+  }
   removeChild(c) { this.children = this.children.filter(x => x !== c); c.parentNode = null; return c; }
   addEventListener(t, fn) { (this.handlers[t] = this.handlers[t] || []).push(fn); }
   querySelectorAll() { return []; }
@@ -284,6 +290,37 @@ try {
 
   console.log('编辑器按键断言：' + pass + ' 通过 / ' + fail + ' 失败');
   if (fail) process.exit(1);
+
+  /* 工程树：Project → Target → Source Group → 文件 */
+  const rows = () => registry['proj-tree'].children.map(r => {
+    const nm = r.children.filter(c => c.className === 'nm')[0];
+    return nm ? nm.textContent : '';
+  });
+  let labels = rows();
+  console.log('工程树 = ' + labels.join(' / '));
+  expect('工程树第一层是 Project', /^Project:/.test(labels[0] || ''), true);
+  expect('工程树有 Target 1', labels.indexOf('Target 1') >= 0, true);
+  expect('工程树有 Source Group 1', labels.indexOf('Source Group 1') >= 0, true);
+
+  /* 新建分组 */
+  registry['btn-new-group'].onclick();
+  labels = rows();
+  expect('新建分组后出现第二组',
+    labels.filter(x => /^Source Group/.test(x)).length, 2);
+
+  /* 新建文件对话框 */
+  registry['btn-new-file'].onclick();
+  expect('新建对话框已打开',
+    registry['dlg-new'].className.indexOf('on') >= 0, true);
+  expect('默认类型是 C 源文件', registry['item-type-name'].value, 'C 源文件（.c）');
+  expect('默认文件名是 new.c', registry['item-name'].value, 'new.c');
+
+  registry['item-name'].value = 'led.c';
+  registry['item-ok'].onclick();
+  labels = rows();
+  expect('新建后树里出现 led.c', labels.indexOf('led.c') >= 0, true);
+  expect('新建后对话框关闭',
+    registry['dlg-new'].className.indexOf('on') < 0, true);
 
   console.log('\n界面冒烟测试通过');
 } catch (e) {

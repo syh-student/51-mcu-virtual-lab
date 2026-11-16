@@ -194,7 +194,8 @@
       if (this.peek().t === 'id' && this.peek().v === 'interrupt') { this.next(); interrupt = this.next().v; }
       if (this.is(';')) { this.next(); return null; }
       var fbody = this.parseBlock();
-      return { t: 'func', name: name, params: params, body: fbody, interrupt: interrupt, line: line };
+      return { t: 'func', name: name, params: params, body: fbody, interrupt: interrupt,
+               stat: !!(type.mods && type.mods.indexOf('static') >= 0), line: line };
     }
     var vars = [this.parseVarDecl(type, name)];
     while (this.is(',') && this.next()) vars.push(this.parseVarDecl(type));
@@ -482,7 +483,7 @@
   };
   BUILTINS.DelayMs = BUILTINS.Delay;
 
-  function VM(source, hw) {
+  function VM(source, hw, ast) {
     this.hw = hw || null;
     this.ports = { P0: 0xFF, P1: 0xFF, P2: 0xFF, P3: 0xFF };
     this.sfr = {};
@@ -511,7 +512,7 @@
       T0: { init: 0, t0: 0, on: false },
       T1: { init: 0, t0: 0, on: false }
     };
-    this.ast = new Parser(tokenize(preprocess(source))).parseProgram();
+    this.ast = ast || new Parser(tokenize(preprocess(source))).parseProgram();
     if (!this.ast.body.some(function (d) { return d.t === 'func' && d.name === 'main'; })) {
       throw new VmError('没有找到 main 函数：程序需要有 void main() { ... } 作为入口', 0);
     }
@@ -1099,5 +1100,165 @@
     return { steps: steps, timeUsed: timeUsed, stopped: false };
   };
 
-  return { VM: VM, VmError: VmError, preprocess: preprocess, tokenize: tokenize };
+  /* ---------------- 工程级编译：逐文件解析 + 链接 ---------------- */
+  function baseName(p) { return String(p).split('/').pop(); }
+  function cmpName(a, b) {
+    return String(a).localeCompare(String(b), 'zh-Hans-CN', { numeric: true, sensitivity: 'base' });
+  }
+  function rankOf(p) { return /(^|\/)main\.c$/i.test(p) ? 1 : 0; }
+
+  function walkAst(node, fn) {
+    if (!node || typeof node !== 'object') return;
+    if (Array.isArray(node)) { node.forEach(function (x) { walkAst(x, fn); }); return; }
+    fn(node);
+    Object.keys(node).forEach(function (k) { walkAst(node[k], fn); });
+  }
+  function shiftLines(ast, offset) {
+    walkAst(ast, function (n) {
+      if (typeof n.line === 'number' && n.line > 0) n.line += offset;
+    });
+  }
+  function renameSymbols(ast, nameMap) {
+    if (!Object.keys(nameMap).length) return;
+    walkAst(ast, function (n) {
+      if (n.t === 'id' && nameMap[n.v]) n.v = nameMap[n.v];
+      else if (n.t === 'call' && nameMap[n.name]) n.name = nameMap[n.name];
+      else if ((n.t === 'func' || n.t === 'sbit' || n.t === 'sfr') && nameMap[n.name]) n.name = nameMap[n.name];
+      else if (n.t === 'globaldecl' && n.vars) {
+        n.vars.forEach(function (v) { if (nameMap[v.name]) v.name = nameMap[v.name]; });
+      }
+    });
+  }
+
+  /* 把一个 .c 展开成翻译单元：工程内的 #include "x.h" 就地展开，
+     同一头文件在一个单元里只展开一次；系统头留空行占位。
+     每行都记着它在原文件里的行号，编译错误才能定位回具体文件。 */
+  function expandUnit(file, files) {
+    var byPath = {}, byBase = {};
+    files.forEach(function (f) {
+      if (!/\.h$/i.test(f.path)) return;
+      byPath[f.path] = f;
+      var b = baseName(f.path).toLowerCase();
+      if (!byBase[b]) byBase[b] = f;
+    });
+    var out = [], map = [], seen = {};
+    function pushLine(text, f, line) { out.push(text); map.push({ file: f, line: line }); }
+    function walk(f, depth) {
+      if (depth > 8) return;
+      String(f.content == null ? '' : f.content).replace(/\r\n?/g, '\n').split('\n').forEach(function (row, i) {
+        var m = /^\s*#\s*include\s*[<"]([^>"]+)[>"]/.exec(row);
+        if (!m) { pushLine(row, f.path, i + 1); return; }
+        var hit = byPath[m[1]] || byBase[baseName(m[1]).toLowerCase()];
+        if (!hit || seen[hit.path]) { pushLine('', f.path, i + 1); return; }
+        seen[hit.path] = 1;
+        pushLine('/* ===== ' + hit.path + ' ===== */', f.path, i + 1);
+        walk(hit, depth + 1);
+      });
+    }
+    walk(file, 0);
+    return { path: file.path, src: out.join('\n'), lines: out.length, map: map };
+  }
+
+  /* files: [{path, content}] → 可执行的合并 AST。
+     static 符号按文件改名隔离；重名定义报错；只有声明没有定义的函数给警告。 */
+  function compileProject(files) {
+    var srcs = (files || []).filter(function (f) { return /\.(c|inc)$/i.test(f.path); });
+    srcs.sort(function (a, b) { return rankOf(a.path) - rankOf(b.path) || cmpName(a.path, b.path); });
+    var units = [], errors = [], warnings = [], map = [], body = [], offset = 0;
+
+    srcs.forEach(function (f, i) {
+      var u = expandUnit(f, files);
+      u.idx = i;
+      try {
+        u.ast = parseUnit(u.src);
+      } catch (e) {
+        var ln = (e && e.line) || 0;
+        var r = u.map[ln - 1];
+        errors.push({ file: f.path, line: r ? r.line : ln, msg: e && e.message ? e.message : String(e) });
+        u.ast = null;
+      }
+      units.push(u);
+    });
+
+    units.forEach(function (u) {
+      if (u.ast) {
+        var statics = {};
+        u.ast.body.forEach(function (d) {
+          if (d.t === 'func' && d.stat) statics[d.name] = 1;
+          if (d.t === 'globaldecl') d.vars.forEach(function (v) { if (v.stat) statics[v.name] = 1; });
+        });
+        var nameMap = {};
+        Object.keys(statics).forEach(function (n) { nameMap[n] = n + '$' + u.idx; });
+        renameSymbols(u.ast, nameMap);
+        shiftLines(u.ast, offset);
+      }
+      map = map.concat(u.map);
+      offset += u.lines;
+      if (u.ast) u.ast.body.forEach(function (d) { body.push(d); });
+    });
+
+    function where(line) {
+      var r = map[(line || 0) - 1];
+      return r ? { file: r.file, line: r.line } : { file: '', line: line || 0 };
+    }
+
+    var defined = {};
+    function declare(name, loc, kind) {
+      if (!name) return;
+      if (defined[name]) {
+        errors.push({
+          file: loc.file, line: loc.line,
+          msg: kind + '「' + name + '」重复定义：' + loc.file + '(' + loc.line + ') 与 '
+            + defined[name].file + '(' + defined[name].line + ')'
+        });
+        return;
+      }
+      defined[name] = loc;
+    }
+    body.forEach(function (d) {
+      if (d.t === 'func') {
+        declare(d.name, where(d.line), '函数');
+      } else if (d.t === 'globaldecl') {
+        var lg = where(d.line);
+        d.vars.forEach(function (v) { declare(v.name, lg, '变量'); });
+      } else if (d.t === 'sbit' || d.t === 'sfr') {
+        declare(d.name, where(d.line), '寄存器位');
+      }
+    });
+
+    if (!defined.main) {
+      errors.push({ file: 'main.c', line: 0, msg: '没有找到 main 函数：工程里需要一个 void main() 作为入口' });
+    }
+
+    var builtin = {};
+    Object.keys(BUILTINS).forEach(function (n) { builtin[n] = 1; });
+    var warned = {};
+    body.forEach(function (d) {
+      walkAst(d, function (n) {
+        if (n.t !== 'call' || !n.name) return;
+        if (defined[n.name] || builtin[n.name] || warned[n.name]) return;
+        warned[n.name] = 1;
+        var w = where(n.line);
+        warnings.push({
+          file: w.file, line: w.line,
+          msg: '函数「' + n.name + '」只有声明没有定义，运行到这一句会出错'
+        });
+      });
+    });
+
+    return {
+      ast: { t: 'program', body: body },
+      map: map, units: units, errors: errors, warnings: warnings, count: srcs.length
+    };
+  }
+
+  /* 单独编译一个 .c：预处理 + 词法 + 语法，返回 AST。
+     供工程的「逐文件编译 → 链接」流程使用。 */
+  function parseUnit(src) {
+    return new Parser(tokenize(preprocess(src))).parseProgram();
+  }
+
+  return { VM: VM, VmError: VmError, preprocess: preprocess, tokenize: tokenize,
+           parseUnit: parseUnit, compileProject: compileProject,
+           builtinNames: Object.keys(BUILTINS) };
 });

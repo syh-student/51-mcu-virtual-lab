@@ -362,5 +362,86 @@ void Uart_Routine(void) interrupt 4
   check('RI 最终已清零', (vm.sfr.SCON & 1) === 0, 'SCON=' + vm.sfr.SCON);
 }
 
+/* ---------------- 多文件工程：逐文件编译 + 链接 ---------------- */
+function makeProjVM(files) {
+  const unit = C51.compileProject(files);
+  if (unit.errors.length) {
+    throw new Error(unit.errors.map(e => e.file + '(' + e.line + '): ' + e.msg).join(' | '));
+  }
+  const hw = HW.createHardware();
+  return { vm: new C51.VM('', hw, unit.ast), hw, unit };
+}
+
+/* 19. 跨文件调用：声明在 .h，实现在另一个 .c */
+{
+  const { vm, hw } = makeProjVM([
+    { path: 'main.c', content: '#include <REGX52.H>\n#include "led.h"\nvoid main(){ LED_On(); while(1){} }\n' },
+    { path: 'led.h', content: '#ifndef LED_H\n#define LED_H\nvoid LED_On(void);\n#endif\n' },
+    { path: 'led.c', content: '#include <REGX52.H>\n#include "led.h"\nvoid LED_On(void){ P2 = 0xFE; }\n' }
+  ]);
+  run(vm, 6);
+  check('多文件：main.c 调用 led.c 里的 LED_On()', vm.ports.P2 === 0xFE && hw.leds[0] === 1,
+    'P2=0x' + vm.ports.P2.toString(16));
+  check('多文件：无运行错误', !vm.error, vm.error);
+}
+
+/* 20. 不同 .c 里的同名 static 函数互不冲突 */
+{
+  const { vm } = makeProjVM([
+    { path: 'main.c', content: '#include <REGX52.H>\nint useA();\nint useB();\nvoid main(){ if (useA() == 1 && useB() == 2) P2 = 0x0F; while(1){} }\n' },
+    { path: 'a.c', content: 'static int helper(){ return 1; }\nint useA(){ return helper(); }\n' },
+    { path: 'b.c', content: 'static int helper(){ return 2; }\nint useB(){ return helper(); }\n' }
+  ]);
+  run(vm, 8);
+  check('static：两个文件里的同名 helper 各自生效', vm.ports.P2 === 0x0F,
+    'P2=0x' + vm.ports.P2.toString(16));
+}
+
+/* 21. 同名非 static 函数 → 重复定义 */
+{
+  const unit = C51.compileProject([
+    { path: 'main.c', content: '#include <REGX52.H>\nvoid dup(){}\nvoid main(){ while(1){} }\n' },
+    { path: 'b.c', content: 'void dup(){}\n' }
+  ]);
+  const msg = unit.errors.map(e => e.msg).join(' | ');
+  check('链接：重复定义被拦下', unit.errors.length === 1 && /重复定义/.test(msg), msg);
+  check('链接：错误里指出两处文件', /main\.c/.test(msg) && /b\.c/.test(msg), msg);
+}
+
+/* 22. 只有声明没有定义 → 警告 */
+{
+  const unit = C51.compileProject([
+    { path: 'main.c', content: '#include <REGX52.H>\nvoid Missing(void);\nvoid main(){ Missing(); while(1){} }\n' }
+  ]);
+  check('链接：未定义引用给警告', unit.warnings.length === 1 && /Missing/.test(unit.warnings[0].msg),
+    JSON.stringify(unit.warnings));
+  check('链接：未定义引用不算错误', unit.errors.length === 0,
+    JSON.stringify(unit.errors));
+}
+
+/* 23. 同一头文件被重复 include 只展开一次 */
+{
+  const { vm } = makeProjVM([
+    { path: 'main.c', content: '#include <REGX52.H>\n#include "f.h"\n#include "f.h"\n#include "f.h"\nvoid main(){ P2 = f(); while(1){} }\n' },
+    { path: 'f.h', content: '#ifndef F_H\n#define F_H\nunsigned char f(void);\n#endif\n' },
+    { path: 'f.c', content: 'unsigned char f(void){ return 0x7E; }\n' }
+  ]);
+  run(vm, 6);
+  check('include：重复包含只展开一次', vm.ports.P2 === 0x7E,
+    'P2=0x' + vm.ports.P2.toString(16));
+}
+
+/* 24. 语法错误定位到正确的文件和行 */
+{
+  const unit = C51.compileProject([
+    { path: 'main.c', content: '#include <REGX52.H>\nvoid main(){ while(1){} }\n' },
+    { path: 'bad.c', content: '#include <REGX52.H>\nvoid f(){ P2 = ; }\n' }
+  ]);
+  check('报错：定位到 bad.c', unit.errors.length > 0 && unit.errors[0].file === 'bad.c',
+    JSON.stringify(unit.errors));
+  check('报错：行号映射到原文件', unit.errors.length > 0 && unit.errors[0].line === 2,
+    JSON.stringify(unit.errors));
+}
+
 console.log('\n结果：' + pass + ' 通过 / ' + fail + ' 失败');
 process.exit(fail ? 1 : 0);
