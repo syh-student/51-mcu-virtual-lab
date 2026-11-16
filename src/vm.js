@@ -828,6 +828,10 @@
       frame.types[p.name] = p.type;
     }
     this.frames.push(frame);
+    /* 进函数先把行号定位到函数声明那一行，并让出一拍：
+       这样断点可以打在 void main() 这种函数头上，单步进入也能停在函数头。 */
+    this.line = f.line || line;
+    yield { entry: name };
     try {
       yield* this.execBlock(f.body);
       return 0;

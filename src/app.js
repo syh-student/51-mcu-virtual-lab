@@ -3281,7 +3281,7 @@
   }
   function bpOf(file) { return (file && breakpoints[file]) || []; }
   function isBp(file, line) { return bpOf(file).indexOf(line) >= 0; }
-  var STMT_T = { expr: 1, decl: 1, if: 1, while: 1, for: 1, do: 1, switch: 1, return: 1, break: 1, continue: 1, empty: 1, block: 1 };
+  var STMT_T = { expr: 1, decl: 1, if: 1, while: 1, for: 1, do: 1, switch: 1, return: 1, break: 1, continue: 1, empty: 1 };
   function collectStmtLines(node, out) {
     if (!node || typeof node !== 'object') return;
     if (Array.isArray(node)) {
@@ -3295,11 +3295,20 @@
       if (v && typeof v === 'object') collectStmtLines(v, out);
     }
   }
-  /* 点在 { 或空行上时，往下找第一条能执行的语句，和 Keil 的行为一致 */
+  /* 点在 { 或空行上时，往下找第一条能执行的语句，和 Keil 的行为一致；
+     函数声明那一行（void main()）可以打断点，进函数时就会停住。 */
   function snapBpLine(file, line) {
     if (!vm || !lastUnit || !vm.ast) return line;
     var set = {};
     collectStmtLines(vm.ast, set);
+    var funcLines = {};
+    (vm.ast.body || []).forEach(function (d) {
+      if (d && d.t === 'func' && typeof d.line === 'number') funcLines[d.line] = 1;
+    });
+    for (var k = 0; k < lastUnit.map.length; k++) {
+      var fm = lastUnit.map[k];
+      if (fm.file === file && fm.line === line && funcLines[k + 1]) return line;
+    }
     var best = 0;
     for (var i = 0; i < lastUnit.map.length; i++) {
       var m = lastUnit.map[i];

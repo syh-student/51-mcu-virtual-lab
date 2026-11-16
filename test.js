@@ -443,5 +443,24 @@ function makeProjVM(files) {
     JSON.stringify(unit.errors));
 }
 
+/* 25. 函数头可以打断点：进入函数时停在这一行 */
+{
+  const { vm } = makeVM(`
+#include <REGX52.H>
+
+void main()
+{
+  P2 = 0xFE;
+  while(1){}
+}
+`);
+  let stoppedAt = 0;
+  for (let i = 0; i < 30 && !vm.done && !vm.error; i++) {
+    const r = vm.pump(1, 16, v => v.line === 4);   /* 模板字符串首行是空行，void main() 在第 4 行 */
+    if (r.stopped) { stoppedAt = vm.line; break; }
+  }
+  check('断点：能打在 void main() 这一行', stoppedAt === 4, 'stoppedAt=' + stoppedAt);
+}
+
 console.log('\n结果：' + pass + ' 通过 / ' + fail + ' 失败');
 process.exit(fail ? 1 : 0);

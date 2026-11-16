@@ -1445,7 +1445,7 @@ body.zoomed .appbar { display: none; }
   </div>
   <div class="head-right">
     <span class="head-note">例程 01—15 · 离线可用</span>
-    <span class="build-tag" id="build-tag">构建 11-16 21:20</span>
+    <span class="build-tag" id="build-tag">构建 11-16 21:24</span>
     <span id="status" class="status">已停止</span>
   </div>
 </header>
@@ -2627,6 +2627,10 @@ body.zoomed .appbar { display: none; }
       frame.types[p.name] = p.type;
     }
     this.frames.push(frame);
+    /* 进函数先把行号定位到函数声明那一行，并让出一拍：
+       这样断点可以打在 void main() 这种函数头上，单步进入也能停在函数头。 */
+    this.line = f.line || line;
+    yield { entry: name };
     try {
       yield* this.execBlock(f.body);
       return 0;
@@ -7345,7 +7349,7 @@ void main()
   }
   function bpOf(file) { return (file && breakpoints[file]) || []; }
   function isBp(file, line) { return bpOf(file).indexOf(line) >= 0; }
-  var STMT_T = { expr: 1, decl: 1, if: 1, while: 1, for: 1, do: 1, switch: 1, return: 1, break: 1, continue: 1, empty: 1, block: 1 };
+  var STMT_T = { expr: 1, decl: 1, if: 1, while: 1, for: 1, do: 1, switch: 1, return: 1, break: 1, continue: 1, empty: 1 };
   function collectStmtLines(node, out) {
     if (!node || typeof node !== 'object') return;
     if (Array.isArray(node)) {
@@ -7359,11 +7363,20 @@ void main()
       if (v && typeof v === 'object') collectStmtLines(v, out);
     }
   }
-  /* 点在 { 或空行上时，往下找第一条能执行的语句，和 Keil 的行为一致 */
+  /* 点在 { 或空行上时，往下找第一条能执行的语句，和 Keil 的行为一致；
+     函数声明那一行（void main()）可以打断点，进函数时就会停住。 */
   function snapBpLine(file, line) {
     if (!vm || !lastUnit || !vm.ast) return line;
     var set = {};
     collectStmtLines(vm.ast, set);
+    var funcLines = {};
+    (vm.ast.body || []).forEach(function (d) {
+      if (d && d.t === 'func' && typeof d.line === 'number') funcLines[d.line] = 1;
+    });
+    for (var k = 0; k < lastUnit.map.length; k++) {
+      var fm = lastUnit.map[k];
+      if (fm.file === file && fm.line === line && funcLines[k + 1]) return line;
+    }
     var best = 0;
     for (var i = 0; i < lastUnit.map.length; i++) {
       var m = lastUnit.map[i];
