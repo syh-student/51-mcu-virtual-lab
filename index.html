@@ -929,6 +929,47 @@ main {
 #gutter div.err { color: #ff8f7e; font-weight: 600; }
 
 .code-box { position: relative; flex: 1; min-width: 0; overflow: hidden; }
+
+/* 自动补全下拉 */
+.ac {
+  position: absolute;
+  z-index: 30;
+  min-width: 190px;
+  max-width: 330px;
+  max-height: 208px;
+  overflow: auto;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 10px;
+  background: rgba(24, 19, 16, .98);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, .55);
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+.ac-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.ac-item .k {
+  width: 24px;
+  flex: none;
+  font-size: 9.5px;
+  color: rgba(246, 241, 234, .32);
+}
+.ac-item .d {
+  margin-left: auto;
+  color: rgba(246, 241, 234, .34);
+  font-size: 9.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ac-item.on { background: rgba(255, 179, 122, .18); }
 .marks { position: absolute; inset: 0; overflow: hidden; z-index: 0; pointer-events: none; }
 .marks i {
   position: absolute;
@@ -1028,6 +1069,61 @@ main {
 .build-log .ok { color: #a8d8b2; }
 .build-log .dim { color: rgba(246, 241, 234, .26); }
 .build-log .cmd { color: #c9a6f0; }
+
+/* 问题列表：级别 / 文件 / 行 / 说明，双击行可跳转 */
+.build-problems {
+  flex: none;
+  max-height: 138px;
+  overflow: auto;
+  border-bottom: 1px solid var(--line-soft);
+  background: rgba(0, 0, 0, .16);
+  font-family: var(--mono);
+  font-size: 10.5px;
+}
+.prob-filter {
+  display: flex;
+  gap: 6px;
+  padding: 6px 12px 4px;
+  position: sticky;
+  top: 0;
+  background: rgba(20, 16, 14, .96);
+  z-index: 2;
+}
+.prob-filter button {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: 10px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.prob-filter button.on { color: var(--ink); border-color: rgba(255, 255, 255, .3); background: rgba(255, 255, 255, .07); }
+.prob-row {
+  display: grid;
+  grid-template-columns: 44px 92px 40px 1fr;
+  gap: 10px;
+  padding: 3px 14px;
+  color: var(--muted);
+  cursor: pointer;
+  align-items: baseline;
+}
+.prob-row > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prob-row:hover { background: rgba(255, 255, 255, .05); }
+.prob-row .msg { white-space: normal; word-break: break-word; }
+.prob-row.err .lvl { color: #ff8f7e; }
+.prob-row.warn .lvl { color: #f0c987; }
+.prob-head {
+  position: sticky;
+  top: 28px;
+  background: rgba(20, 16, 14, .96);
+  color: rgba(246, 241, 234, .34);
+  font-size: 9.5px;
+  cursor: default;
+  z-index: 1;
+}
+.prob-head:hover { background: rgba(20, 16, 14, .96); }
 
 /* ---------------- 开发板 ---------------- */
 .board-stage {
@@ -1445,7 +1541,7 @@ body.zoomed .appbar { display: none; }
   </div>
   <div class="head-right">
     <span class="head-note">例程 01—15 · 离线可用</span>
-    <span class="build-tag" id="build-tag">构建 11-16 21:30</span>
+    <span class="build-tag" id="build-tag">构建 11-17 10:09</span>
     <span id="status" class="status">已停止</span>
   </div>
 </header>
@@ -1569,8 +1665,11 @@ body.zoomed .appbar { display: none; }
 
             <div class="proj-f">
               <button id="btn-save" type="button" title="把所有改动写回磁盘（Ctrl + S）" hidden>保存</button>
+              <button id="btn-save-proj" type="button" title="把整个工程（文件、分组、标签）存成一个 .json 文件">存工程</button>
+              <button id="btn-load-proj" type="button" title="打开之前存的工程文件">开工程</button>
               <button id="btn-export" type="button" title="把整个工程打包成 zip（Keil 能直接用）">导出 zip</button>
             </div>
+            <input id="proj-input" type="file" accept=".json,application/json" hidden>
           </aside>
 
           <div class="editor-wrap">
@@ -1579,6 +1678,7 @@ body.zoomed .appbar { display: none; }
               <div class="marks" id="marks" aria-hidden="true"></div>
               <pre id="hl" aria-hidden="true"></pre>
               <textarea id="code" spellcheck="false" aria-label="C51 代码编辑器"></textarea>
+              <div id="ac" class="ac" hidden role="listbox" aria-label="代码补全"></div>
             </div>
           </div>
         </div>
@@ -1603,6 +1703,7 @@ body.zoomed .appbar { display: none; }
           <span id="build-sum" class="hint">就绪</span>
           <button id="btn-build" class="ghost">编译</button>
         </div>
+        <div id="build-problems" class="build-problems" hidden></div>
         <div id="build-log" class="build-log"></div>
         <div id="debug-view" class="debug-view" hidden>
           <div class="dbg-line" id="dbg-state">还没运行。按 F5 运行，或点工具栏的播放键。</div>
@@ -2038,7 +2139,12 @@ body.zoomed .appbar { display: none; }
   var TYPE_WORD = /^(unsigned|signed|static|const|volatile|extern|code|data|idata|xdata|pdata)$/;
   var BASE_WORD = /^(char|int|void|long|float|bit|sfr|sbit)$/;
 
-  function Parser(toks) { this.t = toks; this.p = 0; }
+  function Parser(toks) {
+    this.t = toks;
+    this.p = 0;
+    this.typedefs = {};               /* 类型别名：u8 / uchar / ... */
+    this.structs = {};                /* 具名结构体定义 */
+  }
   Parser.prototype.peek = function (k) { return this.t[this.p + (k || 0)]; };
   Parser.prototype.is = function (v) { return this.t[this.p].v === v; };
   Parser.prototype.next = function () { return this.t[this.p++]; };
@@ -2055,13 +2161,55 @@ body.zoomed .appbar { display: none; }
       var w = this.peek().v;
       if (TYPE_WORD.test(w)) { if (w === 'unsigned') unsigned = true; mods.push(w); this.next(); continue; }
       if (BASE_WORD.test(w)) { base = w; this.next(); continue; }
+      if (w === 'struct') {
+        this.next();
+        var sname = '';
+        if (this.peek().t === 'id') sname = this.next().v;
+        var inlineFields = this.is('{') ? this.parseFields() : null;
+        var known = sname ? this.structs[sname] : null;
+        return {
+          base: 'struct', unsigned: false, mods: mods, name: sname,
+          fields: inlineFields || (known ? known.fields : [])
+        };
+      }
+      if (Object.prototype.hasOwnProperty.call(this.typedefs, w)) {
+        var td = this.typedefs[w];
+        this.next();
+        return {
+          base: td.base, unsigned: td.unsigned,
+          mods: mods.concat(td.mods || []), name: td.name, fields: td.fields
+        };
+      }
       break;
     }
     return { base: base || 'int', unsigned: unsigned, mods: mods };
   };
+  /* struct { 类型 名字[长度]; ... } */
+  Parser.prototype.parseFields = function () {
+    this.expect('{');
+    var fields = [];
+    while (!this.is('}')) {
+      var ty = this.parseType();
+      do {
+        var nm = this.next().v;
+        var size = null;
+        if (this.is('[')) {
+          this.next();
+          if (!this.is(']')) size = this.parseExpr();
+          this.expect(']');
+        }
+        fields.push({ name: nm, type: ty, size: size });
+      } while (this.is(',') && this.next());
+      this.expect(';');
+    }
+    this.next();
+    return fields;
+  };
   Parser.prototype.isTypeStart = function () {
     var tk = this.peek();
-    return tk.t === 'id' && (TYPE_WORD.test(tk.v) || BASE_WORD.test(tk.v));
+    if (tk.t !== 'id') return false;
+    return TYPE_WORD.test(tk.v) || BASE_WORD.test(tk.v) || tk.v === 'struct' ||
+      Object.prototype.hasOwnProperty.call(this.typedefs, tk.v);
   };
 
   Parser.prototype.parseProgram = function () {
@@ -2075,7 +2223,25 @@ body.zoomed .appbar { display: none; }
 
   Parser.prototype.parseTopLevel = function () {
     var line = this.line();
+    if (this.peek().t === 'id' && this.peek().v === 'typedef') {
+      this.next();
+      var aliased = this.parseType();
+      var tname = this.next().v;
+      this.expect(';');
+      if (aliased.base === 'struct') {
+        if (!aliased.name) aliased.name = tname;
+        this.structs[aliased.name] = aliased;
+      }
+      this.typedefs[tname] = aliased;
+      return { t: 'typedef', name: tname, line: line };
+    }
     var type = this.parseType();
+    /* 只定义结构体、不声明变量：struct Point { ... }; */
+    if (type.base === 'struct' && type.fields && type.fields.length && this.is(';')) {
+      this.next();
+      if (type.name) this.structs[type.name] = type;
+      return { t: 'typedef', name: type.name || '', line: line };
+    }
     if (type.base === 'sbit') {
       var nm = this.next().v;
       this.expect('=');
@@ -2319,6 +2485,11 @@ body.zoomed .appbar { display: none; }
         var idx = this.parseExpr();
         this.expect(']');
         e = { t: 'index', obj: e, index: idx, line: line2 };
+      } else if (this.is('.')) {
+        var line3 = this.line();
+        this.next();
+        var fname = this.next().v;
+        e = { t: 'member', obj: e, name: fname, line: line3 };
       } else if (this.is('++') || this.is('--')) {
         var op = this.next().v;
         e = { t: 'post', op: op, e: e, line: this.line() };
@@ -2339,13 +2510,31 @@ body.zoomed .appbar { display: none; }
   function truthy(v) { return Array.isArray(v) ? v.length > 0 : !!v; }
   function coerce(type, v) {
     if (v === undefined || v === null) return 0;
-    if (Array.isArray(v)) return v;
+    if (typeof v === 'object') return v;      /* 数组和结构体原样保留 */
     if (!type) return v;
     var b = type.base;
     if (b === 'char') return v & 0xFF;
     if (b === 'int' || b === 'long') return v & 0xFFFF;
     if (b === 'bit') return v ? 1 : 0;
     return v;
+  }
+  /* 结构体的默认值：数值 0、数组全 0、嵌套结构体递归 */
+  function structDefault(type) {
+    var o = {};
+    (type.fields || []).forEach(function (f) {
+      var n = f.size && f.size.t === 'num' ? f.size.v : 1;
+      var one = (f.type && f.type.base === 'struct')
+        ? function () { return structDefault(f.type); }
+        : function () { return 0; };
+      if (n > 1) {
+        var arr = [];
+        for (var i = 0; i < n; i++) arr.push(one());
+        o[f.name] = arr;
+      } else {
+        o[f.name] = one();
+      }
+    });
+    return o;
   }
   function newFrame(name, line) { return { vars: {}, types: {}, fn: name || '', callLine: line || 0 }; }
 
@@ -2695,10 +2884,13 @@ body.zoomed .appbar { display: none; }
   };
 
   VM.prototype.refGet = function (ref) {
-    return ref.kind === 'var' ? this.getVar(ref.name, ref.line) : ref.arr[ref.idx];
+    if (ref.kind === 'var') return this.getVar(ref.name, ref.line);
+    if (ref.kind === 'member') return ref.obj[ref.name];
+    return ref.arr[ref.idx];
   };
   VM.prototype.refSet = function (ref, v) {
     if (ref.kind === 'var') this.setVar(ref.name, v, ref.line);
+    else if (ref.kind === 'member') ref.obj[ref.name] = v;
     else ref.arr[ref.idx] = typeof v === 'number' ? v : 0;
   };
 
@@ -2722,7 +2914,14 @@ body.zoomed .appbar { display: none; }
   VM.prototype.makeValue = function* (v) {
     var size = null;
     if (v.size) size = yield* this.evalExpr(v.size);
-    var val = size !== null ? new Array(size).fill(0) : 0;
+    var isStruct = v.type && v.type.base === 'struct';
+    var val;
+    if (size !== null) {
+      val = [];
+      for (var k = 0; k < size; k++) val.push(isStruct ? structDefault(v.type) : 0);
+    } else {
+      val = isStruct ? structDefault(v.type) : 0;
+    }
     if (v.init) {
       if (v.init.t === 'array') {
         var items = [];
@@ -2889,6 +3088,16 @@ body.zoomed .appbar { display: none; }
 
   VM.prototype.evalRef = function* (n) {
     if (n.t === 'id') return { kind: 'var', name: n.v, line: n.line };
+    if (n.t === 'member') {
+      var base = yield* this.evalExpr(n.obj);
+      if (!base || typeof base !== 'object' || Array.isArray(base)) {
+        throw new VmError('「' + n.name + '」前面不是结构体变量', n.line);
+      }
+      if (!Object.prototype.hasOwnProperty.call(base, n.name)) {
+        throw new VmError('结构体里没有成员「' + n.name + '」', n.line);
+      }
+      return { kind: 'member', obj: base, name: n.name, line: n.line };
+    }
     if (n.t === 'index') {
       var arr = yield* this.evalExpr(n.obj);
       var idx = yield* this.evalExpr(n.index);
@@ -2913,6 +3122,7 @@ body.zoomed .appbar { display: none; }
         return codes;
       case 'id': return this.getVar(n.v, n.line);
       case 'index':
+      case 'member':
         ref = yield* this.evalRef(n);
         return this.refGet(ref);
       case 'call':
@@ -3241,7 +3451,8 @@ body.zoomed .appbar { display: none; }
 
   return { VM: VM, VmError: VmError, preprocess: preprocess, tokenize: tokenize,
            parseUnit: parseUnit, compileProject: compileProject,
-           builtinNames: Object.keys(BUILTINS) };
+           builtinNames: Object.keys(BUILTINS),
+           sfrNames: SFR_NAMES.slice(), bitNames: Object.keys(BIT_ALIAS) };
 });
 
 </script>
@@ -6304,6 +6515,95 @@ void main()
     }
   }
 
+  /* ---------------- 工程文件（JSON）：存下来、换台电脑再打开 ---------------- */
+  function exportProjectFile() {
+    var cur = fileOf(project.active);
+    if (cur) cur.content = codeEl.value;
+    var data = {
+      format: 'c51lab-project',
+      version: 1,
+      savedAt: new Date().toISOString(),
+      name: project.name || '工程',
+      files: project.files.map(function (f) {
+        return { path: f.path, content: String(f.content == null ? '' : f.content) };
+      }),
+      groups: project.groups.map(function (g) { return { name: g.name, files: g.files.slice() }; }),
+      open: project.open.slice(),
+      active: project.active
+    };
+    try {
+      var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = String(project.name || 'project').replace(/[\\/:*?"<>|]/g, '_') + '.c51proj.json';
+      if (document.body) document.body.appendChild(a);
+      a.click();
+      if (document.body && a.parentNode) document.body.removeChild(a);
+      setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) {} }, 5000);
+      log('已存工程文件：' + a.download + '（' + project.files.length + ' 个文件）', 'ok');
+    } catch (e) {
+      log('存工程失败：' + (e && e.message ? e.message : e), 'err');
+    }
+  }
+
+  function importProjectFile(file) {
+    if (!file) return;
+    var rd = new FileReader();
+    rd.onload = function () {
+      var data;
+      try {
+        data = JSON.parse(String(rd.result == null ? '' : rd.result));
+      } catch (e) {
+        log('工程文件不是合法的 JSON。', 'err');
+        return;
+      }
+      if (!data || data.format !== 'c51lab-project' || !Array.isArray(data.files) || !data.files.length) {
+        log('这不是本工具导出的工程文件。', 'err');
+        return;
+      }
+      askModal('打开工程', {
+        msg: '会替换当前工程（现在有 ' + project.files.length + ' 个文件），没存过的改动会丢。继续？',
+        input: false, ok: '打开'
+      }).then(function (yes) {
+        if (!yes) return;
+        project = {
+          name: data.name || '导入的工程',
+          files: data.files.filter(function (f) { return f && f.path; }).map(function (f) {
+            return {
+              path: normPath(f.path),
+              content: String(f.content == null ? '' : f.content),
+              handle: null, dirty: false
+            };
+          }),
+          folders: [],
+          groups: Array.isArray(data.groups) ? data.groups : [],
+          open: [], active: '', fs: false
+        };
+        ensureGroups(project);
+        project.open = (data.open || []).filter(function (p) { return !!fileOf(p); });
+        if (!project.open.length) project.open = [project.files[0].path];
+        project.active = fileOf(data.active) ? data.active : project.open[0];
+        curExample = null;
+        histMap = {};
+        codeEl.value = fileOf(project.active).content;
+        histReset(project.active, codeEl.value);
+        loadBp();
+        renderTabs();
+        renderTree();
+        refreshGutter();
+        paintCode();
+        updateFsUi();
+        saveProject();
+        build();
+        log('已打开工程「' + project.name + '」，' + project.files.length
+          + ' 个文件，' + project.groups.length + ' 个分组', 'ok');
+      });
+    };
+    rd.onerror = function () { log('读取工程文件失败。', 'err'); };
+    rd.readAsText(file, 'utf-8');
+  }
+
   /* ---------------- 状态栏 / 工程树开关 ---------------- */
   function setStat(text) {
     var el = $('proj-stat-text');
@@ -6443,6 +6743,15 @@ void main()
     this.value = '';
   };
   if ($('btn-export')) $('btn-export').onclick = function () { exportZip(); };
+  if ($('btn-save-proj')) $('btn-save-proj').onclick = function () { exportProjectFile(); };
+  if ($('btn-load-proj')) $('btn-load-proj').onclick = function () {
+    var inp = $('proj-input');
+    if (inp) inp.click();
+  };
+  if ($('proj-input')) $('proj-input').onchange = function () {
+    importProjectFile(this.files && this.files[0]);
+    this.value = '';
+  };
 
   (function () {
     var tree = $('proj-tree');
@@ -7165,9 +7474,79 @@ void main()
   }
 
   /* 编译输出：仿 Keil 的 Build Output，错误行可点 */
+  var problems = [];
+  var probFilter = 'all';
+
   function clearBuild() {
     var h = $('build-log');
     if (h) h.innerHTML = '';
+    problems = [];
+    probFilter = 'all';
+    renderProblems();
+  }
+  function addProblem(level, file, line, msg) {
+    problems.push({ level: level, file: file || '', line: line || 0, msg: String(msg == null ? '' : msg) });
+  }
+  /* 结构化问题列表：级别 / 文件 / 行 / 说明；点一行跳到源码对应位置 */
+  function renderProblems() {
+    var host = $('build-problems');
+    if (!host) return;
+    if (!problems.length) {
+      host.hidden = true;
+      host.innerHTML = '';
+      return;
+    }
+    host.hidden = false;
+    host.innerHTML = '';
+    var nErr = problems.filter(function (p) { return p.level === 'error'; }).length;
+    var nWarn = problems.length - nErr;
+
+    var bar = document.createElement('div');
+    bar.className = 'prob-filter';
+    [['all', '全部 ' + problems.length], ['error', '错误 ' + nErr], ['warn', '警告 ' + nWarn]]
+      .forEach(function (it) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = it[1];
+        if (probFilter === it[0]) b.className = 'on';
+        b.addEventListener('click', function () { probFilter = it[0]; renderProblems(); });
+        bar.appendChild(b);
+      });
+    host.appendChild(bar);
+
+    var head = document.createElement('div');
+    head.className = 'prob-row prob-head';
+    ['级别', '文件', '行', '说明'].forEach(function (t) {
+      var s = document.createElement('span');
+      s.textContent = t;
+      head.appendChild(s);
+    });
+    host.appendChild(head);
+
+    problems.filter(function (p) {
+      return probFilter === 'all' || p.level === probFilter;
+    }).forEach(function (p) {
+      var row = document.createElement('div');
+      row.className = 'prob-row ' + (p.level === 'error' ? 'err' : 'warn');
+      var a = document.createElement('span');
+      a.className = 'lvl';
+      a.textContent = p.level === 'error' ? '错误' : '警告';
+      var b = document.createElement('span');
+      b.textContent = p.file || '-';
+      var c = document.createElement('span');
+      c.textContent = p.line ? String(p.line) : '-';
+      var d = document.createElement('span');
+      d.className = 'msg';
+      d.textContent = p.msg;
+      row.appendChild(a);
+      row.appendChild(b);
+      row.appendChild(c);
+      row.appendChild(d);
+      if (p.line) {
+        row.addEventListener('click', function () { gotoFileLine(p.file || project.active, p.line); });
+      }
+      host.appendChild(row);
+    });
   }
   function buildLine(text, cls, line, file) {
     var host = $('build-log');
@@ -7914,8 +8293,10 @@ void main()
     if (srcPaths.length > 1) buildLine('compiling ' + srcPaths.length + ' file(s) 完成', 'dim');
     if (unit.errors.length) {
       unit.errors.forEach(function (er) {
+        addProblem('error', er.file, er.line, er.msg);
         buildLine(er.file + '(' + er.line + '): error: ' + er.msg, 'err', er.line, er.file);
       });
+      renderProblems();
       setBuildSum(unit.errors.length + ' Error(s)', 'err');
       setStatus('error', '编译失败');
       return false;
@@ -7923,8 +8304,10 @@ void main()
     buildLine('linking...', 'dim');
     if (unit.warnings.length) {
       unit.warnings.forEach(function (w) {
+        addProblem('warn', w.file, w.line, w.msg);
         buildLine(w.file + '(' + w.line + '): warning: ' + w.msg, 'warn', w.line, w.file);
       });
+      renderProblems();
     }
     try {
       hw = C51HW.createHardware();
@@ -8171,11 +8554,14 @@ void main()
     if (f) f.content = codeEl.value;
     histRecord();
     refreshGutter(); paintCode(); saveCode(); updateCursor();
+    acShow();
   });
   codeEl.addEventListener('scroll', function () {
     gutter.scrollTop = codeEl.scrollTop;
     syncCodeScroll();
+    acClose();
   });
+  codeEl.addEventListener('blur', acClose);
   ['click', 'keyup', 'select'].forEach(function (ev) {
     codeEl.addEventListener(ev, updateCursor);
   });
@@ -8231,6 +8617,156 @@ void main()
     }
     return stack.length ? stack[stack.length - 1] : -1;
   }
+  /* ---------------- 自动补全 ---------------- */
+  var acEl = null, acItems = [], acIndex = 0, acWord = { start: 0, end: 0 }, acMirror = null;
+
+  function walkNodes(node, fn) {
+    if (!node || typeof node !== 'object') return;
+    if (Array.isArray(node)) { node.forEach(function (x) { walkNodes(x, fn); }); return; }
+    fn(node);
+    Object.keys(node).forEach(function (k) { walkNodes(node[k], fn); });
+  }
+
+  /* 符号表：函数（带形参）、全局/局部变量、sbit/sfr、宏、内置函数与 SFR 名 */
+  function collectSymbols() {
+    var seen = {}, list = [];
+    function put(name, kind, detail) {
+      if (!name || seen[name]) return;
+      seen[name] = { name: name, kind: kind, detail: detail || '' };
+      list.push(seen[name]);
+    }
+    var ast = vm && vm.ast;
+    if (ast) {
+      (ast.body || []).forEach(function (d) {
+        if (d.t === 'func') {
+          put(d.name, 'fn', '(' + (d.params || []).map(function (p) { return p.name || '?'; }).join(', ') + ')');
+        }
+      });
+      walkNodes(ast, function (n) {
+        if (n.t === 'globaldecl' || n.t === 'decl') {
+          (n.vars || []).forEach(function (v) { put(v.name, n.t === 'decl' ? 'var' : 'gvar', ''); });
+        } else if (n.t === 'sbit' || n.t === 'sfr') {
+          put(n.name, 'reg', n.t);
+        }
+      });
+    }
+    (C51.builtinNames || []).forEach(function (n) { put(n, 'fn', '内置'); });
+    (C51.sfrNames || []).forEach(function (n) { put(n, 'reg', 'SFR'); });
+    (C51.bitNames || []).forEach(function (n) { put(n, 'reg', '位'); });
+    project.files.forEach(function (f) {
+      var re = /#\s*define\s+([A-Za-z_]\w*)/g, m;
+      while ((m = re.exec(String(f.content || '')))) put(m[1], 'mac', '#define');
+    });
+    return list;
+  }
+
+  function acCaretPos() {
+    var ta = codeEl;
+    if (!acMirror) {
+      acMirror = document.createElement('div');
+      acMirror.style.cssText = 'position:absolute;visibility:hidden;top:-9999px;left:0;'
+        + 'white-space:pre-wrap;word-wrap:break-word;overflow:hidden;';
+      document.body.appendChild(acMirror);
+    }
+    var cs = window.getComputedStyle ? window.getComputedStyle(ta) : null;
+    ['fontFamily', 'fontSize', 'lineHeight', 'paddingTop', 'paddingRight', 'paddingBottom',
+      'paddingLeft', 'letterSpacing', 'tabSize'].forEach(function (p) {
+      if (cs && cs[p]) acMirror.style[p] = cs[p];
+    });
+    acMirror.style.width = ta.clientWidth + 'px';
+    acMirror.textContent = ta.value.slice(0, ta.selectionStart);
+    var span = document.createElement('span');
+    span.textContent = '\u200b';
+    acMirror.appendChild(span);
+    var lh = parseFloat((cs && cs.lineHeight) || 23) || 23;
+    return {
+      left: span.offsetLeft - ta.scrollLeft,
+      top: span.offsetTop - ta.scrollTop + lh
+    };
+  }
+
+  function acClose() {
+    acItems = [];
+    acIndex = 0;
+    if (acEl) { acEl.hidden = true; acEl.innerHTML = ''; }
+  }
+
+  function acCurrentWord() {
+    var v = codeEl.value, s = codeEl.selectionStart, e = codeEl.selectionEnd;
+    if (s !== e) return null;
+    var start = s;
+    while (start > 0 && /[A-Za-z0-9_]/.test(v.charAt(start - 1))) start--;
+    var word = v.slice(start, s);
+    if (!word || !/^[A-Za-z_]/.test(word)) return null;
+    var lineStart = v.lastIndexOf('\n', start - 1) + 1;
+    var lineHead = v.slice(lineStart, start);
+    if (lineHead.indexOf('//') >= 0 || /\/\*/.test(lineHead)) return null;
+    return { start: start, end: s, word: word };
+  }
+
+  function acShow() {
+    var info = acCurrentWord();
+    if (!info) { acClose(); return; }
+    var q = info.word.toLowerCase();
+    var hits = collectSymbols().filter(function (it) {
+      return it.name !== info.word && it.name.toLowerCase().indexOf(q) === 0;
+    }).sort(function (a, b) {
+      return a.name.length - b.name.length || cmpName(a.name, b.name);
+    }).slice(0, 40);
+    if (!hits.length) { acClose(); return; }
+    acItems = hits;
+    acIndex = 0;
+    acWord = info;
+    if (!acEl) acEl = $('ac');
+    if (!acEl) return;
+    acEl.innerHTML = '';
+    hits.forEach(function (it, i) {
+      var row = document.createElement('div');
+      row.className = 'ac-item' + (i === 0 ? ' on' : '');
+      var k = document.createElement('span');
+      k.className = 'k';
+      k.textContent = it.kind === 'fn' ? 'fn' : (it.kind === 'mac' ? 'def'
+        : (it.kind === 'reg' ? 'reg' : 'var'));
+      var n = document.createElement('span');
+      var isSig = it.kind === 'fn' && it.detail && it.detail.charAt(0) === '(';
+      n.textContent = it.name + (isSig ? it.detail : '');
+      var d = document.createElement('span');
+      d.className = 'd';
+      d.textContent = isSig ? '' : it.detail;
+      row.appendChild(k);
+      row.appendChild(n);
+      row.appendChild(d);
+      row.addEventListener('mousedown', function (ev) {
+        if (ev && ev.preventDefault) ev.preventDefault();
+        acIndex = i;
+        acAccept();
+      });
+      acEl.appendChild(row);
+    });
+    var pos = acCaretPos();
+    acEl.hidden = false;
+    acEl.style.left = Math.max(4, Math.min(pos.left, (codeEl.clientWidth || 400) - 210)) + 'px';
+    acEl.style.top = Math.min(pos.top, (codeEl.clientHeight || 300) - 214) + 'px';
+  }
+
+  function acMove(delta) {
+    if (!acItems.length || !acEl) return;
+    acIndex = (acIndex + delta + acItems.length) % acItems.length;
+    Array.prototype.forEach.call(acEl.children, function (el, i) {
+      el.className = 'ac-item' + (i === acIndex ? ' on' : '');
+    });
+  }
+
+  function acAccept() {
+    if (!acItems.length) return;
+    var it = acItems[acIndex];
+    var insert = it.name + (it.kind === 'fn' ? '(' : '');
+    var next = codeEl.value.slice(0, acWord.start) + insert + codeEl.value.slice(acWord.end);
+    var caret = acWord.start + insert.length;
+    acClose();
+    applyEdit(next, caret);
+  }
+
   function applyEdit(v, s, e) {
     codeEl.value = v;
     codeEl.selectionStart = s;
@@ -8242,6 +8778,12 @@ void main()
   }
   codeEl.addEventListener('keydown', function (e) {
     if (e.isComposing || e.keyCode === 229) return;
+    if (acItems.length) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); acMove(1); return; }
+      if (e.key === 'ArrowUp') { e.preventDefault(); acMove(-1); return; }
+      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); acAccept(); return; }
+      if (e.key === 'Escape') { e.preventDefault(); acClose(); return; }
+    }
     var v = this.value, s = this.selectionStart, en = this.selectionEnd;
 
     /* --- Tab / Shift+Tab --- */

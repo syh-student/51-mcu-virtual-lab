@@ -2058,6 +2058,95 @@
     }
   }
 
+  /* ---------------- 工程文件（JSON）：存下来、换台电脑再打开 ---------------- */
+  function exportProjectFile() {
+    var cur = fileOf(project.active);
+    if (cur) cur.content = codeEl.value;
+    var data = {
+      format: 'c51lab-project',
+      version: 1,
+      savedAt: new Date().toISOString(),
+      name: project.name || '工程',
+      files: project.files.map(function (f) {
+        return { path: f.path, content: String(f.content == null ? '' : f.content) };
+      }),
+      groups: project.groups.map(function (g) { return { name: g.name, files: g.files.slice() }; }),
+      open: project.open.slice(),
+      active: project.active
+    };
+    try {
+      var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = String(project.name || 'project').replace(/[\\/:*?"<>|]/g, '_') + '.c51proj.json';
+      if (document.body) document.body.appendChild(a);
+      a.click();
+      if (document.body && a.parentNode) document.body.removeChild(a);
+      setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) {} }, 5000);
+      log('已存工程文件：' + a.download + '（' + project.files.length + ' 个文件）', 'ok');
+    } catch (e) {
+      log('存工程失败：' + (e && e.message ? e.message : e), 'err');
+    }
+  }
+
+  function importProjectFile(file) {
+    if (!file) return;
+    var rd = new FileReader();
+    rd.onload = function () {
+      var data;
+      try {
+        data = JSON.parse(String(rd.result == null ? '' : rd.result));
+      } catch (e) {
+        log('工程文件不是合法的 JSON。', 'err');
+        return;
+      }
+      if (!data || data.format !== 'c51lab-project' || !Array.isArray(data.files) || !data.files.length) {
+        log('这不是本工具导出的工程文件。', 'err');
+        return;
+      }
+      askModal('打开工程', {
+        msg: '会替换当前工程（现在有 ' + project.files.length + ' 个文件），没存过的改动会丢。继续？',
+        input: false, ok: '打开'
+      }).then(function (yes) {
+        if (!yes) return;
+        project = {
+          name: data.name || '导入的工程',
+          files: data.files.filter(function (f) { return f && f.path; }).map(function (f) {
+            return {
+              path: normPath(f.path),
+              content: String(f.content == null ? '' : f.content),
+              handle: null, dirty: false
+            };
+          }),
+          folders: [],
+          groups: Array.isArray(data.groups) ? data.groups : [],
+          open: [], active: '', fs: false
+        };
+        ensureGroups(project);
+        project.open = (data.open || []).filter(function (p) { return !!fileOf(p); });
+        if (!project.open.length) project.open = [project.files[0].path];
+        project.active = fileOf(data.active) ? data.active : project.open[0];
+        curExample = null;
+        histMap = {};
+        codeEl.value = fileOf(project.active).content;
+        histReset(project.active, codeEl.value);
+        loadBp();
+        renderTabs();
+        renderTree();
+        refreshGutter();
+        paintCode();
+        updateFsUi();
+        saveProject();
+        build();
+        log('已打开工程「' + project.name + '」，' + project.files.length
+          + ' 个文件，' + project.groups.length + ' 个分组', 'ok');
+      });
+    };
+    rd.onerror = function () { log('读取工程文件失败。', 'err'); };
+    rd.readAsText(file, 'utf-8');
+  }
+
   /* ---------------- 状态栏 / 工程树开关 ---------------- */
   function setStat(text) {
     var el = $('proj-stat-text');
@@ -2197,6 +2286,15 @@
     this.value = '';
   };
   if ($('btn-export')) $('btn-export').onclick = function () { exportZip(); };
+  if ($('btn-save-proj')) $('btn-save-proj').onclick = function () { exportProjectFile(); };
+  if ($('btn-load-proj')) $('btn-load-proj').onclick = function () {
+    var inp = $('proj-input');
+    if (inp) inp.click();
+  };
+  if ($('proj-input')) $('proj-input').onchange = function () {
+    importProjectFile(this.files && this.files[0]);
+    this.value = '';
+  };
 
   (function () {
     var tree = $('proj-tree');
@@ -2919,9 +3017,79 @@
   }
 
   /* 编译输出：仿 Keil 的 Build Output，错误行可点 */
+  var problems = [];
+  var probFilter = 'all';
+
   function clearBuild() {
     var h = $('build-log');
     if (h) h.innerHTML = '';
+    problems = [];
+    probFilter = 'all';
+    renderProblems();
+  }
+  function addProblem(level, file, line, msg) {
+    problems.push({ level: level, file: file || '', line: line || 0, msg: String(msg == null ? '' : msg) });
+  }
+  /* 结构化问题列表：级别 / 文件 / 行 / 说明；点一行跳到源码对应位置 */
+  function renderProblems() {
+    var host = $('build-problems');
+    if (!host) return;
+    if (!problems.length) {
+      host.hidden = true;
+      host.innerHTML = '';
+      return;
+    }
+    host.hidden = false;
+    host.innerHTML = '';
+    var nErr = problems.filter(function (p) { return p.level === 'error'; }).length;
+    var nWarn = problems.length - nErr;
+
+    var bar = document.createElement('div');
+    bar.className = 'prob-filter';
+    [['all', '全部 ' + problems.length], ['error', '错误 ' + nErr], ['warn', '警告 ' + nWarn]]
+      .forEach(function (it) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = it[1];
+        if (probFilter === it[0]) b.className = 'on';
+        b.addEventListener('click', function () { probFilter = it[0]; renderProblems(); });
+        bar.appendChild(b);
+      });
+    host.appendChild(bar);
+
+    var head = document.createElement('div');
+    head.className = 'prob-row prob-head';
+    ['级别', '文件', '行', '说明'].forEach(function (t) {
+      var s = document.createElement('span');
+      s.textContent = t;
+      head.appendChild(s);
+    });
+    host.appendChild(head);
+
+    problems.filter(function (p) {
+      return probFilter === 'all' || p.level === probFilter;
+    }).forEach(function (p) {
+      var row = document.createElement('div');
+      row.className = 'prob-row ' + (p.level === 'error' ? 'err' : 'warn');
+      var a = document.createElement('span');
+      a.className = 'lvl';
+      a.textContent = p.level === 'error' ? '错误' : '警告';
+      var b = document.createElement('span');
+      b.textContent = p.file || '-';
+      var c = document.createElement('span');
+      c.textContent = p.line ? String(p.line) : '-';
+      var d = document.createElement('span');
+      d.className = 'msg';
+      d.textContent = p.msg;
+      row.appendChild(a);
+      row.appendChild(b);
+      row.appendChild(c);
+      row.appendChild(d);
+      if (p.line) {
+        row.addEventListener('click', function () { gotoFileLine(p.file || project.active, p.line); });
+      }
+      host.appendChild(row);
+    });
   }
   function buildLine(text, cls, line, file) {
     var host = $('build-log');
@@ -3668,8 +3836,10 @@
     if (srcPaths.length > 1) buildLine('compiling ' + srcPaths.length + ' file(s) 完成', 'dim');
     if (unit.errors.length) {
       unit.errors.forEach(function (er) {
+        addProblem('error', er.file, er.line, er.msg);
         buildLine(er.file + '(' + er.line + '): error: ' + er.msg, 'err', er.line, er.file);
       });
+      renderProblems();
       setBuildSum(unit.errors.length + ' Error(s)', 'err');
       setStatus('error', '编译失败');
       return false;
@@ -3677,8 +3847,10 @@
     buildLine('linking...', 'dim');
     if (unit.warnings.length) {
       unit.warnings.forEach(function (w) {
+        addProblem('warn', w.file, w.line, w.msg);
         buildLine(w.file + '(' + w.line + '): warning: ' + w.msg, 'warn', w.line, w.file);
       });
+      renderProblems();
     }
     try {
       hw = C51HW.createHardware();
@@ -3925,11 +4097,14 @@
     if (f) f.content = codeEl.value;
     histRecord();
     refreshGutter(); paintCode(); saveCode(); updateCursor();
+    acShow();
   });
   codeEl.addEventListener('scroll', function () {
     gutter.scrollTop = codeEl.scrollTop;
     syncCodeScroll();
+    acClose();
   });
+  codeEl.addEventListener('blur', acClose);
   ['click', 'keyup', 'select'].forEach(function (ev) {
     codeEl.addEventListener(ev, updateCursor);
   });
@@ -3985,6 +4160,156 @@
     }
     return stack.length ? stack[stack.length - 1] : -1;
   }
+  /* ---------------- 自动补全 ---------------- */
+  var acEl = null, acItems = [], acIndex = 0, acWord = { start: 0, end: 0 }, acMirror = null;
+
+  function walkNodes(node, fn) {
+    if (!node || typeof node !== 'object') return;
+    if (Array.isArray(node)) { node.forEach(function (x) { walkNodes(x, fn); }); return; }
+    fn(node);
+    Object.keys(node).forEach(function (k) { walkNodes(node[k], fn); });
+  }
+
+  /* 符号表：函数（带形参）、全局/局部变量、sbit/sfr、宏、内置函数与 SFR 名 */
+  function collectSymbols() {
+    var seen = {}, list = [];
+    function put(name, kind, detail) {
+      if (!name || seen[name]) return;
+      seen[name] = { name: name, kind: kind, detail: detail || '' };
+      list.push(seen[name]);
+    }
+    var ast = vm && vm.ast;
+    if (ast) {
+      (ast.body || []).forEach(function (d) {
+        if (d.t === 'func') {
+          put(d.name, 'fn', '(' + (d.params || []).map(function (p) { return p.name || '?'; }).join(', ') + ')');
+        }
+      });
+      walkNodes(ast, function (n) {
+        if (n.t === 'globaldecl' || n.t === 'decl') {
+          (n.vars || []).forEach(function (v) { put(v.name, n.t === 'decl' ? 'var' : 'gvar', ''); });
+        } else if (n.t === 'sbit' || n.t === 'sfr') {
+          put(n.name, 'reg', n.t);
+        }
+      });
+    }
+    (C51.builtinNames || []).forEach(function (n) { put(n, 'fn', '内置'); });
+    (C51.sfrNames || []).forEach(function (n) { put(n, 'reg', 'SFR'); });
+    (C51.bitNames || []).forEach(function (n) { put(n, 'reg', '位'); });
+    project.files.forEach(function (f) {
+      var re = /#\s*define\s+([A-Za-z_]\w*)/g, m;
+      while ((m = re.exec(String(f.content || '')))) put(m[1], 'mac', '#define');
+    });
+    return list;
+  }
+
+  function acCaretPos() {
+    var ta = codeEl;
+    if (!acMirror) {
+      acMirror = document.createElement('div');
+      acMirror.style.cssText = 'position:absolute;visibility:hidden;top:-9999px;left:0;'
+        + 'white-space:pre-wrap;word-wrap:break-word;overflow:hidden;';
+      document.body.appendChild(acMirror);
+    }
+    var cs = window.getComputedStyle ? window.getComputedStyle(ta) : null;
+    ['fontFamily', 'fontSize', 'lineHeight', 'paddingTop', 'paddingRight', 'paddingBottom',
+      'paddingLeft', 'letterSpacing', 'tabSize'].forEach(function (p) {
+      if (cs && cs[p]) acMirror.style[p] = cs[p];
+    });
+    acMirror.style.width = ta.clientWidth + 'px';
+    acMirror.textContent = ta.value.slice(0, ta.selectionStart);
+    var span = document.createElement('span');
+    span.textContent = '\u200b';
+    acMirror.appendChild(span);
+    var lh = parseFloat((cs && cs.lineHeight) || 23) || 23;
+    return {
+      left: span.offsetLeft - ta.scrollLeft,
+      top: span.offsetTop - ta.scrollTop + lh
+    };
+  }
+
+  function acClose() {
+    acItems = [];
+    acIndex = 0;
+    if (acEl) { acEl.hidden = true; acEl.innerHTML = ''; }
+  }
+
+  function acCurrentWord() {
+    var v = codeEl.value, s = codeEl.selectionStart, e = codeEl.selectionEnd;
+    if (s !== e) return null;
+    var start = s;
+    while (start > 0 && /[A-Za-z0-9_]/.test(v.charAt(start - 1))) start--;
+    var word = v.slice(start, s);
+    if (!word || !/^[A-Za-z_]/.test(word)) return null;
+    var lineStart = v.lastIndexOf('\n', start - 1) + 1;
+    var lineHead = v.slice(lineStart, start);
+    if (lineHead.indexOf('//') >= 0 || /\/\*/.test(lineHead)) return null;
+    return { start: start, end: s, word: word };
+  }
+
+  function acShow() {
+    var info = acCurrentWord();
+    if (!info) { acClose(); return; }
+    var q = info.word.toLowerCase();
+    var hits = collectSymbols().filter(function (it) {
+      return it.name !== info.word && it.name.toLowerCase().indexOf(q) === 0;
+    }).sort(function (a, b) {
+      return a.name.length - b.name.length || cmpName(a.name, b.name);
+    }).slice(0, 40);
+    if (!hits.length) { acClose(); return; }
+    acItems = hits;
+    acIndex = 0;
+    acWord = info;
+    if (!acEl) acEl = $('ac');
+    if (!acEl) return;
+    acEl.innerHTML = '';
+    hits.forEach(function (it, i) {
+      var row = document.createElement('div');
+      row.className = 'ac-item' + (i === 0 ? ' on' : '');
+      var k = document.createElement('span');
+      k.className = 'k';
+      k.textContent = it.kind === 'fn' ? 'fn' : (it.kind === 'mac' ? 'def'
+        : (it.kind === 'reg' ? 'reg' : 'var'));
+      var n = document.createElement('span');
+      var isSig = it.kind === 'fn' && it.detail && it.detail.charAt(0) === '(';
+      n.textContent = it.name + (isSig ? it.detail : '');
+      var d = document.createElement('span');
+      d.className = 'd';
+      d.textContent = isSig ? '' : it.detail;
+      row.appendChild(k);
+      row.appendChild(n);
+      row.appendChild(d);
+      row.addEventListener('mousedown', function (ev) {
+        if (ev && ev.preventDefault) ev.preventDefault();
+        acIndex = i;
+        acAccept();
+      });
+      acEl.appendChild(row);
+    });
+    var pos = acCaretPos();
+    acEl.hidden = false;
+    acEl.style.left = Math.max(4, Math.min(pos.left, (codeEl.clientWidth || 400) - 210)) + 'px';
+    acEl.style.top = Math.min(pos.top, (codeEl.clientHeight || 300) - 214) + 'px';
+  }
+
+  function acMove(delta) {
+    if (!acItems.length || !acEl) return;
+    acIndex = (acIndex + delta + acItems.length) % acItems.length;
+    Array.prototype.forEach.call(acEl.children, function (el, i) {
+      el.className = 'ac-item' + (i === acIndex ? ' on' : '');
+    });
+  }
+
+  function acAccept() {
+    if (!acItems.length) return;
+    var it = acItems[acIndex];
+    var insert = it.name + (it.kind === 'fn' ? '(' : '');
+    var next = codeEl.value.slice(0, acWord.start) + insert + codeEl.value.slice(acWord.end);
+    var caret = acWord.start + insert.length;
+    acClose();
+    applyEdit(next, caret);
+  }
+
   function applyEdit(v, s, e) {
     codeEl.value = v;
     codeEl.selectionStart = s;
@@ -3996,6 +4321,12 @@
   }
   codeEl.addEventListener('keydown', function (e) {
     if (e.isComposing || e.keyCode === 229) return;
+    if (acItems.length) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); acMove(1); return; }
+      if (e.key === 'ArrowUp') { e.preventDefault(); acMove(-1); return; }
+      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); acAccept(); return; }
+      if (e.key === 'Escape') { e.preventDefault(); acClose(); return; }
+    }
     var v = this.value, s = this.selectionStart, en = this.selectionEnd;
 
     /* --- Tab / Shift+Tab --- */

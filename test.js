@@ -540,5 +540,46 @@ void main()
     JSON.stringify(unit.errors));
 }
 
+/* 33. typedef 基本类型别名 */
+{
+  const { vm } = makeProjVM([
+    { path: 'main.c', content: 'typedef unsigned char u8;\nu8 g = 5;\nvoid main(){ P2 = g; while(1){} }\n' }
+  ]);
+  run(vm, 8);
+  check('typedef：别名声明与赋值', vm.ports.P2 === 5, 'P2=' + vm.ports.P2);
+}
+
+/* 34. struct 成员读写 */
+{
+  const { vm } = makeProjVM([
+    { path: 'main.c', content: 'struct Point { unsigned char x; unsigned char y; };\n'
+      + 'struct Point p;\nvoid main(){ p.x = 3; p.y = 5; P2 = p.x + p.y; while(1){} }\n' }
+  ]);
+  run(vm, 10);
+  check('struct：成员读写', vm.ports.P2 === 8, 'P2=' + vm.ports.P2);
+  check('struct：无运行错误', !vm.error, vm.error);
+}
+
+/* 35. typedef 匿名结构体 + 结构体数组 + 嵌套 */
+{
+  const { vm } = makeProjVM([
+    { path: 'main.c', content: 'typedef struct { unsigned char lo; unsigned char hi; } Word;\n'
+      + 'typedef struct { Word w; unsigned char n; } Item;\n'
+      + 'Item list[3];\n'
+      + 'void main(){ list[1].w.hi = 0x12; list[1].n = 1; P2 = list[1].w.hi + list[1].n; while(1){} }\n' }
+  ]);
+  run(vm, 12);
+  check('struct：数组 + 嵌套成员', vm.ports.P2 === 0x13, 'P2=' + vm.ports.P2);
+}
+
+/* 36. 成员不存在 / 下标越界要有中文报错 */
+{
+  const { vm } = makeProjVM([
+    { path: 'main.c', content: 'struct A { unsigned char x; };\nstruct A a;\nvoid main(){ a.y = 1; while(1){} }\n' }
+  ]);
+  run(vm, 6);
+  check('struct：成员不存在报错', !!vm.error && /没有成员/.test(vm.error), vm.error);
+}
+
 console.log('\n结果：' + pass + ' 通过 / ' + fail + ' 失败');
 process.exit(fail ? 1 : 0);

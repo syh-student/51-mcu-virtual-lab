@@ -301,6 +301,9 @@ try {
   expect('工程树第一层是 Project', /^Project:/.test(labels[0] || ''), true);
   expect('工程树有 Target 1', labels.indexOf('Target 1') >= 0, true);
   expect('工程树有 Source Group 1', labels.indexOf('Source Group 1') >= 0, true);
+  expect('编译无问题时问题列表隐藏', registry['build-problems'].hidden, true);
+  expect('存工程按钮已挂事件', typeof registry['btn-save-proj'].onclick, 'function');
+  expect('开工程按钮已挂事件', typeof registry['btn-load-proj'].onclick, 'function');
 
   /* 新建分组 */
   registry['btn-new-group'].onclick();

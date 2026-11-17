@@ -142,8 +142,11 @@
 
             <div class="proj-f">
               <button id="btn-save" type="button" title="把所有改动写回磁盘（Ctrl + S）" hidden>保存</button>
+              <button id="btn-save-proj" type="button" title="把整个工程（文件、分组、标签）存成一个 .json 文件">存工程</button>
+              <button id="btn-load-proj" type="button" title="打开之前存的工程文件">开工程</button>
               <button id="btn-export" type="button" title="把整个工程打包成 zip（Keil 能直接用）">导出 zip</button>
             </div>
+            <input id="proj-input" type="file" accept=".json,application/json" hidden>
           </aside>
 
           <div class="editor-wrap">
@@ -152,6 +155,7 @@
               <div class="marks" id="marks" aria-hidden="true"></div>
               <pre id="hl" aria-hidden="true"></pre>
               <textarea id="code" spellcheck="false" aria-label="C51 代码编辑器"></textarea>
+              <div id="ac" class="ac" hidden role="listbox" aria-label="代码补全"></div>
             </div>
           </div>
         </div>
@@ -176,6 +180,7 @@
           <span id="build-sum" class="hint">就绪</span>
           <button id="btn-build" class="ghost">编译</button>
         </div>
+        <div id="build-problems" class="build-problems" hidden></div>
         <div id="build-log" class="build-log"></div>
         <div id="debug-view" class="debug-view" hidden>
           <div class="dbg-line" id="dbg-state">还没运行。按 F5 运行，或点工具栏的播放键。</div>

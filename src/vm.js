@@ -239,7 +239,12 @@
   var TYPE_WORD = /^(unsigned|signed|static|const|volatile|extern|code|data|idata|xdata|pdata)$/;
   var BASE_WORD = /^(char|int|void|long|float|bit|sfr|sbit)$/;
 
-  function Parser(toks) { this.t = toks; this.p = 0; }
+  function Parser(toks) {
+    this.t = toks;
+    this.p = 0;
+    this.typedefs = {};               /* 类型别名：u8 / uchar / ... */
+    this.structs = {};                /* 具名结构体定义 */
+  }
   Parser.prototype.peek = function (k) { return this.t[this.p + (k || 0)]; };
   Parser.prototype.is = function (v) { return this.t[this.p].v === v; };
   Parser.prototype.next = function () { return this.t[this.p++]; };
@@ -256,13 +261,55 @@
       var w = this.peek().v;
       if (TYPE_WORD.test(w)) { if (w === 'unsigned') unsigned = true; mods.push(w); this.next(); continue; }
       if (BASE_WORD.test(w)) { base = w; this.next(); continue; }
+      if (w === 'struct') {
+        this.next();
+        var sname = '';
+        if (this.peek().t === 'id') sname = this.next().v;
+        var inlineFields = this.is('{') ? this.parseFields() : null;
+        var known = sname ? this.structs[sname] : null;
+        return {
+          base: 'struct', unsigned: false, mods: mods, name: sname,
+          fields: inlineFields || (known ? known.fields : [])
+        };
+      }
+      if (Object.prototype.hasOwnProperty.call(this.typedefs, w)) {
+        var td = this.typedefs[w];
+        this.next();
+        return {
+          base: td.base, unsigned: td.unsigned,
+          mods: mods.concat(td.mods || []), name: td.name, fields: td.fields
+        };
+      }
       break;
     }
     return { base: base || 'int', unsigned: unsigned, mods: mods };
   };
+  /* struct { 类型 名字[长度]; ... } */
+  Parser.prototype.parseFields = function () {
+    this.expect('{');
+    var fields = [];
+    while (!this.is('}')) {
+      var ty = this.parseType();
+      do {
+        var nm = this.next().v;
+        var size = null;
+        if (this.is('[')) {
+          this.next();
+          if (!this.is(']')) size = this.parseExpr();
+          this.expect(']');
+        }
+        fields.push({ name: nm, type: ty, size: size });
+      } while (this.is(',') && this.next());
+      this.expect(';');
+    }
+    this.next();
+    return fields;
+  };
   Parser.prototype.isTypeStart = function () {
     var tk = this.peek();
-    return tk.t === 'id' && (TYPE_WORD.test(tk.v) || BASE_WORD.test(tk.v));
+    if (tk.t !== 'id') return false;
+    return TYPE_WORD.test(tk.v) || BASE_WORD.test(tk.v) || tk.v === 'struct' ||
+      Object.prototype.hasOwnProperty.call(this.typedefs, tk.v);
   };
 
   Parser.prototype.parseProgram = function () {
@@ -276,7 +323,25 @@
 
   Parser.prototype.parseTopLevel = function () {
     var line = this.line();
+    if (this.peek().t === 'id' && this.peek().v === 'typedef') {
+      this.next();
+      var aliased = this.parseType();
+      var tname = this.next().v;
+      this.expect(';');
+      if (aliased.base === 'struct') {
+        if (!aliased.name) aliased.name = tname;
+        this.structs[aliased.name] = aliased;
+      }
+      this.typedefs[tname] = aliased;
+      return { t: 'typedef', name: tname, line: line };
+    }
     var type = this.parseType();
+    /* 只定义结构体、不声明变量：struct Point { ... }; */
+    if (type.base === 'struct' && type.fields && type.fields.length && this.is(';')) {
+      this.next();
+      if (type.name) this.structs[type.name] = type;
+      return { t: 'typedef', name: type.name || '', line: line };
+    }
     if (type.base === 'sbit') {
       var nm = this.next().v;
       this.expect('=');
@@ -520,6 +585,11 @@
         var idx = this.parseExpr();
         this.expect(']');
         e = { t: 'index', obj: e, index: idx, line: line2 };
+      } else if (this.is('.')) {
+        var line3 = this.line();
+        this.next();
+        var fname = this.next().v;
+        e = { t: 'member', obj: e, name: fname, line: line3 };
       } else if (this.is('++') || this.is('--')) {
         var op = this.next().v;
         e = { t: 'post', op: op, e: e, line: this.line() };
@@ -540,13 +610,31 @@
   function truthy(v) { return Array.isArray(v) ? v.length > 0 : !!v; }
   function coerce(type, v) {
     if (v === undefined || v === null) return 0;
-    if (Array.isArray(v)) return v;
+    if (typeof v === 'object') return v;      /* 数组和结构体原样保留 */
     if (!type) return v;
     var b = type.base;
     if (b === 'char') return v & 0xFF;
     if (b === 'int' || b === 'long') return v & 0xFFFF;
     if (b === 'bit') return v ? 1 : 0;
     return v;
+  }
+  /* 结构体的默认值：数值 0、数组全 0、嵌套结构体递归 */
+  function structDefault(type) {
+    var o = {};
+    (type.fields || []).forEach(function (f) {
+      var n = f.size && f.size.t === 'num' ? f.size.v : 1;
+      var one = (f.type && f.type.base === 'struct')
+        ? function () { return structDefault(f.type); }
+        : function () { return 0; };
+      if (n > 1) {
+        var arr = [];
+        for (var i = 0; i < n; i++) arr.push(one());
+        o[f.name] = arr;
+      } else {
+        o[f.name] = one();
+      }
+    });
+    return o;
   }
   function newFrame(name, line) { return { vars: {}, types: {}, fn: name || '', callLine: line || 0 }; }
 
@@ -896,10 +984,13 @@
   };
 
   VM.prototype.refGet = function (ref) {
-    return ref.kind === 'var' ? this.getVar(ref.name, ref.line) : ref.arr[ref.idx];
+    if (ref.kind === 'var') return this.getVar(ref.name, ref.line);
+    if (ref.kind === 'member') return ref.obj[ref.name];
+    return ref.arr[ref.idx];
   };
   VM.prototype.refSet = function (ref, v) {
     if (ref.kind === 'var') this.setVar(ref.name, v, ref.line);
+    else if (ref.kind === 'member') ref.obj[ref.name] = v;
     else ref.arr[ref.idx] = typeof v === 'number' ? v : 0;
   };
 
@@ -923,7 +1014,14 @@
   VM.prototype.makeValue = function* (v) {
     var size = null;
     if (v.size) size = yield* this.evalExpr(v.size);
-    var val = size !== null ? new Array(size).fill(0) : 0;
+    var isStruct = v.type && v.type.base === 'struct';
+    var val;
+    if (size !== null) {
+      val = [];
+      for (var k = 0; k < size; k++) val.push(isStruct ? structDefault(v.type) : 0);
+    } else {
+      val = isStruct ? structDefault(v.type) : 0;
+    }
     if (v.init) {
       if (v.init.t === 'array') {
         var items = [];
@@ -1090,6 +1188,16 @@
 
   VM.prototype.evalRef = function* (n) {
     if (n.t === 'id') return { kind: 'var', name: n.v, line: n.line };
+    if (n.t === 'member') {
+      var base = yield* this.evalExpr(n.obj);
+      if (!base || typeof base !== 'object' || Array.isArray(base)) {
+        throw new VmError('「' + n.name + '」前面不是结构体变量', n.line);
+      }
+      if (!Object.prototype.hasOwnProperty.call(base, n.name)) {
+        throw new VmError('结构体里没有成员「' + n.name + '」', n.line);
+      }
+      return { kind: 'member', obj: base, name: n.name, line: n.line };
+    }
     if (n.t === 'index') {
       var arr = yield* this.evalExpr(n.obj);
       var idx = yield* this.evalExpr(n.index);
@@ -1114,6 +1222,7 @@
         return codes;
       case 'id': return this.getVar(n.v, n.line);
       case 'index':
+      case 'member':
         ref = yield* this.evalRef(n);
         return this.refGet(ref);
       case 'call':
@@ -1442,5 +1551,6 @@
 
   return { VM: VM, VmError: VmError, preprocess: preprocess, tokenize: tokenize,
            parseUnit: parseUnit, compileProject: compileProject,
-           builtinNames: Object.keys(BUILTINS) };
+           builtinNames: Object.keys(BUILTINS),
+           sfrNames: SFR_NAMES.slice(), bitNames: Object.keys(BIT_ALIAS) };
 });
