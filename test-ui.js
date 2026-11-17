@@ -210,6 +210,17 @@ try {
   expect('再点第 1 行取消断点', hasBp(1), false);
   expect('取消第 1 行不影响第 2 行', hasBp(2), true);
 
+  /* 运行验证：第 2 行的断点要停在 void main()（第 3 行），而不是后面的语句 */
+  registry['btn-run'].onclick();
+  for (let i = 0; i < 20; i++) {
+    const cbs = rafQueue.splice(0, rafQueue.length);
+    t += 16; cbs.forEach(fn => fn(t));
+  }
+  console.log('断点运行 → 状态=' + registry.status.textContent + '，' + registry['dbg-state'].textContent);
+  expect('第 2 行断点停在 main 入口（第 3 行）',
+    /第 3 行/.test(registry['dbg-state'].textContent), true);
+  registry['btn-reset'].onclick();
+
   /* 回车：在 { 和 } 之间 → 三行，光标在中间行 */
   setCode('void f()\n{}', 10);
   key('Enter');

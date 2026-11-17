@@ -1571,7 +1571,7 @@ body.zoomed .appbar { display: none; }
   </div>
   <div class="head-right">
     <span class="head-note">例程 01—15 · 离线可用</span>
-    <span class="build-tag" id="build-tag">构建 11-17 12:58</span>
+    <span class="build-tag" id="build-tag">构建 11-17 13:03</span>
     <span id="status" class="status">已停止</span>
   </div>
 </header>
@@ -8062,7 +8062,9 @@ void main()
   }
 
   /* ==================== 断点 ==================== */
-  var BP_PREFIX = 'c51lab.bp.v1.';
+  /* v1 时代会把 #include / 空行上的断点自动挪到后面，旧存档里可能留着被挪到
+     第 5 行的断点。整套断点语义变了，索性换前缀，让旧存档自然失效。 */
+  var BP_PREFIX = 'c51lab.bp.v2.';
   var breakpoints = {};
   var bpSnap = {};   /* 断点标记所在行 → 实际会停下的行（空行 / #include 会往后吸附） */
   var pausedAtBp = false;
@@ -8236,8 +8238,11 @@ void main()
       var at = loc0 && loc0.line ? fmtLoc(vm.line) : '';
       if (!vm) st.textContent = '还没运行。按 F5 运行，或点工具栏的播放键。';
       else if (vm.error) st.textContent = '出错：' + vm.error;
-      else if (!vm.stepCount) st.textContent = '已就绪 · 还没开始执行（F5 运行，F10 单步越过）';
       else if (state === 'running') st.textContent = '运行中 · ' + at;
+      /* 停在断点可能发生在第一条语句之前（函数入口），这时 stepCount 还是 0，
+         不能落到「还没开始执行」那个分支，否则断点位置就看不出来了 */
+      else if (state === 'paused') st.textContent = (pausedAtBp ? '停在断点 · ' : '已暂停 · ') + at;
+      else if (!vm.stepCount) st.textContent = '已就绪 · 还没开始执行（F5 运行，F10 单步越过）';
       else if (vm.done) st.textContent = '程序已结束。';
       else st.textContent = (pausedAtBp ? '停在断点 · ' : '已暂停 · ') + at;
       if (hasUserDelay) st.textContent += '  ·  Delay() 由仿真器加速，内部断点不命中';
