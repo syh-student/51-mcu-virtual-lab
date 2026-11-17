@@ -53,6 +53,7 @@ ids.forEach(id => { registry[id] = new El('div'); registry[id].id = id; });
 registry.speed.value = '1';
 
 const rafQueue = [];
+const docHandlers = {};
 const sandbox = {
   console,
   document: {
@@ -60,7 +61,8 @@ const sandbox = {
     getElementById: id => registry[id] || (registry[id] = new El('div')),
     createElement: t => new El(t),
     createElementNS: (ns, t) => new El(t),
-    querySelectorAll: () => []
+    querySelectorAll: () => [],
+    addEventListener: (t, fn) => { (docHandlers[t] = docHandlers[t] || []).push(fn); }
   },
   requestAnimationFrame: fn => { rafQueue.push(fn); return rafQueue.length; },
   setTimeout: () => 0,
@@ -167,6 +169,31 @@ try {
     if (ok) { pass++; console.log('编辑器√ ' + name); }
     else { fail++; console.log('编辑器× ' + name + '  得到=' + JSON.stringify(actual) + '  期望=' + JSON.stringify(want)); }
   };
+
+  /* 开发板：抖动开关 */
+  const bounceBtn = registry['btn-bounce'];
+  bounceBtn.onclick.call(bounceBtn);
+  expect('抖动按钮切到「开」', bounceBtn.textContent, '抖动 开');
+  bounceBtn.onclick.call(bounceBtn);
+  expect('抖动按钮切回「关」', bounceBtn.textContent, '抖动 关');
+
+  /* 开发板：键盘映射（此时已停在开发板页） */
+  const docKey = (type, k) => {
+    const ev = {
+      key: k, target: new El('div'), ctrlKey: false, altKey: false,
+      metaKey: false, repeat: false, preventDefault() {}
+    };
+    (docHandlers[type] || []).forEach(fn => fn(ev));
+    for (let i = 0; i < 3; i++) {
+      const cbs = rafQueue.splice(0, rafQueue.length);
+      t += 16; cbs.forEach(fn => fn(t));
+    }
+  };
+  const p3hex = () => registry['ports'].children[3].children[2].textContent;
+  docKey('keydown', '7');
+  expect('键盘 7 按下 K1，P3.1 拉低', p3hex(), '0xFD');
+  docKey('keyup', '7');
+  expect('松开 7 后 P3 恢复 0xFF', p3hex(), '0xFF');
 
   /* 回车：在 { 和 } 之间 → 三行，光标在中间行 */
   setCode('void f()\n{}', 10);

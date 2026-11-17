@@ -93,6 +93,7 @@
           <button id="btn-restore" class="ghost" title="还原成讲义原始代码">还原</button>
           <button id="btn-format" class="ghost" title="缩进改 4 空格、清行尾空白">整理</button>
           <button id="btn-share" class="ghost" title="复制带工程的分享链接">分享</button>
+          <button id="btn-keys" class="ghost" title="快捷键一览">?</button>
         </div>
 
         <div class="findbar" id="findbar" hidden>
@@ -321,6 +322,7 @@
     <h2>虚拟开发板</h2>
     <span class="hint">移到元件上看引脚</span>
     <span class="sp"></span>
+    <button id="btn-bounce" class="ghost" title="模拟真实按键 5~20ms 的接触抖动，用来验证消抖代码">抖动 关</button>
     <button id="btn-sound" class="ghost">声音 关</button>
     <button id="btn-zoom" class="ghost">放大看板</button>
   </div>
@@ -370,6 +372,31 @@
     <div class="dlg-f">
       <button id="item-cancel" class="ghost" type="button">取消</button>
       <button id="item-ok" class="play sm" type="button">创建</button>
+    </div>
+  </div>
+</div>
+
+<div class="dlg-mask" id="dlg-keys" aria-hidden="true">
+  <div class="dlg dlg-keys" role="dialog" aria-modal="true" aria-labelledby="keys-title">
+    <h3 id="keys-title">快捷键</h3>
+    <div class="keys">
+      <kbd>F5</kbd><span>运行 / 暂停（Ctrl + Enter 同效）</span>
+      <kbd>F9</kbd><span>在当前行切换断点</span>
+      <kbd>F10</kbd><span>单步越过</span>
+      <kbd>F11</kbd><span>单步进入</span>
+      <kbd>Shift + F11</kbd><span>跳出当前函数</span>
+      <kbd>F12</kbd><span>跳转到定义（Ctrl + 点击也行）</span>
+      <kbd>Ctrl + F</kbd><span>查找 / 替换</span>
+      <kbd>Ctrl + Z / Y</kbd><span>撤销 / 重做</span>
+      <kbd>Ctrl + /</kbd><span>整行注释切换</span>
+      <kbd>Tab / Shift + Tab</kbd><span>缩进 / 反缩进（可多行）</span>
+      <kbd>Ctrl + S</kbd><span>写回磁盘（仅在打开文件夹时）</span>
+      <kbd>7 8 9 0</kbd><span>开发板页：按 K1~K4 独立按键</span>
+      <kbd>Q W E R …</kbd><span>开发板页：4×4 矩阵键盘（QWER / ASDF / ZXCV / 1234）</span>
+      <kbd>Esc</kbd><span>关闭查找栏 / 退出全屏看板</span>
+    </div>
+    <div class="dlg-f">
+      <button id="keys-close" class="ghost" type="button">关闭</button>
     </div>
   </div>
 </div>

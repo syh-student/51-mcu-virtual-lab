@@ -87,7 +87,7 @@ body::before {
 .head-note { font-size: 9.5px; letter-spacing: .18em; color: var(--faint); white-space: nowrap; }
 .build-tag {
   font-family: var(--mono); font-size: 9px; letter-spacing: .04em;
-  color: rgba(246, 241, 234, .28); white-space: nowrap;
+  color: rgba(246, 241, 234, .42); white-space: nowrap;
   border-left: 1px solid rgba(246, 241, 234, .12); padding-left: 10px;
 }
 
@@ -323,7 +323,7 @@ main {
   font-family: var(--mono);
   font-size: 9.5px;
   letter-spacing: .1em;
-  color: rgba(246, 241, 234, .22);
+  color: rgba(246, 241, 234, .36);
   transform: translateY(-1px);
 }
 .panel-h h2 {
@@ -422,7 +422,7 @@ main {
 .dbg-k {
   font-size: 9px;
   letter-spacing: .16em;
-  color: rgba(246, 241, 234, .26);
+  color: rgba(246, 241, 234, .4);
   margin: 8px 0 3px;
 }
 .dbg-tip { margin-left: 8px; letter-spacing: .02em; color: rgba(246, 241, 234, .18); }
@@ -515,7 +515,7 @@ main {
 /* 大纲 */
 .outline-row { font-size: 11px; }
 .outline-row .ico { color: rgba(255, 179, 122, .7); }
-.outline-row .ln { margin-left: auto; font-family: var(--mono); font-size: 9px; color: rgba(246, 241, 234, .25); }
+.outline-row .ln { margin-left: auto; font-family: var(--mono); font-size: 9px; color: rgba(246, 241, 234, .38); }
 
 /* ---------------- 编辑器 ---------------- */
 .editor-panel { flex: 1 1 auto; min-height: 0; }
@@ -730,13 +730,13 @@ main {
   background: #ffb37a;
   box-shadow: 0 0 5px rgba(255, 179, 122, .6);
 }
-.p-row .cnt { flex: none; font-size: 9px; color: rgba(246, 241, 234, .22); font-family: var(--mono); }
+.p-row .cnt { flex: none; font-size: 9px; color: rgba(246, 241, 234, .38); font-family: var(--mono); }
 .proj-tip {
   flex: none;
   padding: 8px 10px 0;
   font-size: 9px;
   line-height: 1.6;
-  color: rgba(246, 241, 234, .22);
+  color: rgba(246, 241, 234, .38);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -872,6 +872,29 @@ main {
 }
 .item-row select { font-family: var(--sans); }
 .item-row input[readonly] { color: var(--muted); }
+
+/* 快捷键一览 */
+.dlg-keys { width: min(460px, 92vw); }
+.keys {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 7px 14px;
+  align-items: center;
+  margin: 10px 0 2px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.keys kbd {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink);
+  padding: 2px 7px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, .05);
+  white-space: nowrap;
+}
 .sel { position: relative; display: inline-flex; }
 .sel select {
   appearance: none;
@@ -1067,7 +1090,7 @@ main {
 .build-log .err:hover { text-decoration: underline; }
 .build-log .warn { color: #f0c987; }
 .build-log .ok { color: #a8d8b2; }
-.build-log .dim { color: rgba(246, 241, 234, .26); }
+.build-log .dim { color: rgba(246, 241, 234, .42); }
 .build-log .cmd { color: #c9a6f0; }
 
 /* 问题列表：级别 / 文件 / 行 / 说明，双击行可跳转 */
@@ -1312,7 +1335,7 @@ body.zoomed .appbar { display: none; }
 }
 #console .err { color: #ff8f7e; }
 #console .ok { color: #a8d8b2; }
-#console .dim { color: rgba(246, 241, 234, .28); }
+#console .dim { color: rgba(246, 241, 234, .42); }
 
 /* ---------------- 时序图 ---------------- */
 .scope-panel { height: 100%; }
@@ -1520,8 +1543,15 @@ body.zoomed .appbar { display: none; }
   .scope-panel .panel-h .sp { display: none; }
   .editor-panel { height: 380px; }
   .proj-tip { display: none; }
-  .proj { width: 148px; }
+  .proj { width: 168px; }
   .board-stage { height: min(54vh, 440px); }
+  /* 真窄屏兜底：顶部信息收掉，导航和控件允许换行/横滚，别把按钮挤出屏幕 */
+  .build-tag { display: none; }
+  .capsule { overflow-x: auto; scrollbar-width: none; }
+  .capsule::-webkit-scrollbar { display: none; }
+  .controls { flex-wrap: wrap; row-gap: 8px; }
+  .head-right { gap: 10px; }
+  .p-row .nm { font-size: 11px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1541,7 +1571,7 @@ body.zoomed .appbar { display: none; }
   </div>
   <div class="head-right">
     <span class="head-note">例程 01—15 · 离线可用</span>
-    <span class="build-tag" id="build-tag">构建 11-17 10:09</span>
+    <span class="build-tag" id="build-tag">构建 11-17 10:45</span>
     <span id="status" class="status">已停止</span>
   </div>
 </header>
@@ -1616,6 +1646,7 @@ body.zoomed .appbar { display: none; }
           <button id="btn-restore" class="ghost" title="还原成讲义原始代码">还原</button>
           <button id="btn-format" class="ghost" title="缩进改 4 空格、清行尾空白">整理</button>
           <button id="btn-share" class="ghost" title="复制带工程的分享链接">分享</button>
+          <button id="btn-keys" class="ghost" title="快捷键一览">?</button>
         </div>
 
         <div class="findbar" id="findbar" hidden>
@@ -1844,6 +1875,7 @@ body.zoomed .appbar { display: none; }
     <h2>虚拟开发板</h2>
     <span class="hint">移到元件上看引脚</span>
     <span class="sp"></span>
+    <button id="btn-bounce" class="ghost" title="模拟真实按键 5~20ms 的接触抖动，用来验证消抖代码">抖动 关</button>
     <button id="btn-sound" class="ghost">声音 关</button>
     <button id="btn-zoom" class="ghost">放大看板</button>
   </div>
@@ -1893,6 +1925,31 @@ body.zoomed .appbar { display: none; }
     <div class="dlg-f">
       <button id="item-cancel" class="ghost" type="button">取消</button>
       <button id="item-ok" class="play sm" type="button">创建</button>
+    </div>
+  </div>
+</div>
+
+<div class="dlg-mask" id="dlg-keys" aria-hidden="true">
+  <div class="dlg dlg-keys" role="dialog" aria-modal="true" aria-labelledby="keys-title">
+    <h3 id="keys-title">快捷键</h3>
+    <div class="keys">
+      <kbd>F5</kbd><span>运行 / 暂停（Ctrl + Enter 同效）</span>
+      <kbd>F9</kbd><span>在当前行切换断点</span>
+      <kbd>F10</kbd><span>单步越过</span>
+      <kbd>F11</kbd><span>单步进入</span>
+      <kbd>Shift + F11</kbd><span>跳出当前函数</span>
+      <kbd>F12</kbd><span>跳转到定义（Ctrl + 点击也行）</span>
+      <kbd>Ctrl + F</kbd><span>查找 / 替换</span>
+      <kbd>Ctrl + Z / Y</kbd><span>撤销 / 重做</span>
+      <kbd>Ctrl + /</kbd><span>整行注释切换</span>
+      <kbd>Tab / Shift + Tab</kbd><span>缩进 / 反缩进（可多行）</span>
+      <kbd>Ctrl + S</kbd><span>写回磁盘（仅在打开文件夹时）</span>
+      <kbd>7 8 9 0</kbd><span>开发板页：按 K1~K4 独立按键</span>
+      <kbd>Q W E R …</kbd><span>开发板页：4×4 矩阵键盘（QWER / ASDF / ZXCV / 1234）</span>
+      <kbd>Esc</kbd><span>关闭查找栏 / 退出全屏看板</span>
+    </div>
+    <div class="dlg-f">
+      <button id="keys-close" class="ghost" type="button">关闭</button>
     </div>
   </div>
 </div>
@@ -2711,7 +2768,7 @@ body.zoomed .appbar { display: none; }
      所以读到的值不一定等于程序写进去的值。 */
   VM.prototype.readPort = function (port) {
     var w = this.ports[port];
-    return this.hw && this.hw.readPort ? this.hw.readPort(port, w) : w;
+    return this.hw && this.hw.readPort ? this.hw.readPort(port, w, this.vtime) : w;
   };
 
   /* ---------------- 定时器 0 / 1 ----------------
@@ -3483,9 +3540,12 @@ body.zoomed .appbar { display: none; }
       lcdActive: false,
       lcdSeenAt: -1e9,                           /* 最近一次 LCD 写操作的虚拟时间 */
       lcd: { ddram: new Array(80).fill(32), addr: 0, writes: 0 },
-      buzzer: { level: 1, flips: 0 },
+      buzzer: { level: 1, flips: 0, lastFlip: -1e9, prevFlip: -1e9 },
       keys: { K1: 1, K2: 1, K3: 1, K4: 1 },     // 1 = 松开
       matrix: new Array(16).fill(0),             // 4×4 矩阵键盘，1 = 按下
+      /* 按键抖动：真实按键在按下/松开的 5~20ms 内电平会来回跳。
+         默认关，打开后 readPort 在抖动窗口内返回抖动的值，用来演示消抖的必要性。 */
+      bounce: { on: false, win: {} },
       scanCount: 0,
       /* 时序图用的电平记录：{ t: 虚拟毫秒, port, v } —— 只在电平真正变化时入队。
          全程视图要保留整次运行，所以上限给得大；到顶后按时间桶抽稀，不缩短时间范围。 */
@@ -3532,8 +3592,9 @@ body.zoomed .appbar { display: none; }
       hw.lcdActive = false;
       hw.lcdSeenAt = -1e9;
       hw.lcd = { ddram: new Array(80).fill(32), addr: 0, writes: 0 };
-      hw.buzzer = { level: 1, flips: 0 };
+      hw.buzzer = { level: 1, flips: 0, lastFlip: -1e9, prevFlip: -1e9 };
       hw.matrix = new Array(16).fill(0);
+      hw.bounce.win = {};
       hw.scanCount = 0;
       hw.trace = [];
       hw.traceCompacted = false;
@@ -3562,7 +3623,11 @@ body.zoomed .appbar { display: none; }
         hw.lcdSeenAt = vm ? vm.vtime : 0;
       }
       if (port === 'P1' && bit === 5) {
-        if (hw.buzzer.level !== val) hw.buzzer.flips++;
+        if (hw.buzzer.level !== val) {
+          hw.buzzer.flips++;
+          hw.buzzer.prevFlip = hw.buzzer.lastFlip;
+          hw.buzzer.lastFlip = vm ? vm.vtime : 0;
+        }
         hw.buzzer.level = val;
       }
     };
@@ -3577,7 +3642,11 @@ body.zoomed .appbar { display: none; }
       }
       if (port === 'P1') {
         var bOld = (oldV >> 5) & 1, bNew = (newV >> 5) & 1;
-        if (bOld !== bNew) hw.buzzer.flips++;
+        if (bOld !== bNew) {
+          hw.buzzer.flips++;
+          hw.buzzer.prevFlip = hw.buzzer.lastFlip;
+          hw.buzzer.lastFlip = vm ? vm.vtime : 0;
+        }
         hw.buzzer.level = bNew;
       }
       if (port === 'P0') {
@@ -3633,6 +3702,15 @@ body.zoomed .appbar { display: none; }
       if (bit === undefined) return;
       hw.keys[key] = pressed ? 0 : 1;
       vm.setInputBit('P3', bit, pressed ? 0 : 1);
+      if (hw.bounce.on) {
+        var t0 = vm ? vm.vtime : 0;
+        hw.bounce.win[key] = {
+          from: t0 + Math.random() * 1.5,
+          until: t0 + 6 + Math.random() * 14,
+          stable: pressed ? 0 : 1,
+          salt: Math.random() * 1000
+        };
+      }
       hw.pushTrace('P3', vm.ports.P3, vm.vtime);
     };
 
@@ -3642,7 +3720,23 @@ body.zoomed .appbar { display: none; }
        读操作不改端口本身，只影响"读回来的值"，这样时序图上看到的仍是程序写出去的电平。
        键码与讲义的 MatrixKey() 一致：第 c 列第 r 行 = c*4 + r + 1。
     ------------------------------------------------------------------ */
-    hw.readPort = function (port, written) {
+    hw.readPort = function (port, written, t) {
+      /* 抖动窗口内，P3 上的按键位按伪随机序列跳动 */
+      if (port === 'P3' && hw.bounce.on) {
+        var now = t || 0;
+        Object.keys(hw.bounce.win).forEach(function (k) {
+          var w = hw.bounce.win[k];
+          if (!w || now > w.until) return;
+          var kb = KEY_BITS[k];
+          var v = w.stable;
+          if (now >= w.from) {
+            var step = Math.floor((now - w.from) / 0.6);
+            var r = Math.abs(Math.sin((step + w.salt) * 12.9898) * 43758.5453) % 1;
+            v = r < 0.55 ? w.stable : (w.stable ? 0 : 1);
+          }
+          written = v ? (written | (1 << kb)) : (written & ~(1 << kb));
+        });
+      }
       if (port !== 'P1') return written;
       var v = written;
       for (var r = 0; r < 4; r++) {
@@ -4904,6 +4998,7 @@ void main()
   /* ---------------- 按键 ---------------- */
   var matDown = {};      /* 矩阵键盘按下状态：普通键值对，重新编译后要把按住的状态补回去 */
   var matFaces = {};     /* 对应的键面元素，用来做按下/弹起的视觉反馈 */
+  var keyFaces = {};     /* K1~K4 的键面元素，键盘映射按下时也要同步高亮 */
 
   function paintMatrix() {
     Object.keys(matDown).forEach(function (k) {
@@ -4951,6 +5046,7 @@ void main()
   }
 
   function bindKey(key, pin, g, rect) {
+    keyFaces[key] = rect;
     function down(e) {
       e.preventDefault();
       if (!vm) build();
@@ -4984,6 +5080,77 @@ void main()
       if (vm) hw.pressMatrix(Math.floor(+k / 4), (+k) % 4, false);
     });
     if (any) paintMatrix();
+  });
+
+  /* ---------------- 键盘映射 ----------------
+     开发板页可以直接敲电脑键盘：
+       K1~K4        → 7 8 9 0
+       4×4 矩阵键盘 → Q W E R / A S D F / Z X C V / 1 2 3 4
+     焦点在输入框里时不抢键；切走窗口时把按住的键全部松开。
+  ------------------------------------------------------------------ */
+  var KEYMAP_SINGLE = { '7': 'K1', '8': 'K2', '9': 'K3', '0': 'K4' };
+  var KEYMAP_MATRIX = {
+    q: [0, 0], w: [0, 1], e: [0, 2], r: [0, 3],
+    a: [1, 0], s: [1, 1], d: [1, 2], f: [1, 3],
+    z: [2, 0], x: [2, 1], c: [2, 2], v: [2, 3],
+    '1': [3, 0], '2': [3, 1], '3': [3, 2], '4': [3, 3]
+  };
+  var kbHeld = {};
+  function isTyping(t) {
+    if (!t) return false;
+    var tag = String(t.tagName || '').toUpperCase();
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    return !!(t.isContentEditable || (t.getAttribute && t.getAttribute('contenteditable') === 'true'));
+  }
+  function kbPress(k, down) {
+    var sk = KEYMAP_SINGLE[k], rc = KEYMAP_MATRIX[k];
+    if (!sk && !rc) return false;
+    if (down) {
+      if (!vm) build();
+      if (!vm) return false;
+      forceRender = true;
+      if (sk) {
+        hw.setKey(vm, sk, true);
+        if (keyFaces[sk]) keyFaces[sk].setAttribute('fill', '#b7c4d2');
+      } else {
+        var id = rc[0] * 4 + rc[1];
+        matDown[id] = 1;
+        hw.pressMatrix(rc[0], rc[1], true);
+        if (matFaces[id]) matFaces[id].setAttribute('fill', '#b7c4d2');
+      }
+    } else {
+      if (!vm) return true;
+      forceRender = true;
+      if (sk) {
+        hw.setKey(vm, sk, false);
+        if (keyFaces[sk]) keyFaces[sk].setAttribute('fill', '#e9edf0');
+      } else {
+        var id2 = rc[0] * 4 + rc[1];
+        matDown[id2] = 0;
+        hw.pressMatrix(rc[0], rc[1], false);
+        if (matFaces[id2]) matFaces[id2].setAttribute('fill', '#e9edf0');
+      }
+    }
+    return true;
+  }
+  document.addEventListener('keydown', function (e) {
+    if (curPage !== 'board' || e.ctrlKey || e.altKey || e.metaKey || e.repeat) return;
+    if (isTyping(e.target)) return;
+    var k = String(e.key || '').toLowerCase();
+    if (kbHeld[k]) return;
+    if (!KEYMAP_SINGLE[k] && !KEYMAP_MATRIX[k]) return;
+    if (e.preventDefault) e.preventDefault();
+    if (kbPress(k, true)) kbHeld[k] = 1;
+  });
+  document.addEventListener('keyup', function (e) {
+    var k = String(e.key || '').toLowerCase();
+    if (!kbHeld[k]) return;
+    delete kbHeld[k];
+    kbPress(k, false);
+  });
+  window.addEventListener('blur', function () {
+    Object.keys(kbHeld).forEach(function (k) { kbPress(k, false); });
+    kbHeld = {};
   });
 
   /* ---------------- 端口监视 ---------------- */
@@ -5739,6 +5906,22 @@ void main()
     });
     var mask = $('dlg-new');
     if (mask) mask.addEventListener('click', function (e) { if (e && e.target === mask) closeNewItem(); });
+  })();
+
+  /* ---------------- 快捷键一览 ---------------- */
+  function openKeys() {
+    var el = $('dlg-keys');
+    if (el) { el.classList.add('on'); el.setAttribute('aria-hidden', 'false'); }
+  }
+  function closeKeys() {
+    var el = $('dlg-keys');
+    if (el) { el.classList.remove('on'); el.setAttribute('aria-hidden', 'true'); }
+  }
+  if ($('btn-keys')) $('btn-keys').onclick = openKeys;
+  if ($('keys-close')) $('keys-close').onclick = closeKeys;
+  (function () {
+    var mask = $('dlg-keys');
+    if (mask) mask.addEventListener('click', function (e) { if (e && e.target === mask) closeKeys(); });
   })();
 
   /* ---------------- IndexedDB：记住上次打开的文件夹 ---------------- */
@@ -8270,6 +8453,11 @@ void main()
       closeFind();
       return;
     }
+    if (e.key === 'Escape' && $('dlg-keys') && $('dlg-keys').classList.contains('on')) {
+      e.preventDefault();
+      closeKeys();
+      return;
+    }
   });
 
   /* ---------------- 构建 / 运行 ---------------- */
@@ -8294,9 +8482,9 @@ void main()
     if (unit.errors.length) {
       unit.errors.forEach(function (er) {
         addProblem('error', er.file, er.line, er.msg);
-        buildLine(er.file + '(' + er.line + '): error: ' + er.msg, 'err', er.line, er.file);
       });
       renderProblems();
+      buildLine('error: ' + unit.errors.length + ' 个错误，详见上方问题列表（点一行可跳转）', 'err');
       setBuildSum(unit.errors.length + ' Error(s)', 'err');
       setStatus('error', '编译失败');
       return false;
@@ -8305,14 +8493,16 @@ void main()
     if (unit.warnings.length) {
       unit.warnings.forEach(function (w) {
         addProblem('warn', w.file, w.line, w.msg);
-        buildLine(w.file + '(' + w.line + '): warning: ' + w.msg, 'warn', w.line, w.file);
       });
       renderProblems();
+      buildLine('warning: ' + unit.warnings.length + ' 条警告，详见上方问题列表', 'warn');
     }
     try {
       hw = C51HW.createHardware();
+      hw.bounce.on = bounceOn;
       vm = new C51.VM('', hw, unit.ast);
       hw.syncAll(vm);
+      resetRenderCache();
       reapplyMatrix();
       lastGutterLine = -1;
       errLine = 0;
@@ -8997,6 +9187,20 @@ void main()
     }
   }
 
+  /* ---------------- 按键抖动 ----------------
+     真实按键在按下/松开的瞬间电平会来回跳几毫秒。
+     打开后 hw.readPort 在抖动窗口内返回乱跳的 P3 值，用来检验消抖代码。
+  ------------------------------------------------------------------ */
+  var bounceOn = false;
+  if ($('btn-bounce')) $('btn-bounce').onclick = function () {
+    bounceOn = !bounceOn;
+    this.textContent = '抖动 ' + (bounceOn ? '开' : '关');
+    if (hw && hw.bounce) hw.bounce.on = bounceOn;
+    log(bounceOn
+      ? '已开启按键抖动：每次按下/松开后的 5~20ms 内电平会乱跳（5V 板子上真实按键就是这样），看看你的消抖代码还管不管用。'
+      : '已关闭按键抖动：按键电平干净切换，等同理想按键。', bounceOn ? 'warn' : 'dim');
+  };
+
   /* ---------------- 蜂鸣器声音 ---------------- */
   var soundOn = false, actx = null, osc = null, gain = null, lastFlips = 0;
   $('btn-sound').onclick = function () {
@@ -9017,13 +9221,20 @@ void main()
     if (actx && actx.state === 'suspended') actx.resume();
   };
   function updateSound() {
-    if (!gain) return;
-    var active = false;
+    /* 翻转次数要一直更新：render() 用它判断蜂鸣器要不要亮，不能只在开声音时维护 */
+    var flips = hw ? hw.buzzer.flips : 0;
+    if (!gain) { lastFlips = flips; return; }
+    var active = false, freq = 0;
     if (soundOn && vm && hw && state === 'running') {
-      var d = hw.buzzer.flips - lastFlips;
-      active = d >= 4;
+      var gap = hw.buzzer.lastFlip - hw.buzzer.prevFlip;
+      /* 最近一次翻转还在 120ms 内、且相邻两次翻转的间隔够短，才算真的在发声 */
+      active = gap > 0.05 && gap < 100 && (vm.vtime - hw.buzzer.lastFlip) < 120;
+      /* 声音跟着程序的翻转频率走：半周期 gap(ms) → 频率 1000/(2·gap) Hz。
+         软件延时、定时器中断改一下，音高就跟着变；超出人耳/扬声器范围时夹住。 */
+      if (active) freq = Math.max(20, Math.min(8000, 1000 / (2 * gap)));
     }
-    if (hw) lastFlips = hw.buzzer.flips;
+    lastFlips = flips;
+    if (osc && freq) osc.frequency.value = freq;
     gain.gain.value = active ? 0.04 : 0;
   }
 
@@ -9032,16 +9243,28 @@ void main()
      以前每帧无条件写 80 多个属性，闲着也跑满 60fps；现在停着就完全不写。
   ------------------------------------------------------------------ */
   var forceRender = false;
+  /* 渲染缓存：值没变就不写 DOM，避免每帧几百次重复 setAttribute */
+  var rLed = [], rSeg = [], rLcd = ['', ''], rPortHex = {}, rPortBits = {},
+      rBuzzerFill = null, rBuzzerText = null, rVtime = null, rSteps = null;
+  function resetRenderCache() {
+    rLed = []; rSeg = []; rLcd = ['', '']; rPortHex = {}; rPortBits = {};
+    rBuzzerFill = null; rBuzzerText = null; rVtime = null; rSteps = null;
+  }
   function render() {
     var i, b;
     for (i = 0; i < 8; i++) {
-      var on = hw && hw.leds[i];
-      ledEls[i].setAttribute('fill', on ? '#ff3a22' : '#7d3a30');
-      ledHalo[i].setAttribute('opacity', on ? 0.38 : 0);
+      var on = hw && hw.leds[i] ? 1 : 0;
+      if (rLed[i] !== on) {
+        rLed[i] = on;
+        ledEls[i].setAttribute('fill', on ? '#ff3a22' : '#7d3a30');
+        ledHalo[i].setAttribute('opacity', on ? 0.38 : 0);
+      }
     }
     for (i = 0; i < 8; i++) {
       var code = 0;
       if (hw && vm && (vm.vtime - hw.nixieTime[i]) < 40) code = hw.nixie[i];
+      if (rSeg[i] === code) continue;
+      rSeg[i] = code;
       for (var s = 0; s < 7; s++) {
         var lit = (code >> s) & 1;
         segEls[i][SEG_ORDER[s]].setAttribute('fill', lit ? '#ff3d1e' : '#5c6057');
@@ -9050,25 +9273,31 @@ void main()
     }
     if (hw) {
       var lines = hw.lcdText();
-      lcdLines[0].textContent = lines[0];
-      lcdLines[1].textContent = lines[1];
+      if (rLcd[0] !== lines[0]) { rLcd[0] = lines[0]; lcdLines[0].textContent = lines[0]; }
+      if (rLcd[1] !== lines[1]) { rLcd[1] = lines[1]; lcdLines[1].textContent = lines[1]; }
       var buzzing = state === 'running' && hw.buzzer.flips - lastFlips > 0;
-      buzzerEl.setAttribute('fill', buzzing ? '#f0b429' : '#333941');
-      buzzerText.textContent = '蜂鸣器 翻转 ' + hw.buzzer.flips + ' 次';
+      var fill = buzzing ? '#f0b429' : '#333941';
+      if (rBuzzerFill !== fill) { rBuzzerFill = fill; buzzerEl.setAttribute('fill', fill); }
+      var btext = '蜂鸣器 翻转 ' + hw.buzzer.flips + ' 次';
+      if (rBuzzerText !== btext) { rBuzzerText = btext; buzzerText.textContent = btext; }
     }
     if (vm) {
       ['P0', 'P1', 'P2', 'P3'].forEach(function (p) {
         var v = vm.ports[p];
+        var hex = '0x' + ('0' + v.toString(16).toUpperCase()).slice(-2);
+        if (rPortHex[p] !== hex) { rPortHex[p] = hex; portHex[p].textContent = hex; }
+        if (rPortBits[p] === v) return;
+        rPortBits[p] = v;
         for (b = 0; b < 8; b++) {
           var bit = (v >> b) & 1;
           var el = portBits[p][b];
           el.textContent = bit;
           el.className = 'bit ' + (bit ? 'one' : 'zero');
         }
-        portHex[p].textContent = '0x' + ('0' + v.toString(16).toUpperCase()).slice(-2);
       });
-      $('vtime').textContent = vm.vtime.toFixed(0) + ' ms';
-      $('steps').textContent = vm.stepCount + ' 条语句';
+      var vt = vm.vtime.toFixed(0);
+      if (rVtime !== vt) { rVtime = vt; $('vtime').textContent = vt + ' ms'; }
+      if (rSteps !== vm.stepCount) { rSteps = vm.stepCount; $('steps').textContent = vm.stepCount + ' 条语句'; }
       if (state === 'running' || state === 'paused') markLine(vmLocalLine());
       else paintMarks();
     }

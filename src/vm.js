@@ -811,7 +811,7 @@
      所以读到的值不一定等于程序写进去的值。 */
   VM.prototype.readPort = function (port) {
     var w = this.ports[port];
-    return this.hw && this.hw.readPort ? this.hw.readPort(port, w) : w;
+    return this.hw && this.hw.readPort ? this.hw.readPort(port, w, this.vtime) : w;
   };
 
   /* ---------------- 定时器 0 / 1 ----------------

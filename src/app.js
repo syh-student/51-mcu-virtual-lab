@@ -447,6 +447,7 @@
   /* ---------------- 按键 ---------------- */
   var matDown = {};      /* 矩阵键盘按下状态：普通键值对，重新编译后要把按住的状态补回去 */
   var matFaces = {};     /* 对应的键面元素，用来做按下/弹起的视觉反馈 */
+  var keyFaces = {};     /* K1~K4 的键面元素，键盘映射按下时也要同步高亮 */
 
   function paintMatrix() {
     Object.keys(matDown).forEach(function (k) {
@@ -494,6 +495,7 @@
   }
 
   function bindKey(key, pin, g, rect) {
+    keyFaces[key] = rect;
     function down(e) {
       e.preventDefault();
       if (!vm) build();
@@ -527,6 +529,77 @@
       if (vm) hw.pressMatrix(Math.floor(+k / 4), (+k) % 4, false);
     });
     if (any) paintMatrix();
+  });
+
+  /* ---------------- 键盘映射 ----------------
+     开发板页可以直接敲电脑键盘：
+       K1~K4        → 7 8 9 0
+       4×4 矩阵键盘 → Q W E R / A S D F / Z X C V / 1 2 3 4
+     焦点在输入框里时不抢键；切走窗口时把按住的键全部松开。
+  ------------------------------------------------------------------ */
+  var KEYMAP_SINGLE = { '7': 'K1', '8': 'K2', '9': 'K3', '0': 'K4' };
+  var KEYMAP_MATRIX = {
+    q: [0, 0], w: [0, 1], e: [0, 2], r: [0, 3],
+    a: [1, 0], s: [1, 1], d: [1, 2], f: [1, 3],
+    z: [2, 0], x: [2, 1], c: [2, 2], v: [2, 3],
+    '1': [3, 0], '2': [3, 1], '3': [3, 2], '4': [3, 3]
+  };
+  var kbHeld = {};
+  function isTyping(t) {
+    if (!t) return false;
+    var tag = String(t.tagName || '').toUpperCase();
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    return !!(t.isContentEditable || (t.getAttribute && t.getAttribute('contenteditable') === 'true'));
+  }
+  function kbPress(k, down) {
+    var sk = KEYMAP_SINGLE[k], rc = KEYMAP_MATRIX[k];
+    if (!sk && !rc) return false;
+    if (down) {
+      if (!vm) build();
+      if (!vm) return false;
+      forceRender = true;
+      if (sk) {
+        hw.setKey(vm, sk, true);
+        if (keyFaces[sk]) keyFaces[sk].setAttribute('fill', '#b7c4d2');
+      } else {
+        var id = rc[0] * 4 + rc[1];
+        matDown[id] = 1;
+        hw.pressMatrix(rc[0], rc[1], true);
+        if (matFaces[id]) matFaces[id].setAttribute('fill', '#b7c4d2');
+      }
+    } else {
+      if (!vm) return true;
+      forceRender = true;
+      if (sk) {
+        hw.setKey(vm, sk, false);
+        if (keyFaces[sk]) keyFaces[sk].setAttribute('fill', '#e9edf0');
+      } else {
+        var id2 = rc[0] * 4 + rc[1];
+        matDown[id2] = 0;
+        hw.pressMatrix(rc[0], rc[1], false);
+        if (matFaces[id2]) matFaces[id2].setAttribute('fill', '#e9edf0');
+      }
+    }
+    return true;
+  }
+  document.addEventListener('keydown', function (e) {
+    if (curPage !== 'board' || e.ctrlKey || e.altKey || e.metaKey || e.repeat) return;
+    if (isTyping(e.target)) return;
+    var k = String(e.key || '').toLowerCase();
+    if (kbHeld[k]) return;
+    if (!KEYMAP_SINGLE[k] && !KEYMAP_MATRIX[k]) return;
+    if (e.preventDefault) e.preventDefault();
+    if (kbPress(k, true)) kbHeld[k] = 1;
+  });
+  document.addEventListener('keyup', function (e) {
+    var k = String(e.key || '').toLowerCase();
+    if (!kbHeld[k]) return;
+    delete kbHeld[k];
+    kbPress(k, false);
+  });
+  window.addEventListener('blur', function () {
+    Object.keys(kbHeld).forEach(function (k) { kbPress(k, false); });
+    kbHeld = {};
   });
 
   /* ---------------- 端口监视 ---------------- */
@@ -1282,6 +1355,22 @@
     });
     var mask = $('dlg-new');
     if (mask) mask.addEventListener('click', function (e) { if (e && e.target === mask) closeNewItem(); });
+  })();
+
+  /* ---------------- 快捷键一览 ---------------- */
+  function openKeys() {
+    var el = $('dlg-keys');
+    if (el) { el.classList.add('on'); el.setAttribute('aria-hidden', 'false'); }
+  }
+  function closeKeys() {
+    var el = $('dlg-keys');
+    if (el) { el.classList.remove('on'); el.setAttribute('aria-hidden', 'true'); }
+  }
+  if ($('btn-keys')) $('btn-keys').onclick = openKeys;
+  if ($('keys-close')) $('keys-close').onclick = closeKeys;
+  (function () {
+    var mask = $('dlg-keys');
+    if (mask) mask.addEventListener('click', function (e) { if (e && e.target === mask) closeKeys(); });
   })();
 
   /* ---------------- IndexedDB：记住上次打开的文件夹 ---------------- */
@@ -3813,6 +3902,11 @@
       closeFind();
       return;
     }
+    if (e.key === 'Escape' && $('dlg-keys') && $('dlg-keys').classList.contains('on')) {
+      e.preventDefault();
+      closeKeys();
+      return;
+    }
   });
 
   /* ---------------- 构建 / 运行 ---------------- */
@@ -3837,9 +3931,9 @@
     if (unit.errors.length) {
       unit.errors.forEach(function (er) {
         addProblem('error', er.file, er.line, er.msg);
-        buildLine(er.file + '(' + er.line + '): error: ' + er.msg, 'err', er.line, er.file);
       });
       renderProblems();
+      buildLine('error: ' + unit.errors.length + ' 个错误，详见上方问题列表（点一行可跳转）', 'err');
       setBuildSum(unit.errors.length + ' Error(s)', 'err');
       setStatus('error', '编译失败');
       return false;
@@ -3848,14 +3942,16 @@
     if (unit.warnings.length) {
       unit.warnings.forEach(function (w) {
         addProblem('warn', w.file, w.line, w.msg);
-        buildLine(w.file + '(' + w.line + '): warning: ' + w.msg, 'warn', w.line, w.file);
       });
       renderProblems();
+      buildLine('warning: ' + unit.warnings.length + ' 条警告，详见上方问题列表', 'warn');
     }
     try {
       hw = C51HW.createHardware();
+      hw.bounce.on = bounceOn;
       vm = new C51.VM('', hw, unit.ast);
       hw.syncAll(vm);
+      resetRenderCache();
       reapplyMatrix();
       lastGutterLine = -1;
       errLine = 0;
@@ -4540,6 +4636,20 @@
     }
   }
 
+  /* ---------------- 按键抖动 ----------------
+     真实按键在按下/松开的瞬间电平会来回跳几毫秒。
+     打开后 hw.readPort 在抖动窗口内返回乱跳的 P3 值，用来检验消抖代码。
+  ------------------------------------------------------------------ */
+  var bounceOn = false;
+  if ($('btn-bounce')) $('btn-bounce').onclick = function () {
+    bounceOn = !bounceOn;
+    this.textContent = '抖动 ' + (bounceOn ? '开' : '关');
+    if (hw && hw.bounce) hw.bounce.on = bounceOn;
+    log(bounceOn
+      ? '已开启按键抖动：每次按下/松开后的 5~20ms 内电平会乱跳（5V 板子上真实按键就是这样），看看你的消抖代码还管不管用。'
+      : '已关闭按键抖动：按键电平干净切换，等同理想按键。', bounceOn ? 'warn' : 'dim');
+  };
+
   /* ---------------- 蜂鸣器声音 ---------------- */
   var soundOn = false, actx = null, osc = null, gain = null, lastFlips = 0;
   $('btn-sound').onclick = function () {
@@ -4560,13 +4670,20 @@
     if (actx && actx.state === 'suspended') actx.resume();
   };
   function updateSound() {
-    if (!gain) return;
-    var active = false;
+    /* 翻转次数要一直更新：render() 用它判断蜂鸣器要不要亮，不能只在开声音时维护 */
+    var flips = hw ? hw.buzzer.flips : 0;
+    if (!gain) { lastFlips = flips; return; }
+    var active = false, freq = 0;
     if (soundOn && vm && hw && state === 'running') {
-      var d = hw.buzzer.flips - lastFlips;
-      active = d >= 4;
+      var gap = hw.buzzer.lastFlip - hw.buzzer.prevFlip;
+      /* 最近一次翻转还在 120ms 内、且相邻两次翻转的间隔够短，才算真的在发声 */
+      active = gap > 0.05 && gap < 100 && (vm.vtime - hw.buzzer.lastFlip) < 120;
+      /* 声音跟着程序的翻转频率走：半周期 gap(ms) → 频率 1000/(2·gap) Hz。
+         软件延时、定时器中断改一下，音高就跟着变；超出人耳/扬声器范围时夹住。 */
+      if (active) freq = Math.max(20, Math.min(8000, 1000 / (2 * gap)));
     }
-    if (hw) lastFlips = hw.buzzer.flips;
+    lastFlips = flips;
+    if (osc && freq) osc.frequency.value = freq;
     gain.gain.value = active ? 0.04 : 0;
   }
 
@@ -4575,16 +4692,28 @@
      以前每帧无条件写 80 多个属性，闲着也跑满 60fps；现在停着就完全不写。
   ------------------------------------------------------------------ */
   var forceRender = false;
+  /* 渲染缓存：值没变就不写 DOM，避免每帧几百次重复 setAttribute */
+  var rLed = [], rSeg = [], rLcd = ['', ''], rPortHex = {}, rPortBits = {},
+      rBuzzerFill = null, rBuzzerText = null, rVtime = null, rSteps = null;
+  function resetRenderCache() {
+    rLed = []; rSeg = []; rLcd = ['', '']; rPortHex = {}; rPortBits = {};
+    rBuzzerFill = null; rBuzzerText = null; rVtime = null; rSteps = null;
+  }
   function render() {
     var i, b;
     for (i = 0; i < 8; i++) {
-      var on = hw && hw.leds[i];
-      ledEls[i].setAttribute('fill', on ? '#ff3a22' : '#7d3a30');
-      ledHalo[i].setAttribute('opacity', on ? 0.38 : 0);
+      var on = hw && hw.leds[i] ? 1 : 0;
+      if (rLed[i] !== on) {
+        rLed[i] = on;
+        ledEls[i].setAttribute('fill', on ? '#ff3a22' : '#7d3a30');
+        ledHalo[i].setAttribute('opacity', on ? 0.38 : 0);
+      }
     }
     for (i = 0; i < 8; i++) {
       var code = 0;
       if (hw && vm && (vm.vtime - hw.nixieTime[i]) < 40) code = hw.nixie[i];
+      if (rSeg[i] === code) continue;
+      rSeg[i] = code;
       for (var s = 0; s < 7; s++) {
         var lit = (code >> s) & 1;
         segEls[i][SEG_ORDER[s]].setAttribute('fill', lit ? '#ff3d1e' : '#5c6057');
@@ -4593,25 +4722,31 @@
     }
     if (hw) {
       var lines = hw.lcdText();
-      lcdLines[0].textContent = lines[0];
-      lcdLines[1].textContent = lines[1];
+      if (rLcd[0] !== lines[0]) { rLcd[0] = lines[0]; lcdLines[0].textContent = lines[0]; }
+      if (rLcd[1] !== lines[1]) { rLcd[1] = lines[1]; lcdLines[1].textContent = lines[1]; }
       var buzzing = state === 'running' && hw.buzzer.flips - lastFlips > 0;
-      buzzerEl.setAttribute('fill', buzzing ? '#f0b429' : '#333941');
-      buzzerText.textContent = '蜂鸣器 翻转 ' + hw.buzzer.flips + ' 次';
+      var fill = buzzing ? '#f0b429' : '#333941';
+      if (rBuzzerFill !== fill) { rBuzzerFill = fill; buzzerEl.setAttribute('fill', fill); }
+      var btext = '蜂鸣器 翻转 ' + hw.buzzer.flips + ' 次';
+      if (rBuzzerText !== btext) { rBuzzerText = btext; buzzerText.textContent = btext; }
     }
     if (vm) {
       ['P0', 'P1', 'P2', 'P3'].forEach(function (p) {
         var v = vm.ports[p];
+        var hex = '0x' + ('0' + v.toString(16).toUpperCase()).slice(-2);
+        if (rPortHex[p] !== hex) { rPortHex[p] = hex; portHex[p].textContent = hex; }
+        if (rPortBits[p] === v) return;
+        rPortBits[p] = v;
         for (b = 0; b < 8; b++) {
           var bit = (v >> b) & 1;
           var el = portBits[p][b];
           el.textContent = bit;
           el.className = 'bit ' + (bit ? 'one' : 'zero');
         }
-        portHex[p].textContent = '0x' + ('0' + v.toString(16).toUpperCase()).slice(-2);
       });
-      $('vtime').textContent = vm.vtime.toFixed(0) + ' ms';
-      $('steps').textContent = vm.stepCount + ' 条语句';
+      var vt = vm.vtime.toFixed(0);
+      if (rVtime !== vt) { rVtime = vt; $('vtime').textContent = vt + ' ms'; }
+      if (rSteps !== vm.stepCount) { rSteps = vm.stepCount; $('steps').textContent = vm.stepCount + ' 条语句'; }
       if (state === 'running' || state === 'paused') markLine(vmLocalLine());
       else paintMarks();
     }

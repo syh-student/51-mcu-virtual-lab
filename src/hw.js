@@ -24,9 +24,12 @@
       lcdActive: false,
       lcdSeenAt: -1e9,                           /* 最近一次 LCD 写操作的虚拟时间 */
       lcd: { ddram: new Array(80).fill(32), addr: 0, writes: 0 },
-      buzzer: { level: 1, flips: 0 },
+      buzzer: { level: 1, flips: 0, lastFlip: -1e9, prevFlip: -1e9 },
       keys: { K1: 1, K2: 1, K3: 1, K4: 1 },     // 1 = 松开
       matrix: new Array(16).fill(0),             // 4×4 矩阵键盘，1 = 按下
+      /* 按键抖动：真实按键在按下/松开的 5~20ms 内电平会来回跳。
+         默认关，打开后 readPort 在抖动窗口内返回抖动的值，用来演示消抖的必要性。 */
+      bounce: { on: false, win: {} },
       scanCount: 0,
       /* 时序图用的电平记录：{ t: 虚拟毫秒, port, v } —— 只在电平真正变化时入队。
          全程视图要保留整次运行，所以上限给得大；到顶后按时间桶抽稀，不缩短时间范围。 */
@@ -73,8 +76,9 @@
       hw.lcdActive = false;
       hw.lcdSeenAt = -1e9;
       hw.lcd = { ddram: new Array(80).fill(32), addr: 0, writes: 0 };
-      hw.buzzer = { level: 1, flips: 0 };
+      hw.buzzer = { level: 1, flips: 0, lastFlip: -1e9, prevFlip: -1e9 };
       hw.matrix = new Array(16).fill(0);
+      hw.bounce.win = {};
       hw.scanCount = 0;
       hw.trace = [];
       hw.traceCompacted = false;
@@ -103,7 +107,11 @@
         hw.lcdSeenAt = vm ? vm.vtime : 0;
       }
       if (port === 'P1' && bit === 5) {
-        if (hw.buzzer.level !== val) hw.buzzer.flips++;
+        if (hw.buzzer.level !== val) {
+          hw.buzzer.flips++;
+          hw.buzzer.prevFlip = hw.buzzer.lastFlip;
+          hw.buzzer.lastFlip = vm ? vm.vtime : 0;
+        }
         hw.buzzer.level = val;
       }
     };
@@ -118,7 +126,11 @@
       }
       if (port === 'P1') {
         var bOld = (oldV >> 5) & 1, bNew = (newV >> 5) & 1;
-        if (bOld !== bNew) hw.buzzer.flips++;
+        if (bOld !== bNew) {
+          hw.buzzer.flips++;
+          hw.buzzer.prevFlip = hw.buzzer.lastFlip;
+          hw.buzzer.lastFlip = vm ? vm.vtime : 0;
+        }
         hw.buzzer.level = bNew;
       }
       if (port === 'P0') {
@@ -174,6 +186,15 @@
       if (bit === undefined) return;
       hw.keys[key] = pressed ? 0 : 1;
       vm.setInputBit('P3', bit, pressed ? 0 : 1);
+      if (hw.bounce.on) {
+        var t0 = vm ? vm.vtime : 0;
+        hw.bounce.win[key] = {
+          from: t0 + Math.random() * 1.5,
+          until: t0 + 6 + Math.random() * 14,
+          stable: pressed ? 0 : 1,
+          salt: Math.random() * 1000
+        };
+      }
       hw.pushTrace('P3', vm.ports.P3, vm.vtime);
     };
 
@@ -183,7 +204,23 @@
        读操作不改端口本身，只影响"读回来的值"，这样时序图上看到的仍是程序写出去的电平。
        键码与讲义的 MatrixKey() 一致：第 c 列第 r 行 = c*4 + r + 1。
     ------------------------------------------------------------------ */
-    hw.readPort = function (port, written) {
+    hw.readPort = function (port, written, t) {
+      /* 抖动窗口内，P3 上的按键位按伪随机序列跳动 */
+      if (port === 'P3' && hw.bounce.on) {
+        var now = t || 0;
+        Object.keys(hw.bounce.win).forEach(function (k) {
+          var w = hw.bounce.win[k];
+          if (!w || now > w.until) return;
+          var kb = KEY_BITS[k];
+          var v = w.stable;
+          if (now >= w.from) {
+            var step = Math.floor((now - w.from) / 0.6);
+            var r = Math.abs(Math.sin((step + w.salt) * 12.9898) * 43758.5453) % 1;
+            v = r < 0.55 ? w.stable : (w.stable ? 0 : 1);
+          }
+          written = v ? (written | (1 << kb)) : (written & ~(1 << kb));
+        });
+      }
       if (port !== 'P1') return written;
       var v = written;
       for (var r = 0; r < 4; r++) {

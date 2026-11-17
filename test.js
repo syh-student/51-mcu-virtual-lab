@@ -96,6 +96,31 @@ void main(){
     'cnt=' + vm.globals.cnt + ' P2=0x' + vm.ports.P2.toString(16) + ' err=' + vm.error);
 }
 
+/* 4b. 按键抖动开关 */
+{
+  const hw = HW.createHardware();
+  hw.bounce.on = true;
+  const vm = new C51.VM('void main(){ while(1){} }', hw);
+  vm.vtime = 100;
+  hw.setKey(vm, 'K1', true);
+  let unstable = false, stableAfter = true;
+  for (let i = 0; i < 60; i++) {
+    const t = 100 + i * 0.4;
+    const v = hw.readPort('P3', vm.ports.P3, t);
+    if ((v >> 1) & 1) unstable = true;
+  }
+  /* 窗口结束后（>20ms）必须是稳定低电平，抖动不能漏到后面 */
+  for (let t = 122; t < 140; t += 0.5) {
+    if ((hw.readPort('P3', vm.ports.P3, t) >> 1) & 1) stableAfter = false;
+  }
+  check('抖动：窗口内 P3.1 出现跳变', unstable);
+  check('抖动：窗口结束后电平稳定', stableAfter);
+  hw.bounce.on = false;
+  hw.setKey(vm, 'K1', false);
+  hw.setKey(vm, 'K1', true);
+  check('抖动关闭：按下立即稳定读到 0', ((hw.readPort('P3', vm.ports.P3, 200) >> 1) & 1) === 0);
+}
+
 /* 5. LCD1602 */
 {
   const { vm, hw } = makeVM(`
