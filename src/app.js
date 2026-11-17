@@ -400,7 +400,7 @@
       silk(g, bx + s / 2, by + 42, kd[0], 7, 'middle', { 'font-weight': 700 });
       silk(g, bx + s / 2, by + 52, kd[1], 5.5, 'middle', { fill: '#c6dcf5' });
       keyEls[kd[0]] = { g: g, rect: face };
-      bindKey(kd[0], kd[1], g, face);
+      bindKey(kd[0], kd[1], g, face, bx, by, s);
     });
     silk(svg, 148, 626, '独立按键 · 按住 = 低电平', 6);
 
@@ -499,8 +499,9 @@
     g.addEventListener('mouseleave', function () { hideReticle(); setTip(''); });
   }
 
-  function bindKey(key, pin, g, rect) {
+  function bindKey(key, pin, g, rect, bx, by, size) {
     keyFaces[key] = rect;
+    var tip = '独立按键 ' + key + '：接 ' + pin + '，按住时这个引脚是低电平，松开变回高电平。用鼠标按住它试试。';
     function down(e) {
       e.preventDefault();
       if (!vm) build();
@@ -517,9 +518,10 @@
     }
     g.addEventListener('pointerdown', down);
     g.addEventListener('mouseenter', function () {
-      setTip('独立按键 ' + key + '：接 ' + pin + '，按住时这个引脚是低电平，松开变回高电平。用鼠标按住它试试。');
+      showReticle([bx - 2, by - 2, size + 4, size + 6, tip]);
+      setTip(tip);
     });
-    g.addEventListener('mouseleave', function () { setTip(''); });
+    g.addEventListener('mouseleave', function () { hideReticle(); setTip(''); });
     window.addEventListener('pointerup', up);
     g.addEventListener('pointerleave', up);
   }
