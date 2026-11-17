@@ -120,9 +120,14 @@
     if (!svg || !svg.getBoundingClientRect) return;
     var s = svg.getBoundingClientRect(), w = stage.getBoundingClientRect();
     if (!s.width) return;
-    var k = s.width / 656, PAD = 9;
-    var left = (s.left - w.left) + rg[0] * k - PAD;
-    var top = (s.top - w.top) + rg[1] * k - PAD;
+    /* SVG 默认按 xMidYMid meet 等比缩放：板子（656×722）放进一个宽扁的舞台时，
+       上下左右会留黑边。取景框必须按「实际内容区」算，不能直接拿元素宽度当比例，
+       否则框会比元件大一圈、还整体偏左上。 */
+    var VB_W = 656, VB_H = 722, PAD = 9;
+    var k = Math.min(s.width / VB_W, s.height / VB_H);
+    var ox = (s.width - VB_W * k) / 2, oy = (s.height - VB_H * k) / 2;
+    var left = (s.left - w.left) + ox + rg[0] * k - PAD;
+    var top = (s.top - w.top) + oy + rg[1] * k - PAD;
     reticleEl.style.left = left + 'px';
     reticleEl.style.top = top + 'px';
     reticleEl.style.width = (rg[2] * k + PAD * 2) + 'px';
