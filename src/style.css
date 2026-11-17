@@ -800,6 +800,9 @@ main {
   border-radius: 18px;
   background: #1a1513;
   box-shadow: 0 40px 100px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .05);
+  /* 手机横屏或快捷键表很长时，别让对话框顶出屏幕 */
+  max-height: 88vh;
+  overflow-y: auto;
 }
 .dlg h3 { margin: 0 0 6px; font-size: 14px; font-weight: 500; letter-spacing: .04em; color: var(--ink); }
 .dlg-msg { margin: 0 0 12px; font-size: 11.5px; line-height: 1.7; color: var(--muted); }
@@ -1543,6 +1546,7 @@ body.zoomed .appbar { display: none; }
   .controls { width: 100%; justify-content: center; }
   main { padding: 0 12px 12px; }
   .panel-h .hint { display: none; }
+  .board-panel .panel-h { flex-wrap: wrap; row-gap: 6px; }
   .scope-panel .panel-h { flex-wrap: wrap; }
   .scope-panel .panel-h .sp { display: none; }
   .editor-panel { height: 380px; }

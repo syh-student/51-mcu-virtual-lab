@@ -119,7 +119,7 @@
     var svg = svgNodeOf(host);
     if (!svg || !svg.getBoundingClientRect) return;
     var s = svg.getBoundingClientRect(), w = stage.getBoundingClientRect();
-    if (!s.width) return;
+    if (!s.width || !s.height) return;
     /* SVG 默认按 xMidYMid meet 等比缩放：板子（656×722）放进一个宽扁的舞台时，
        上下左右会留黑边。取景框必须按「实际内容区」算，不能直接拿元素宽度当比例，
        否则框会比元件大一圈、还整体偏左上。 */
@@ -4198,6 +4198,9 @@
       html += '<div data-l="' + i + '"' + (c ? ' class="' + c.trim() + '"' : '') + '>' + i + '</div>';
     }
     gutter.innerHTML = html;
+    /* 重建行号会把滚动位置打回顶部：代码滚到中间时一打字行号就全错位，
+       所以重建后立刻跟着 textarea 的滚动位置走。 */
+    gutter.scrollTop = codeEl.scrollTop;
     lastGutterLine = -1;
   }
   codeEl.addEventListener('input', function () {
@@ -4205,6 +4208,8 @@
     if (f) f.content = codeEl.value;
     histRecord();
     refreshGutter(); paintCode(); saveCode(); updateCursor();
+    /* 暂停时改代码会把当前行标记一起重建掉，补回来（运行中下一帧也会自己补） */
+    if (state === 'running' || state === 'paused') markLine(vmLocalLine());
     acShow();
   });
   codeEl.addEventListener('scroll', function () {
