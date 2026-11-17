@@ -3513,12 +3513,15 @@
   /* ==================== 断点 ==================== */
   var BP_PREFIX = 'c51lab.bp.v1.';
   var breakpoints = {};
-  var bpKeys = {};
+  var bpSnap = {};   /* 断点标记所在行 → 实际会停下的行（空行 / #include 会往后吸附） */
   var pausedAtBp = false;
   function rebuildBpKeys() {
-    bpKeys = {};
+    bpSnap = {};
     Object.keys(breakpoints).forEach(function (f) {
-      (breakpoints[f] || []).forEach(function (l) { bpKeys[f + ':' + l] = 1; });
+      (breakpoints[f] || []).forEach(function (l) {
+        var t = snapBpLine(f, l);
+        bpSnap[f + ':' + (t || l)] = 1;
+      });
     });
   }
   var lastStopKey = '';
@@ -3552,8 +3555,8 @@
       if (v && typeof v === 'object') collectStmtLines(v, out);
     }
   }
-  /* 点在 { 或空行上时，往下找第一条能执行的语句，和 Keil 的行为一致；
-     函数声明那一行（void main()）可以打断点，进函数时就会停住。 */
+  /* 断点标记留在用户点的行上（空行、#include 也能点）；
+     运行时往后找第一条能执行的语句，函数声明行本身也算一个可停的位置。 */
   function snapBpLine(file, line) {
     if (!vm || !lastUnit || !vm.ast) return line;
     var set = {};
@@ -3562,26 +3565,20 @@
     (vm.ast.body || []).forEach(function (d) {
       if (d && d.t === 'func' && typeof d.line === 'number') funcLines[d.line] = 1;
     });
-    for (var k = 0; k < lastUnit.map.length; k++) {
-      var fm = lastUnit.map[k];
-      if (fm.file === file && fm.line === line && funcLines[k + 1]) return line;
-    }
     var best = 0;
     for (var i = 0; i < lastUnit.map.length; i++) {
       var m = lastUnit.map[i];
       if (m.file !== file || !m.line) continue;
-      if (!set[i + 1]) continue;
+      if (!set[i + 1] && !funcLines[i + 1]) continue;
       if (m.line >= line && (!best || m.line < best)) best = m.line;
     }
     return best || line;
   }
   function toggleBp(file, rawLine) {
     if (!file || !rawLine) { log('先打开一个文件，再点行号设断点。', 'dim'); return; }
-    var line = snapBpLine(file, rawLine);
-    if (line !== rawLine) log('第 ' + rawLine + ' 行没有可执行的语句，断点落在第 ' + line + ' 行。', 'dim');
     var a = breakpoints[file] || (breakpoints[file] = []);
-    var i = a.indexOf(line);
-    if (i >= 0) a.splice(i, 1); else a.push(line);
+    var i = a.indexOf(rawLine);
+    if (i >= 0) a.splice(i, 1); else a.push(rawLine);
     a.sort(function (x, y) { return x - y; });
     if (!a.length) delete breakpoints[file];
     rebuildBpKeys();
@@ -3590,7 +3587,11 @@
     refreshGutter();
     markLine(state === 'running' || state === 'paused' ? vmLocalLine() : 0);
     renderDebug();
-    log((i >= 0 ? '已取消断点 ' : '已加断点 ') + file + ':' + line, 'dim');
+    log((i >= 0 ? '已取消断点 ' : '已加断点 ') + file + ':' + rawLine, 'dim');
+    if (i < 0) {
+      var target = snapBpLine(file, rawLine);
+      if (target !== rawLine) log('第 ' + rawLine + ' 行没有可执行的语句，运行时会停在第 ' + target + ' 行。', 'dim');
+    }
   }
   function vmLocalLine() {
     var loc = vm ? mapUnitLine(vm.line) : null;
@@ -3599,8 +3600,8 @@
   function checkBp(v) {
     var loc = mapUnitLine(v.line);
     if (!loc || !loc.line) { lastStopKey = ''; return false; }
-    if (!bpKeys[loc.file + ':' + loc.line]) { lastStopKey = ''; return false; }
     var key = loc.file + ':' + loc.line;
+    if (!bpSnap[key]) { lastStopKey = ''; return false; }
     if (key === lastStopKey) return false;
     lastStopKey = key;
     return true;
@@ -3950,6 +3951,7 @@
       hw = C51HW.createHardware();
       hw.bounce.on = bounceOn;
       vm = new C51.VM('', hw, unit.ast);
+      rebuildBpKeys();
       hw.syncAll(vm);
       resetRenderCache();
       reapplyMatrix();

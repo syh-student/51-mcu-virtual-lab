@@ -195,6 +195,21 @@ try {
   docKey('keyup', '7');
   expect('松开 7 后 P3 恢复 0xFF', p3hex(), '0xFF');
 
+  /* 断点：前几行（#include / 空行 / 函数声明行）都要能点出标记 */
+  const gutter = registry['gutter'];
+  const clickGutter = n => {
+    const row = { dataset: { l: String(n) }, parentNode: gutter };
+    (gutter.handlers.click || []).forEach(fn => fn({ target: row }));
+  };
+  const hasBp = n => new RegExp('data-l="' + n + '" class="bp"').test(gutter.innerHTML);
+  clickGutter(1); clickGutter(2); clickGutter(3);
+  expect('第 1 行（#include）能标记断点', hasBp(1), true);
+  expect('第 2 行（空行）能标记断点', hasBp(2), true);
+  expect('第 3 行（void main）能标记断点', hasBp(3), true);
+  clickGutter(1);
+  expect('再点第 1 行取消断点', hasBp(1), false);
+  expect('取消第 1 行不影响第 2 行', hasBp(2), true);
+
   /* 回车：在 { 和 } 之间 → 三行，光标在中间行 */
   setCode('void f()\n{}', 10);
   key('Enter');
