@@ -140,6 +140,18 @@
     lastHot = null;
     if (reticleEl && reticleEl.classList) reticleEl.classList.remove('ready');
   }
+  /* 触屏没有真正的 mouseleave：点完元件后取景框和说明会一直留着，
+     几秒后自动收起，免得挡住板子。 */
+  (function () {
+    var host = $('board');
+    if (!host || !host.addEventListener) return;
+    var timer = 0;
+    host.addEventListener('pointerdown', function (e) {
+      if (!e || e.pointerType !== 'touch') return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(function () { timer = 0; hideReticle(); setTip(''); }, 5000);
+    });
+  })();
   window.addEventListener('resize', function () { if (lastHot) showReticle(lastHot); syncTipPos(); });
 
   /* 开发板页把说明条浮到板面左上（那块是空的）。浮层锚在整张卡片上，
@@ -452,6 +464,7 @@
   /* ---------------- 按键 ---------------- */
   var matDown = {};      /* 矩阵键盘按下状态：普通键值对，重新编译后要把按住的状态补回去 */
   var matFaces = {};     /* 对应的键面元素，用来做按下/弹起的视觉反馈 */
+  var matTouch = {};     /* 矩阵键由哪根手指按着（pointerId），'kb' 表示键盘按的 */
   var keyFaces = {};     /* K1~K4 的键面元素，键盘映射按下时也要同步高亮 */
 
   function paintMatrix() {
@@ -476,16 +489,23 @@
     matFaces[key] = face;
     function down(e) {
       if (e && e.preventDefault) e.preventDefault();
+      var pid = e && e.pointerId != null ? e.pointerId : 1;
+      /* 同一个键已经被另一根手指按着就不再重复按下 */
+      if (matDown[key] && matTouch[key] != null && matTouch[key] !== pid) return;
       if (!vm) build();
       if (!vm) return;
       matDown[key] = 1;
+      matTouch[key] = pid;
       hw.pressMatrix(r, c, true);
       forceRender = true;
       face.setAttribute('fill', '#b7c4d2');
     }
-    function up() {
+    function up(e) {
       if (!matDown[key]) return;
+      /* 多指操作：只回应按下这根键的那根手指 */
+      if (e && e.pointerId != null && matTouch[key] != null && e.pointerId !== matTouch[key]) return;
       matDown[key] = 0;
+      delete matTouch[key];
       if (vm) hw.pressMatrix(r, c, false);
       face.setAttribute('fill', '#e9edf0');
     }
@@ -502,15 +522,21 @@
   function bindKey(key, pin, g, rect, bx, by, size) {
     keyFaces[key] = rect;
     var tip = '独立按键 ' + key + '：接 ' + pin + '，按住时这个引脚是低电平，松开变回高电平。用鼠标按住它试试。';
+    var holdId = null;   /* 按下这根键的 pointerId，松开时只认它 */
     function down(e) {
       e.preventDefault();
+      if (holdId !== null) return;
       if (!vm) build();
       if (!vm) return;
+      holdId = e && e.pointerId != null ? e.pointerId : 1;
       hw.setKey(vm, key, true);
       forceRender = true;
       rect.setAttribute('fill', '#b7c4d2');
     }
-    function up() {
+    function up(e) {
+      if (holdId === null) return;
+      if (e && e.pointerId != null && e.pointerId !== holdId) return;
+      holdId = null;
       if (!vm) return;
       hw.setKey(vm, key, false);
       forceRender = true;
@@ -527,11 +553,14 @@
   }
 
   /* 鼠标在任何地方松开都算松手，避免拖出键面后一直处于按下状态 */
-  window.addEventListener('pointerup', function () {
+  window.addEventListener('pointerup', function (e) {
     var any = false;
     Object.keys(matDown).forEach(function (k) {
       if (!matDown[k]) return;
+      if (matTouch[k] === 'kb') return;          /* 键盘按住的键，等 keyup 再松 */
+      if (e && e.pointerId != null && matTouch[k] != null && e.pointerId !== matTouch[k]) return;
       matDown[k] = 0;
+      delete matTouch[k];
       any = true;
       if (vm) hw.pressMatrix(Math.floor(+k / 4), (+k) % 4, false);
     });
@@ -571,6 +600,7 @@
       } else {
         var id = rc[0] * 4 + rc[1];
         matDown[id] = 1;
+        matTouch[id] = 'kb';
         hw.pressMatrix(rc[0], rc[1], true);
         if (matFaces[id]) matFaces[id].setAttribute('fill', '#b7c4d2');
       }
@@ -583,6 +613,7 @@
       } else {
         var id2 = rc[0] * 4 + rc[1];
         matDown[id2] = 0;
+        delete matTouch[id2];
         hw.pressMatrix(rc[0], rc[1], false);
         if (matFaces[id2]) matFaces[id2].setAttribute('fill', '#e9edf0');
       }

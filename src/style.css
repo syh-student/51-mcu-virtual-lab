@@ -1553,6 +1553,8 @@ body.zoomed .appbar { display: none; }
   .proj-tip { display: none; }
   .proj { width: 168px; }
   .board-stage { height: min(54vh, 440px); }
+  /* 手机上 30vw 只剩一百来像素，说明文字会挤成一条窄缝 */
+  .page-board .board-tip { max-width: min(260px, 62vw); }
   /* 真窄屏兜底：顶部信息收掉，导航和控件允许换行/横滚，别把按钮挤出屏幕 */
   .build-tag { display: none; }
   .capsule { overflow-x: auto; scrollbar-width: none; }
