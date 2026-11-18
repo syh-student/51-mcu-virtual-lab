@@ -16,3 +16,11 @@ out.write_text(tpl, encoding='utf-8')
 print('已生成:', out)
 print('构建戳:', stamp)
 print('大小: %.1f KB' % (out.stat().st_size / 1024))
+
+# 硬件篇是独立页面，由主应用的「硬件」页以 iframe 加载；构建时原样复制到根目录。
+hw_src = src / 'hardware.html'
+if hw_src.exists():
+    hw_out = base / 'hardware.html'
+    hw_out.write_text(hw_src.read_text(encoding='utf-8'), encoding='utf-8')
+    print('已生成:', hw_out)
+    print('大小: %.1f KB' % (hw_out.stat().st_size / 1024))

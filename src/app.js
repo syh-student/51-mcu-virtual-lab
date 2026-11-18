@@ -771,6 +771,10 @@
     var slot = $(name === 'board' ? 'slot-board-main' : 'slot-code-board');
     var card = $('board-card');
     if (slot && card && card.parentNode !== slot) slot.appendChild(card);
+    if (name !== 'board') {
+      pauseHardwareView();
+      if (boardView !== 'native') updateButtons();
+    }
     if (name === 'scope') { autoSpan(); drawScope(); }
     if (name === 'code') { refreshGutter(); paintCode(); syncCodeScroll(); }
     if (name === 'notes') updateFade();
@@ -779,7 +783,235 @@
     syncTipPos();           /* 说明条的位置随页面切换 */
     forceRender = true;
     pageInited = true;
+    if (name === 'board' && !boardViewRestored) {
+      boardViewRestored = true;
+      var sv = readSavedBoardView();
+      if (sv !== 'native') setBoardView(sv);
+    }
   }
+
+  /* ==================== 开发板视图：功能板 / 引脚板 / 硬件工具 ==================== */
+  var boardView = 'native';
+  var hwReady = false, hwWanted = 'pindemo', pinState = 'stopped', hwHintTimer = 0;
+  var BOARD_VIEW_KEY = 'mcu51.boardview.v1';
+  var boardViewRestored = false;
+  var TOOL_LABELS = { lab: '电路实验台', eda: '画板模拟', calc: '参数计算器', quiz: '自测练习' };
+
+  function readSavedBoardView() {
+    try {
+      var v = localStorage.getItem(BOARD_VIEW_KEY);
+      return ['native', 'pin', 'lab', 'eda', 'calc', 'quiz'].indexOf(v) >= 0 ? v : 'native';
+    } catch (e) { return 'native'; }
+  }
+  function saveBoardView(v) {
+    try { localStorage.setItem(BOARD_VIEW_KEY, v); } catch (e) {}
+  }
+  function updateBoardViewUI(view) {
+    var btns = document.querySelectorAll('#board-view-tabs button');
+    for (var i = 0; i < btns.length; i++) {
+      var on = btns[i].getAttribute('data-view') === view;
+      btns[i].classList.toggle('on', on);
+      btns[i].setAttribute('aria-selected', on ? 'true' : 'false');
+    }
+    var pop = $('hw-menu-pop'), label = $('hw-menu-label'), btn = $('hw-menu-btn');
+    if (pop) {
+      var items = pop.querySelectorAll('button[data-view]');
+      for (var j = 0; j < items.length; j++) {
+        items[j].classList.toggle('on', items[j].getAttribute('data-view') === view);
+      }
+    }
+    if (btn && label) {
+      var tool = !!TOOL_LABELS[view];
+      btn.classList.toggle('on', tool);
+      label.textContent = tool ? TOOL_LABELS[view] : '硬件工具';
+    }
+  }
+  function pinGaps(text) {
+    var gaps = [], t = text || '';
+    if (/#include\s*[<"](LCD|LCD1602|LCD12864)/i.test(t) || /\bLCD_[A-Za-z0-9_]*\s*\(/i.test(t)) gaps.push('LCD');
+    if (/\b(SBUF|SCON)\b/.test(t)) gaps.push('串口');
+    if (/\b(interrupt\s+\d|TMOD|TH0|TL0|TH1|TL1)\b/i.test(t)) gaps.push('定时器/中断');
+    if (/\bPic\s*\[/.test(t)) gaps.push('8×8 点阵');
+    return gaps;
+  }
+  function updatePinCapNote(text) {
+    var box = $('pin-cap-note'), note = $('pin-cap-text');
+    if (!box || !note) return;
+    if (boardView !== 'pin') { box.hidden = true; return; }
+    var src = text != null ? text : currentSource().text;
+    var gaps = pinGaps(src);
+    var multi = (project.files || []).filter(function (x) { return /\.c$/i.test(x.path); }).length > 1;
+    var parts = [];
+    if (gaps.length) parts.push('当前代码用到 ' + gaps.join('、') + '，引脚板不显示这部分');
+    if (multi) parts.push('多文件工程只运行当前文件');
+    if (!parts.length) { box.hidden = true; return; }
+    note.textContent = parts.join('；') + '。完整效果请用功能板。';
+    box.hidden = false;
+  }
+
+  function boardHwFrame() { return $('hw-frame'); }
+  function postHw(msg) {
+    var fr = boardHwFrame();
+    if (!fr || !fr.contentWindow || !hwReady) return false;
+    try { fr.contentWindow.postMessage(msg, '*'); return true; } catch (e) { return false; }
+  }
+  function hwViewName(v) { return v === 'pin' ? 'pindemo' : v; }
+  function hex2(v) {
+    if (v == null || !isFinite(v)) return '--';
+    var s = (v & 0xFF).toString(16).toUpperCase();
+    return '0x' + (s.length < 2 ? '0' + s : s);
+  }
+  function setBoardHint(text, isErr) {
+    var h = $('board-view-hint');
+    if (!h) return;
+    h.textContent = text;
+    h.style.color = isErr ? 'var(--danger)' : '';
+    if (hwHintTimer) { clearTimeout(hwHintTimer); hwHintTimer = 0; }
+    if (isErr) hwHintTimer = setTimeout(function () {
+      if (boardView === 'pin') setBoardHint('引脚板 · 已停止');
+      else if (boardView !== 'native') setBoardHint('硬件工具 · 不运行代码');
+    }, 5000);
+  }
+  function currentSource() {
+    var f = fileOf(project.active);
+    if (!f || !/\.(c|h)$/i.test(f.path)) f = fileOf('main.c') || f;
+    if (!f) return { name: 'main.c', text: codeEl ? codeEl.value : '' };
+    var text = (f.path === project.active && codeEl) ? codeEl.value : f.content;
+    return { name: f.path, text: text };
+  }
+  function sendPinCode() {
+    var s = currentSource();
+    if (!s) return null;
+    postHw({ type: 'hw:code', name: s.name, text: s.text });
+    updatePinCapNote(s.text);
+    return s;
+  }
+  function loadHwFrame(view) {
+    var fr = boardHwFrame();
+    if (!fr) return;
+    if (!fr.getAttribute('src')) fr.src = 'hardware.html#' + hwViewName(view);
+  }
+  function pauseHardwareView() {
+    if (pinState === 'running') postHw({ type: 'hw:pause' });
+  }
+  function setBoardView(view) {
+    var page = $('page-board');
+    if (!page) return;
+    if (view !== 'native' && view !== 'pin' && !TOOL_LABELS[view]) view = 'native';
+    if (view !== 'pin' && pinState === 'running') postHw({ type: 'hw:pause' });
+    boardView = view;
+    saveBoardView(view);
+    page.classList.toggle('hw-mode', view !== 'native');
+    updateBoardViewUI(view);
+    var box = $('pin-cap-note');
+    if (view !== 'pin' && box) box.hidden = true;
+    if (view === 'native') {
+      setBoardHint('功能板 · 运行当前工程');
+      updateButtons();
+      forceRender = true;
+      return;
+    }
+    closeZoom();
+    if (curPage !== 'board') setPage('board');
+    loadHwFrame(view);
+    hwWanted = hwViewName(view);
+    if (hwReady) postHw({ type: 'hw:view', view: hwWanted });
+    if (view === 'pin') {
+      setBoardHint('引脚板 · 已停止');
+      sendPinCode();
+    } else {
+      setBoardHint('硬件工具 · 不运行代码');
+    }
+  }
+  function hwRun() {
+    if (boardView !== 'pin') { setBoardHint('这个视图不运行代码', true); return; }
+    if (!hwReady) { setBoardHint('引脚板还在加载，稍等一下', true); return; }
+    sendPinCode();
+    postHw({ type: 'hw:run' });
+  }
+  (function initBoardViewTabs() {
+    var tabs = $('board-view-tabs');
+    var menuBtn = $('hw-menu-btn'), pop = $('hw-menu-pop');
+    function closeMenu() {
+      if (pop) pop.hidden = true;
+      if (menuBtn) menuBtn.setAttribute('aria-expanded', 'false');
+    }
+    if (tabs) {
+      tabs.addEventListener('click', function (e) {
+        var b = e.target && e.target.closest ? e.target.closest('button[data-view]') : null;
+        if (b) setBoardView(b.getAttribute('data-view'));
+      });
+    }
+    if (menuBtn && pop) {
+      menuBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        pop.hidden = !pop.hidden;
+        menuBtn.setAttribute('aria-expanded', pop.hidden ? 'false' : 'true');
+      });
+      pop.addEventListener('click', function (e) {
+        var b = e.target && e.target.closest ? e.target.closest('button[data-view]') : null;
+        if (b) { closeMenu(); setBoardView(b.getAttribute('data-view')); }
+      });
+      document.addEventListener('click', function (e) {
+        if (pop.hidden) return;
+        if (pop.contains(e.target) || menuBtn.contains(e.target)) return;
+        closeMenu();
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && !pop.hidden) closeMenu();
+      });
+    }
+    var back = $('pin-cap-back');
+    if (back) back.addEventListener('click', function () { setBoardView('native'); });
+    updateBoardViewUI(boardView);
+  })();
+
+  /* ==================== 首次进入的快速开始条 ==================== */
+  var QUICK_KEY = 'mcu51.quickstart.v1';
+  function quickSeen() {
+    try { return localStorage.getItem(QUICK_KEY) === '1'; } catch (e) { return true; }
+  }
+  function closeQuick() {
+    var q = $('quickbar');
+    if (q) q.hidden = true;
+    try { localStorage.setItem(QUICK_KEY, '1'); } catch (e) {}
+  }
+  (function initQuick() {
+    var q = $('quickbar');
+    if (!q) return;
+    if (!quickSeen()) q.hidden = false;
+    $('quickbar-close').onclick = closeQuick;
+    $('quickbar-go').onclick = function () { closeQuick(); setPage('board'); };
+  })();
+
+  /* 硬件页 → 主应用 */
+  window.addEventListener('message', function (e) {
+    var fr = boardHwFrame();
+    if (!fr || !fr.contentWindow || e.source !== fr.contentWindow) return;
+    var d = e.data || {};
+    if (d.type === 'hw:ready') {
+      hwReady = true;
+      postHw({ type: 'hw:view', view: hwWanted });
+      if (boardView === 'pin') sendPinCode();
+      return;
+    }
+    if (d.type === 'hw:state') {
+      pinState = d.state || 'stopped';
+      if (boardView === 'pin' && curPage === 'board') {
+        var label = $('btn-run-label');
+        if (label) label.textContent = pinState === 'paused' ? '继续' : '运行';
+        var p = $('btn-pause');
+        if (p) p.disabled = pinState !== 'running';
+        var ports = d.ports || {};
+        var txt = pinState === 'running' ? '运行中' : (pinState === 'paused' ? '已暂停' : '已停止');
+        if (d.error) setBoardHint('引脚板错误：' + d.error, true);
+        else setBoardHint('引脚板 · ' + txt + ' · P0=' + hex2(ports.P0) + ' P1=' + hex2(ports.P1) +
+          ' P2=' + hex2(ports.P2) + ' P3=' + hex2(ports.P3));
+      }
+      return;
+    }
+    if (d.type === 'hw:error') setBoardHint('引脚板错误：' + d.text, true);
+  });
 
   (function initCapsule() {
     var cap = $('capsule');
@@ -3841,6 +4073,8 @@
   }
 
   function doStep(mode) {
+    if (curPage === 'board' && boardView === 'pin') { postHw({ type: 'hw:step' }); return; }
+    if (curPage === 'board' && boardView !== 'native') { setBoardHint('这个视图不运行代码', true); return; }
     if (state === 'running') state = 'paused';
     if (!vm || vm.done || state === 'stopped' || !vm.frames.length) {
       if (!build()) return;
@@ -4116,6 +4350,26 @@
     if (build()) { log('已复位：端口恢复高电平，程序回到 main 入口。', 'dim'); }
     updateButtons();
   };
+
+  /* 引脚板视图下，主工具栏改为控制硬件页 */
+  var nativeRunClick = $('btn-run').onclick;
+  $('btn-run').onclick = function () {
+    if (curPage === 'board' && boardView === 'pin') { hwRun(); return; }
+    if (curPage === 'board' && boardView !== 'native') { setBoardHint('这个视图不运行代码', true); return; }
+    nativeRunClick();
+  };
+  var nativePauseClick = $('btn-pause').onclick;
+  $('btn-pause').onclick = function () {
+    if (curPage === 'board' && boardView === 'pin') { postHw({ type: 'hw:pause' }); return; }
+    if (curPage === 'board' && boardView !== 'native') return;
+    nativePauseClick();
+  };
+  var nativeResetClick = $('btn-reset').onclick;
+  $('btn-reset').onclick = function () {
+    if (curPage === 'board' && boardView === 'pin') { postHw({ type: 'hw:reset' }); return; }
+    if (curPage === 'board' && boardView !== 'native') return;
+    nativeResetClick();
+  };
   $('btn-clear').onclick = function () { consoleEl.innerHTML = ''; };
   $('btn-build').onclick = function () {
     var ok = build();
@@ -4214,6 +4468,7 @@
   $('speed').oninput = function () {
     speed = parseFloat(this.value);
     $('speed-val').textContent = speed + '×';
+    if (curPage === 'board' && boardView === 'pin') postHw({ type: 'hw:speed', speed: speed });
   };
 
   /* ---------------- 行号 ---------------- */
@@ -4921,18 +5176,10 @@
       log('分享链接里的代码解析失败，已退回例程原版。', 'err');
     }
   }
-  log('欢迎使用。上面的胶囊切换页面：写代码 / 开发板 / 时序图 / 讲义。', 'ok');
   var bt = $('build-tag');
-  if (bt) log('界面构建 ' + bt.textContent + '（标题栏右上角也有，可用来确认是不是最新版）。', 'dim');
-  log('编辑器：回车自动缩进、if/else/for/while 后多缩一级、打 { 自动配对并在空白行回退对齐、打 } 按配对花括号精确对齐、Tab / Shift+Tab 块缩进。', 'ok');
-  log('「写代码」左边写程序、右边就是开发板，点「运行」立刻看反应；改完可以不点运行，先点「编译」看语法错误。', 'dim');
-  log('左侧「工程」可以新建文件 / 文件夹，也能把 .c/.h 拖进来；双击改名、悬停 × 删除，导出 zip 能直接在 Keil 里打开。', 'dim');
-  log('「开发板」页能看端口电平和变量；「时序图」页把引脚电平画成波形；「讲义」页是每节的要点和自测。', 'dim');
-  log('数码管靠不停扫描才亮；按键例程用鼠标按住 K1~K4；Ctrl + Enter 随时运行 / 暂停。', 'dim');
-  log('第 6~8 章也能跑了：板上 4×4 矩阵键盘可以直接按住、定时器中断按 1μs 一个机器周期计数、写 SBUF 的内容出现在左下角「串口」标签。', 'ok');
-  log('新加的：点行号设断点（F9）、F10 越过 / F11 进入 / Shift+F11 跳出、F12 跳到定义、Ctrl+F 查找、Ctrl+Z 撤销。', 'dim');
-  log('能力边界：支持 P0~P3、位变量、数组、函数、矩阵键盘、定时器 0/1 中断、外部中断 INT0/INT1（K3/K4）、'
-    + '串口发送与接收；不支持指针 / 结构体 / I2C / 单总线 / ADC，写了会在编译时提示。', 'dim');
+  log('已就绪' + (bt ? ' · ' + bt.textContent : ''), 'ok');
+  log('F5 运行 · F9 断点 · F11 单步 · Ctrl+F 查找', 'dim');
+  log('例程在「讲义」，硬件实验在「开发板」，快捷键看右上角 ?', 'dim');
   requestAnimationFrame(frame);
   /* 支持 #ex=nixie&autorun 这样的链接，打开即运行指定例程 */
   if (/autorun/.test(hash)) startRun();

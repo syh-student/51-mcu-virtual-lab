@@ -72,6 +72,18 @@
   </div>
 </div>
 
+<div class="quickbar" id="quickbar" hidden>
+  <span class="qb-tag">快速开始</span>
+  <span class="qb-step"><i>01</i>选一个例程</span>
+  <span class="qb-sep">→</span>
+  <span class="qb-step"><i>02</i>点运行</span>
+  <span class="qb-sep">→</span>
+  <span class="qb-step"><i>03</i>在开发板看效果</span>
+  <span class="sp"></span>
+  <button type="button" class="qb-go" id="quickbar-go">去开发板</button>
+  <button type="button" class="qb-close" id="quickbar-close">知道了</button>
+</div>
+
 <main>
 
   <!-- ==================== 页面 1：写代码 ==================== -->
@@ -207,8 +219,31 @@
     <div class="slot" id="slot-code-board"></div>
   </section>
 
-  <!-- ==================== 页面 2：开发板 ==================== -->
+  <!-- ==================== 页面 2：开发板（功能板 / 引脚板 / 硬件工具） ==================== -->
   <section class="page page-board" id="page-board">
+    <div class="board-modes">
+      <div class="seg seg-sm" id="board-view-tabs" role="tablist" aria-label="开发板视图">
+        <button type="button" role="tab" data-view="native" class="on">功能板</button>
+        <button type="button" role="tab" data-view="pin">引脚板</button>
+      </div>
+      <div class="hw-menu" id="hw-menu">
+        <button class="hw-menu-btn" id="hw-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">
+          <b id="hw-menu-label">硬件工具</b><span>▾</span>
+        </button>
+        <div class="hw-menu-pop" id="hw-menu-pop" hidden>
+          <button type="button" data-view="lab">电路实验台</button>
+          <button type="button" data-view="eda">画板模拟</button>
+          <button type="button" data-view="calc">参数计算器</button>
+          <button type="button" data-view="quiz">自测练习</button>
+        </div>
+      </div>
+      <span class="sp"></span>
+      <span class="hint" id="board-view-hint">功能板 · 运行当前工程</span>
+      <div class="pin-cap-note" id="pin-cap-note" hidden>
+        <span id="pin-cap-text"></span>
+        <button type="button" id="pin-cap-back">切到功能板</button>
+      </div>
+    </div>
     <div class="slot" id="slot-board-main"></div>
     <aside class="side">
       <div class="panel">
@@ -233,6 +268,9 @@
         <div id="console"></div>
       </div>
     </aside>
+    <div class="hw-view" id="board-hw-view">
+      <iframe id="hw-frame" title="51 单片机硬件虚拟实验室" loading="lazy"></iframe>
+    </div>
   </section>
 
   <!-- ==================== 页面 3：时序图 ==================== -->
