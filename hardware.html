@@ -147,32 +147,37 @@ main { position: relative; z-index: 1; flex: 1; min-height: 0; width: 100%; max-
 
 /* 画布 */
 .canvas-panel { position: relative; }
-.canvas-wrap { position: relative; flex: 1; min-height: 0; overflow: hidden; background:
-  /* 面包板孔阵：每 2.54mm 一个插孔的真实观感 */
-  radial-gradient(circle at 1px 1px, rgba(180,200,220,.11) 1.3px, transparent 1.6px) 0 0/15px 15px,
-  radial-gradient(circle at 8px 8px, rgba(180,200,220,.07) 1.3px, transparent 1.6px) 0 0/15px 15px,
-  linear-gradient(160deg, #1a1917, #141210 70%); }
+.canvas-wrap {
+  position: relative; flex: 1; min-height: 0; overflow: hidden;
+  background: linear-gradient(160deg, #1a1917, #141210 70%);
+}
+/* 面包板孔阵现在由 JS 画在 canvas 上，可以跟随光标轻微排斥 */
+.canvas-dots {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  z-index: 0; pointer-events: none;
+}
 /* 面包板中间凹槽：真实面包板是一条浅色塑料中间的窄沟，
    不能用一整条半透明黑——那会变成一道突兀的“阴影”。
    这里改成上下两道细高光 + 沟底微暗，中间 8px，视觉上像凹槽而不是浮在画布上的黑带。 */
 .canvas-wrap::before {
   content: ""; position: absolute; left: 4%; right: 4%; top: 50%; height: 8px;
-  transform: translateY(-50%); pointer-events: none;
+  transform: translateY(-50%); pointer-events: none; z-index: 1;
   background: linear-gradient(180deg,
     rgba(255,255,255,.055) 0, rgba(255,255,255,.055) 1px,
     rgba(0,0,0,.10) 1px, rgba(0,0,0,.13) 7px,
     rgba(255,255,255,.045) 7px, rgba(255,255,255,.045) 8px);
 }
-#circuit { display: block; width: 100%; height: 100%; touch-action: none; }
+#circuit { position: relative; z-index: 2; display: block; width: 100%; height: 100%; touch-action: none; }
 #circuit.space { cursor: grab; }
 #circuit.panning { cursor: grabbing; }
 .canvas-hint {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+  z-index: 3;
   font-size: 12px; color: var(--faint); pointer-events: none; text-align: center;
 }
 .canvas-hint[hidden] { display: none; }
 .canvas-tools {
-  position: absolute; right: 10px; bottom: 10px; z-index: 3;
+  position: absolute; right: 10px; bottom: 10px; z-index: 4;
   display: flex; gap: 4px;
 }
 .canvas-tools .ghost {
@@ -550,6 +555,7 @@ html.pin-bridged .pin-left { display: none; }
           <button id="btn-clear-ckt" class="ghost" type="button">清空画布</button>
         </div>
         <div class="canvas-wrap" id="canvas-wrap">
+          <canvas id="canvas-dots" class="canvas-dots" aria-hidden="true"></canvas>
           <svg id="circuit" xmlns="http://www.w3.org/2000/svg" aria-label="电路图"></svg>
           <div class="canvas-hint" id="canvas-hint">从左边点一个元件开始搭电路</div>
           <div class="canvas-tools">
@@ -2547,11 +2553,14 @@ html.pin-bridged .pin-left { display: none; }
     if (!c) return;
     var p = pinPos(c, pin);
     wireDrag = { id: id, pin: pin, sx: e.clientX, sy: e.clientY, moved: false };
+    dotPaused = true;
     wirePreview = svg('line', { x1: p.x, y1: p.y, x2: p.x, y2: p.y, 'class': 'wire-preview' }, scene);
     try { svgRoot.setPointerCapture(e.pointerId); } catch (x) {}
   }
   function cancelWireDrag() {
     wireDrag = null;
+    dotPaused = false;
+    wakeDots();
     if (wirePreview && wirePreview.parentNode) wirePreview.parentNode.removeChild(wirePreview);
     wirePreview = null;
     highlightPin(null);
@@ -2805,6 +2814,106 @@ html.pin-bridged .pin-left { display: none; }
   var svgRoot = $('circuit');
   function compAt(id) { for (var i = 0; i < components.length; i++) if (components[i].id === id) return components[i]; return null; }
 
+  /* ================= 画布背景：点阵排斥 ================= */
+  var dotCanvas = $('canvas-dots');
+  var dotCtx = dotCanvas ? dotCanvas.getContext('2d') : null;
+  var dotW = 0, dotH = 0, dotDpr = 1;
+  var dots = [], dotMouse = { x: -9999, y: -9999 };
+  var dotRaf = 0, dotPaused = false;
+  var dotCanHover = window.matchMedia ? window.matchMedia('(hover: hover) and (pointer: fine)').matches : true;
+  var dotReduce = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false;
+
+  function dotSize() {
+    var wrap = $('canvas-wrap');
+    if (!wrap || !dotCanvas || !dotCtx) return false;
+    var r = wrap.getBoundingClientRect();
+    if (r.width < 2 || r.height < 2) return false;
+    dotW = r.width; dotH = r.height;
+    dotDpr = Math.min(2, window.devicePixelRatio || 1);
+    var cw = Math.round(dotW * dotDpr), ch = Math.round(dotH * dotDpr);
+    if (dotCanvas.width !== cw || dotCanvas.height !== ch) {
+      dotCanvas.width = cw; dotCanvas.height = ch;
+    }
+    dotCtx.setTransform(dotDpr, 0, 0, dotDpr, 0, 0);
+    return true;
+  }
+  function drawDots() {
+    if (!dotCtx || !dotW || !dotH) return true;
+    dotCtx.clearRect(0, 0, dotW, dotH);
+    var still = true, radius = 100, pushMax = 12;
+    for (var i = 0; i < dots.length; i++) {
+      var d = dots[i];
+      var dx = d.ox - dotMouse.x, dy = d.oy - dotMouse.y;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      var push = dist < radius ? (1 - dist / radius) * pushMax : 0;
+      var tx = d.ox + (dist > 0 ? dx / dist * push : 0);
+      var ty = d.oy + (dist > 0 ? dy / dist * push : 0);
+      d.x += (tx - d.x) * 0.18;
+      d.y += (ty - d.y) * 0.18;
+      if (Math.abs(tx - d.x) > 0.08 || Math.abs(ty - d.y) > 0.08) still = false;
+      var a = 0.11 + Math.max(0, 1 - dist / 150) * 0.24;
+      dotCtx.beginPath();
+      dotCtx.arc(d.x, d.y, 1.3, 0, Math.PI * 2);
+      dotCtx.fillStyle = 'rgba(188,206,224,' + a.toFixed(3) + ')';
+      dotCtx.fill();
+    }
+    return still;
+  }
+  function wakeDots() {
+    if (dotRaf || dotPaused || dotReduce || !dotCanHover) return;
+    dotRaf = requestAnimationFrame(function tick() {
+      dotRaf = 0;
+      if (dotPaused) return;
+      if (!drawDots()) dotRaf = requestAnimationFrame(tick);
+    });
+  }
+  function buildDots() {
+    if (!dotCanvas || !dotCtx) return;
+    if (!dotSize()) { dots = []; return; }
+    dots = [];
+    var gap = 15;
+    for (var y = 7.5; y < dotH; y += gap) {
+      for (var x = 7.5; x < dotW; x += gap) {
+        dots.push({ x: x, y: y, ox: x, oy: y });
+      }
+    }
+    drawDots();
+  }
+  function bindDots() {
+    var wrap = $('canvas-wrap');
+    if (!wrap || !dotCanvas || !dotCtx) return;
+    buildDots();
+    if (!dotCanHover || dotReduce) return;
+    wrap.addEventListener('pointermove', function (e) {
+      if (dotPaused) return;
+      var r = wrap.getBoundingClientRect();
+      dotMouse.x = e.clientX - r.left;
+      dotMouse.y = e.clientY - r.top;
+      drawDots();
+      wakeDots();
+    });
+    wrap.addEventListener('pointerleave', function () {
+      dotMouse.x = -9999; dotMouse.y = -9999;
+      drawDots();
+      wakeDots();
+    });
+    window.addEventListener('resize', buildDots);
+    if (window.ResizeObserver) {
+      new ResizeObserver(function () { buildDots(); }).observe(wrap);
+    }
+  }
+  bindDots();
+  window.__dotsDebug = function () {
+    var maxShift = 0;
+    for (var i = 0; i < dots.length; i++) {
+      var s = Math.sqrt(Math.pow(dots[i].x - dots[i].ox, 2) + Math.pow(dots[i].y - dots[i].oy, 2));
+      if (s > maxShift) maxShift = s;
+    }
+    return { count: dots.length, raf: !!dotRaf, paused: dotPaused, mouse: dotMouse,
+      canHover: dotCanHover, reduce: dotReduce, w: dotW, h: dotH,
+      maxShift: +maxShift.toFixed(2) };
+  };
+
   function render(skipParams) {
     while (svgRoot.firstChild) svgRoot.removeChild(svgRoot.firstChild);
     scene = svg('g', { id: 'viewport' }, svgRoot);
@@ -2927,6 +3036,7 @@ html.pin-bridged .pin-left { display: none; }
       if (e.target.classList && e.target.classList.contains('node')) return;
       if (spaceDown || e.button !== 0) return;
       dragging = true; dragMoved = false;
+      dotPaused = true;
       selected = c.id;
       sx = e.clientX; sy = e.clientY; ox = c.x; oy = c.y;
       dragSnap = snapshot();
@@ -2945,6 +3055,8 @@ html.pin-bridged .pin-left { display: none; }
     function endDrag() {
       if (!dragging) return;
       dragging = false;
+      dotPaused = false;
+      wakeDots();
       hideGuides();
       if (dragMoved && dragSnap) pushSnapshot(dragSnap);
       dragSnap = null;
@@ -3270,6 +3382,7 @@ html.pin-bridged .pin-left { display: none; }
     if (!(spaceDown || e.button === 1)) return;
     e.preventDefault();
     panDrag = { sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y, moved: false };
+    dotPaused = true;
     svgRoot.classList.add('panning');
     try { svgRoot.setPointerCapture(e.pointerId); } catch (x) {}
   });
@@ -3290,11 +3403,15 @@ html.pin-bridged .pin-left { display: none; }
       setTimeout(function () { suppressCanvasClick = false; }, 250);
     }
     panDrag = null;
+    dotPaused = false;
+    wakeDots();
     svgRoot.classList.remove('panning');
   });
   svgRoot.addEventListener('pointercancel', function () {
     if (wireDrag) { cancelWireDrag(); render(); }
     panDrag = null;
+    dotPaused = false;
+    wakeDots();
     svgRoot.classList.remove('panning');
   });
 
