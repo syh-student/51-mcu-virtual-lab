@@ -8,7 +8,7 @@ src = base / 'src'
 stamp = '构建 ' + datetime.datetime.now().strftime('%m-%d %H:%M')
 tpl = (src / 'index.template.html').read_text(encoding='utf-8').replace('__BUILD__', stamp)
 for key, fn in [('STYLE', 'style.css'), ('VM', 'vm.js'), ('HW', 'hw.js'),
-                ('EXAMPLES', 'examples.js'), ('APP', 'app.js')]:
+                ('EXAMPLES', 'examples.js'), ('DIAG', 'diagnostics.js'), ('APP', 'app.js')]:
     tpl = tpl.replace('/*__%s__*/' % key, (src / fn).read_text(encoding='utf-8'))
 
 out = base / 'index.html'   # GitHub Pages 入口文件名

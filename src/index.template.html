@@ -268,16 +268,27 @@
         <div id="ports" class="ports"></div>
         <div class="ports-legend">实心 = 高电平 1 · 空心 = 低电平 0</div>
       </div>
+      <div class="panel sfr-panel">
+        <div class="panel-h">
+          <span class="idx">05</span><h2>寄存器</h2><span class="sp"></span>
+          <span class="hint">悬停位块看含义</span>
+        </div>
+        <div id="sfr" class="sfr"><div class="sfr-empty">运行后显示 TMOD / TCON / IE 等寄存器的值和每一位</div></div>
+      </div>
       <div class="panel watch-panel">
         <div class="panel-h">
-          <span class="idx">05</span><h2>变量监视</h2><span class="sp"></span>
+          <span class="idx">06</span><h2>变量监视</h2><span class="sp"></span>
           <span class="hint">Watch</span>
         </div>
         <div id="watch" class="watch"></div>
+        <div class="watch-add">
+          <input id="watch-input" type="text" placeholder="输入变量名，回车加入监视" spellcheck="false" aria-label="添加监视变量">
+          <button id="btn-watch-add" class="ghost" type="button" title="把输入的变量加入监视列表">＋</button>
+        </div>
       </div>
       <div class="panel console-panel">
         <div class="panel-h">
-          <span class="idx">06</span><h2>控制台</h2><span class="sp"></span>
+          <span class="idx">07</span><h2>控制台</h2><span class="sp"></span>
           <button id="btn-clear" class="ghost">清空</button>
         </div>
         <div id="console"></div>
@@ -467,6 +478,7 @@
 /*__EXAMPLES__*/
 </script>
 <script>
+/*__DIAG__*/
 /*__APP__*/
 </script>
 </body>

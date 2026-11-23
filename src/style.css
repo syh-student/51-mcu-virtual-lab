@@ -1687,6 +1687,25 @@ body.zoomed .appbar { display: none; }
   .p-row .nm { font-size: 11px; }
 }
 
+/* ===== 寄存器 SFR 面板 / 手动 Watch / 诊断建议 ===== */
+.sfr-panel { flex: none; }
+.sfr { padding: 8px 12px 10px; max-height: 208px; overflow: auto; font-family: var(--mono); }
+.sfr-row { display: grid; grid-template-columns: 44px 34px 1fr; gap: 8px; align-items: center; padding: 2px 0; }
+.sfr-name { color: var(--muted); font-size: 10.5px; }
+.sfr-hex { color: var(--accent); font-size: 10.5px; text-align: right; }
+.sfr-bits { display: flex; gap: 3px; justify-content: flex-end; }
+.sfr-bit { width: 14px; height: 14px; border: 1px solid var(--line); border-radius: 3px; font-size: 9px; display: grid; place-items: center; color: var(--muted); }
+.sfr-bit.one { background: var(--accent-soft); border-color: rgba(77, 184, 255, .5); color: var(--accent); }
+.sfr-timer { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 10px; line-height: 1.8; }
+.sfr-empty { color: var(--muted); font-size: 11px; padding: 6px 0; }
+.watch-add { display: flex; gap: 6px; padding: 6px 10px 10px; }
+.watch-add input { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; color: var(--ink); font: 11px var(--mono); padding: 4px 7px; }
+.watch-add input:focus { outline: none; border-color: var(--accent); }
+.w-row.w-custom .w-name { color: var(--accent); }
+.w-del { margin-left: 6px; color: var(--faint); cursor: pointer; border: 0; background: none; font-size: 11px; padding: 0 2px; }
+.w-del:hover { color: var(--err); }
+.prob-hint { grid-column: 1 / -1; color: var(--accent); font-size: 10.5px; padding: 0 0 4px; line-height: 1.6; }
+
 @media (prefers-reduced-motion: reduce) {
   .reticle, .board-tip, .circle, .play, .ex-btn,
   .ghost, .status::before, .seg button { transition-duration: .001ms !important; }

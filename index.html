@@ -1708,6 +1708,25 @@ body.zoomed .appbar { display: none; }
   .p-row .nm { font-size: 11px; }
 }
 
+/* ===== 寄存器 SFR 面板 / 手动 Watch / 诊断建议 ===== */
+.sfr-panel { flex: none; }
+.sfr { padding: 8px 12px 10px; max-height: 208px; overflow: auto; font-family: var(--mono); }
+.sfr-row { display: grid; grid-template-columns: 44px 34px 1fr; gap: 8px; align-items: center; padding: 2px 0; }
+.sfr-name { color: var(--muted); font-size: 10.5px; }
+.sfr-hex { color: var(--accent); font-size: 10.5px; text-align: right; }
+.sfr-bits { display: flex; gap: 3px; justify-content: flex-end; }
+.sfr-bit { width: 14px; height: 14px; border: 1px solid var(--line); border-radius: 3px; font-size: 9px; display: grid; place-items: center; color: var(--muted); }
+.sfr-bit.one { background: var(--accent-soft); border-color: rgba(77, 184, 255, .5); color: var(--accent); }
+.sfr-timer { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 10px; line-height: 1.8; }
+.sfr-empty { color: var(--muted); font-size: 11px; padding: 6px 0; }
+.watch-add { display: flex; gap: 6px; padding: 6px 10px 10px; }
+.watch-add input { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; color: var(--ink); font: 11px var(--mono); padding: 4px 7px; }
+.watch-add input:focus { outline: none; border-color: var(--accent); }
+.w-row.w-custom .w-name { color: var(--accent); }
+.w-del { margin-left: 6px; color: var(--faint); cursor: pointer; border: 0; background: none; font-size: 11px; padding: 0 2px; }
+.w-del:hover { color: var(--err); }
+.prob-hint { grid-column: 1 / -1; color: var(--accent); font-size: 10.5px; padding: 0 0 4px; line-height: 1.6; }
+
 @media (prefers-reduced-motion: reduce) {
   .reticle, .board-tip, .circle, .play, .ex-btn,
   .ghost, .status::before, .seg button { transition-duration: .001ms !important; }
@@ -1800,7 +1819,7 @@ body.zoomed .appbar { display: none; }
   </div>
   <div class="head-right">
     <span class="head-note">例程 01—15 · 离线可用</span>
-    <span class="build-tag" id="build-tag">构建 11-23 10:53</span>
+    <span class="build-tag" id="build-tag">构建 11-23 11:17</span>
     <span id="status" class="status">已停止</span>
   </div>
 </header>
@@ -2037,16 +2056,27 @@ body.zoomed .appbar { display: none; }
         <div id="ports" class="ports"></div>
         <div class="ports-legend">实心 = 高电平 1 · 空心 = 低电平 0</div>
       </div>
+      <div class="panel sfr-panel">
+        <div class="panel-h">
+          <span class="idx">05</span><h2>寄存器</h2><span class="sp"></span>
+          <span class="hint">悬停位块看含义</span>
+        </div>
+        <div id="sfr" class="sfr"><div class="sfr-empty">运行后显示 TMOD / TCON / IE 等寄存器的值和每一位</div></div>
+      </div>
       <div class="panel watch-panel">
         <div class="panel-h">
-          <span class="idx">05</span><h2>变量监视</h2><span class="sp"></span>
+          <span class="idx">06</span><h2>变量监视</h2><span class="sp"></span>
           <span class="hint">Watch</span>
         </div>
         <div id="watch" class="watch"></div>
+        <div class="watch-add">
+          <input id="watch-input" type="text" placeholder="输入变量名，回车加入监视" spellcheck="false" aria-label="添加监视变量">
+          <button id="btn-watch-add" class="ghost" type="button" title="把输入的变量加入监视列表">＋</button>
+        </div>
       </div>
       <div class="panel console-panel">
         <div class="panel-h">
-          <span class="idx">06</span><h2>控制台</h2><span class="sp"></span>
+          <span class="idx">07</span><h2>控制台</h2><span class="sp"></span>
           <button id="btn-clear" class="ghost">清空</button>
         </div>
         <div id="console"></div>
@@ -4821,6 +4851,105 @@ void main()
 
 </script>
 <script>
+/* ============================================================
+ * 诊断建议与静态提醒（独立于内核，方便维护规则）
+ * 参考 Clang / Elm 的做法：先说人话，再给一条可操作的修改建议。
+ * 全局函数，app.js 直接调用；Node 下也可 require 后使用。
+ * ============================================================ */
+(function (root) {
+  'use strict';
+
+  var BUILTIN_NAMES = ['P0', 'P1', 'P2', 'P3', 'TMOD', 'TCON', 'TH0', 'TL0', 'TH1', 'TL1',
+    'SCON', 'SBUF', 'IE', 'IP', 'PCON', 'PSW', 'ACC', 'B', 'TR0', 'TR1', 'TF0', 'TF1',
+    'EA', 'ES', 'ET0', 'ET1', 'EX0', 'EX1', 'IT0', 'IT1', 'IE0', 'IE1',
+    'main', 'Delay', '_nop_', '_crol_', '_cror_'];
+
+  function editDistance(a, b) {
+    var m = a.length, n = b.length;
+    if (!m || !n || Math.abs(m - n) > 2) return 99;
+    var prev = [], cur = [], i, j;
+    for (j = 0; j <= n; j++) prev[j] = j;
+    for (i = 1; i <= m; i++) {
+      cur = [i];
+      for (j = 1; j <= n; j++) {
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      }
+      prev = cur;
+    }
+    return prev[n];
+  }
+
+  function didYouMean(name) {
+    var best = '', bestD = 3;
+    for (var i = 0; i < BUILTIN_NAMES.length; i++) {
+      var d = editDistance(name, BUILTIN_NAMES[i]);
+      if (d < bestD) { bestD = d; best = BUILTIN_NAMES[i]; }
+    }
+    return best && bestD <= 2 ? best : '';
+  }
+
+  /* 给一条报错配一句"怎么改"的建议，没有合适建议时返回空串 */
+  function diagnose(msg) {
+    var m = String(msg || ''), mm;
+    mm = /变量 “([^”]+)” 没有定义/.exec(m);
+    if (mm) {
+      var near = didYouMean(mm[1]);
+      var base = '先检查拼写和大小写；自己用的变量要先声明（如 int i;），再使用。';
+      if (/^P[0-3][0-7]$/.test(mm[1])) {
+        return base + ' 位名要带下划线，例如 ' + mm[1][0] + mm[1][1] + '_' + mm[1][2] + '。';
+      }
+      if (near) return base + ' 你是不是想写 ' + near + '？';
+      return base + ' 内置寄存器有 TMOD / TCON / TH0 / TL0 / SCON / SBUF / IE / PSW，位名形如 P2_0。';
+    }
+    if (/这里应该是/.test(m)) return '多半是上一行末尾少了分号，或者括号、花括号没有配对——从报错行的上一行开始检查。';
+    if (/缺少右花括号/.test(m)) return '有 { 没有配对的 }，从最近的一个函数开始数一遍大括号。';
+    if (/数组越界/.test(m)) return '下标从 0 开始，最大只能到「长度 - 1」；循环条件建议写成 i < 长度，不要写成 i <= 长度。';
+    if (/没有找到 main 函数/.test(m)) return '补一个入口函数：void main(void) { while (1) { ... } }。';
+    mm = /函数 “([^”]+)” 没有定义/.exec(m);
+    if (mm) return '先定义再调用，注意大小写；虚拟机内置函数只有 Delay、_nop_、_crol_、_cror_，其它函数要自己写。';
+    if (/除以 0|对 0 取余/.test(m)) return '除数可能为 0，先加 if (除数 != 0) 再做除法。';
+    if (/调用层次过深|递归没有出口/.test(m)) return '检查递归的结束条件：每一层递归都要让条件更接近出口。';
+    if (/暂不支持指针/.test(m)) return '把指针写法改成数组下标，例如 a[i] = 值;';
+    if (/sbit 请写成/.test(m)) return '位声明的标准写法：sbit LED = P2^0;（这里用 ^，使用时写 LED = 1;）。';
+    if (/do 后面要跟 while/.test(m)) return 'do…while 的完整结构是 do { ... } while (条件);，结尾别漏分号。';
+    if (/无法识别的字符/.test(m)) return '检查是不是用了中文标点（；、（）、“”），代码里要用英文符号。';
+    if (/数字格式有误/.test(m)) return '十六进制要以 0x 开头（如 0xFC），十进制直接写数字。';
+    if (/结果不能被赋值/.test(m)) return '等号左边必须是一个可以写的变量或位，不能是表达式或常量。';
+    if (/只有数组才能用下标/.test(m)) return '这个名字不是数组，去掉下标，或先把它声明成数组。';
+    if (/前面不是结构体变量|结构体里没有成员/.test(m)) return '检查结构体变量名和成员名是否写错，成员要用 struct 里声明过的名字。';
+    return '';
+  }
+
+  /* 运行前静态提醒：只报"几乎一定是坑"的写法，避免误报 */
+  function lintTips(text) {
+    var tips = [];
+    var clean = String(text || '').replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, '');
+    if (/void\s+main\s*\(/.test(clean)) {
+      var body = clean.slice(clean.indexOf('main'));
+      if (!/\b(while|for)\b/.test(body)) {
+        tips.push('main 里没有主循环：程序会很快跑完，开发板程序一般需要 while (1) { ... } 把逻辑包住。');
+      }
+    }
+    if (/\binterrupt\s+[13]\b/.test(clean) && !/\bEA\s*=/.test(clean)) {
+      tips.push('写了定时器中断函数，但没看到 EA = 1：总中断没开，中断函数永远不会执行。');
+    }
+    if (/\bTR[01]\s*=\s*1/.test(clean) && !/\bTMOD\b/.test(clean)) {
+      tips.push('启动了定时器（TR0 / TR1 = 1）但没配置 TMOD：先选工作方式，例如 TMOD = 0x01;（16 位定时）。');
+    }
+    if (/while\s*\(\s*1\s*\)\s*;/.test(clean)) {
+      tips.push('while (1); 是原地死等，程序会一直停在这一行，后面的代码不会执行。');
+    }
+    if (/\bP[0-3][0-7]\s*=/.test(clean)) {
+      tips.push('位名要写带下划线的形式，例如 P2_0 = 1;（P2^0 只用在 sbit 声明里）。');
+    }
+    return tips;
+  }
+
+  var api = { diagnose: diagnose, lintTips: lintTips, didYouMean: didYouMean, editDistance: editDistance };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else { root.diagnose = diagnose; root.lintTips = lintTips; }
+})(typeof window !== 'undefined' ? window : globalThis);
+
 /* 界面与渲染：把 VM / 硬件模型接到页面上 */
 (function () {
   'use strict';
@@ -8316,7 +8445,18 @@ void main()
     renderProblems();
   }
   function addProblem(level, file, line, msg) {
-    problems.push({ level: level, file: file || '', line: line || 0, msg: String(msg == null ? '' : msg) });
+    var m = String(msg == null ? '' : msg);
+    var hint = '';
+    try { hint = typeof diagnose === 'function' ? diagnose(m) : ''; } catch (e) { hint = ''; }
+    problems.push({ level: level, file: file || '', line: line || 0, msg: m, hint: hint });
+  }
+  /* 运行期错误：同样进问题列表，并附一句修改建议 */
+  function addRunProblem(msg, file, line) {
+    var hint = '';
+    try { hint = typeof diagnose === 'function' ? diagnose(msg) : ''; } catch (e) { hint = ''; }
+    if (hint) buildLine('建议：' + hint, 'warn');
+    addProblem('error', file || '', line || 0, msg);
+    renderProblems();
   }
   /* 结构化问题列表：级别 / 文件 / 行 / 说明；点一行跳到源码对应位置 */
   function renderProblems() {
@@ -8373,6 +8513,12 @@ void main()
       row.appendChild(b);
       row.appendChild(c);
       row.appendChild(d);
+      if (p.hint) {
+        var hintEl = document.createElement('span');
+        hintEl.className = 'prob-hint';
+        hintEl.textContent = '建议：' + p.hint;
+        row.appendChild(hintEl);
+      }
       if (p.line) {
         row.addEventListener('click', function () { gotoFileLine(p.file || project.active, p.line); });
       }
@@ -8401,7 +8547,78 @@ void main()
     if (cls === 'err') setBuildCollapsed(false);
   }
 
-  /* 变量监视：当前帧局部变量 + 全局变量 */
+  /* ---------- SFR 寄存器面板：十六进制值 + 位域，参考 EdSim51 的位域视图 ---------- */
+  var SFR_VIEW = ['TMOD', 'TCON', 'IE', 'SCON', 'PSW', 'ACC'];
+  var SFR_BIT_NAMES = {
+    TCON: ['IT0', 'IE0', 'IT1', 'IE1', 'TR0', 'TF0', 'TR1', 'TF1'],
+    IE: ['EX0', 'ET0', 'EX1', 'ET1', 'ES', '', '', 'EA'],
+    SCON: ['RI', 'TI', 'RB8', 'TB8', 'REN', 'SM2', 'SM1', 'SM0'],
+    PSW: ['P', '', 'OV', 'RS0', 'RS1', 'F0', 'AC', 'CY'],
+    TMOD: ['M0', 'M1', 'C/T', 'GATE', 'M0', 'M1', 'C/T', 'GATE']
+  };
+  var sfrSig = '';
+  function renderSfr() {
+    var host = $('sfr');
+    if (!host) return;
+    if (!vm) {
+      if (sfrSig !== 'none') {
+        host.innerHTML = '<div class="sfr-empty">运行后显示 TMOD / TCON / IE 等寄存器的值和每一位</div>';
+        sfrSig = 'none';
+      }
+      return;
+    }
+    var vals = [], i;
+    for (i = 0; i < SFR_VIEW.length; i++) vals.push((vm.sfr[SFR_VIEW[i]] || 0) & 0xff);
+    var t0 = ((vm.sfr.TH0 || 0) << 8) | (vm.sfr.TL0 || 0);
+    var t1 = ((vm.sfr.TH1 || 0) << 8) | (vm.sfr.TL1 || 0);
+    var sig = vals.join(',') + '|' + t0 + '|' + t1;
+    if (sig === sfrSig) return;
+    sfrSig = sig;
+    var html = '';
+    for (i = 0; i < SFR_VIEW.length; i++) {
+      var name = SFR_VIEW[i], val = vals[i];
+      html += '<div class="sfr-row"><span class="sfr-name">' + name + '</span>'
+        + '<span class="sfr-hex">' + ('0' + val.toString(16).toUpperCase()).slice(-2) + 'h</span><span class="sfr-bits">';
+      for (var b = 7; b >= 0; b--) {
+        var bitName = (SFR_BIT_NAMES[name] && SFR_BIT_NAMES[name][b]) || ('bit' + b);
+        var one = (val >> b) & 1;
+        html += '<i class="sfr-bit' + (one ? ' one' : '') + '" title="' + name + '.' + b + ' = ' + bitName + '">' + one + '</i>';
+      }
+      html += '</span></div>';
+    }
+    var tmod = vm.sfr.TMOD || 0;
+    html += '<div class="sfr-timer">T0 = 0x' + t0.toString(16).toUpperCase() + '（' + t0 + '）· 方式 ' + (tmod & 3) + ' · '
+      + ((vm.sfr.TCON & 0x10) ? '运行中' : '停止')
+      + '<br>T1 = 0x' + t1.toString(16).toUpperCase() + '（' + t1 + '）· 方式 ' + ((tmod >> 4) & 3) + ' · '
+      + ((vm.sfr.TCON & 0x40) ? '运行中' : '停止') + '</div>';
+    host.innerHTML = html;
+  }
+
+  /* 手动 Watch：用户自己加的变量名，存在本地，下次打开还在 */
+  var watchExprs = [];
+  try { watchExprs = JSON.parse(localStorage.getItem('c51.watch') || '[]') || []; } catch (e) { watchExprs = []; }
+  function saveWatchExprs() {
+    try { localStorage.setItem('c51.watch', JSON.stringify(watchExprs)); } catch (e) { /* 忽略 */ }
+  }
+  function addWatchExpr(name) {
+    name = String(name || '').trim();
+    if (!name) return;
+    if (watchExprs.indexOf(name) < 0) { watchExprs.push(name); saveWatchExprs(); }
+    watchSig = '';
+    renderWatch();
+  }
+  function removeWatchExpr(name) {
+    watchExprs = watchExprs.filter(function (n) { return n !== name; });
+    saveWatchExprs();
+    watchSig = '';
+    renderWatch();
+  }
+  function watchValueOf(name) {
+    if (!vm) return '—';
+    try { return fmtVal(vm.getVar(name)); } catch (e) { return '未定义'; }
+  }
+
+  /* 变量监视：当前帧局部变量 + 全局变量 + 手动加入的 Watch */
   var watchSig = '';
   function fmtVal(v) {
     if (Array.isArray(v)) {
@@ -8415,20 +8632,31 @@ void main()
   function renderWatch() {
     var host = $('watch');
     if (!host) return;
-    if (!vm) {
-      if (watchSig !== 'none') { host.innerHTML = '<div class="w-empty">点「运行」后，这里显示变量</div>'; watchSig = 'none'; }
-      return;
-    }
+    renderSfr();
     var rows = [];
-    var f = vm.frames && vm.frames.length ? vm.frames[vm.frames.length - 1] : null;
-    if (f && f.vars) for (var k in f.vars) rows.push([k, f.vars[k]]);
-    for (var g in vm.globals) rows.push([g, vm.globals[g]]);
-    var sig = rows.map(function (r) { return r[0] + '=' + fmtVal(r[1]); }).join('|');
+    if (vm) {
+      var f = vm.frames && vm.frames.length ? vm.frames[vm.frames.length - 1] : null;
+      if (f && f.vars) for (var k in f.vars) { if (k) rows.push([k, f.vars[k]]); }
+      for (var g in vm.globals) { if (g) rows.push([g, vm.globals[g]]); }
+    }
+    var sig = (vm ? 'run' : 'none') + '#' + watchExprs.join(',') + '#'
+      + rows.map(function (r) { return r[0] + '=' + fmtVal(r[1]); }).join('|');
     if (sig === watchSig) return;
     watchSig = sig;
-    if (!rows.length) { host.innerHTML = '<div class="w-empty">这个例程没有变量</div>'; return; }
-    var html = '';
-    for (var i = 0; i < rows.length && i < 40; i++) {
+    var html = '', i;
+    for (i = 0; i < watchExprs.length; i++) {
+      var nm = watchExprs[i];
+      html += '<div class="w-row w-custom"><span class="w-name">' + esc(nm) + '</span>'
+        + '<span class="w-val">' + esc(watchValueOf(nm))
+        + '<button class="w-del" data-watch-del="' + encodeURIComponent(nm) + '" title="移除这个监视">×</button></span></div>';
+    }
+    if (!vm) {
+      html += '<div class="w-empty">点「运行」后显示局部变量和全局变量；也可以在下面输入变量名加入监视</div>';
+      host.innerHTML = html;
+      return;
+    }
+    if (!rows.length && !watchExprs.length) { host.innerHTML = '<div class="w-empty">这个例程没有变量</div>'; return; }
+    for (i = 0; i < rows.length && i < 40; i++) {
       html += '<div class="w-row"><span class="w-name">' + esc(rows[i][0]) + '</span>'
         + '<span class="w-val">' + esc(fmtVal(rows[i][1])) + '</span></div>';
     }
@@ -8834,6 +9062,29 @@ void main()
     }
     try { localStorage.setItem('c51.buildCollapsed', on ? '1' : '0'); } catch (e) {}
   }
+  /* 手动 Watch：回车或点 ＋ 添加，点 × 移除 */
+  (function bindWatchAdd() {
+    var input = $('watch-input');
+    var btn = $('btn-watch-add');
+    function commit() {
+      if (!input) return;
+      addWatchExpr(input.value);
+      input.value = '';
+      input.focus();
+    }
+    if (input) input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    });
+    if (btn) btn.addEventListener('click', commit);
+    var host = $('watch');
+    if (host) host.addEventListener('click', function (e) {
+      var t = e.target;
+      if (!t || !t.getAttribute) return;
+      var name = t.getAttribute('data-watch-del');
+      if (name) removeWatchExpr(decodeURIComponent(name));
+    });
+  })();
+
   if (buildToggleEl) buildToggleEl.onclick = function () { setBuildCollapsed(!buildCollapsed()); };
   setBuildCollapsed((function () {
     try {
@@ -9019,6 +9270,7 @@ void main()
     refreshGutter();
     paintMarks();
     buildLine((errFile || 'main.c') + '(' + errLine + '): run error: ' + vm.error, 'err', errLine, errFile);
+    addRunProblem(vm.error, errFile, errLine);
     setBuildSum('运行出错', 'err');
     state = 'stopped';
     pausedAtBp = false;
@@ -9224,6 +9476,20 @@ void main()
         }
       }
       var nw = unit.warnings.length;
+      /* 编译通过后，再补几条"新手最容易踩"的静态提醒 */
+      if (typeof lintTips === 'function') {
+        var srcAll = '';
+        if (project && project.files) {
+          for (var pi = 0; pi < project.files.length; pi++) srcAll += '\n' + (project.files[pi].content || '');
+        }
+        var tips = lintTips(srcAll);
+        for (var ti = 0; ti < tips.length; ti++) {
+          buildLine('hint: ' + tips[ti], 'warn');
+          addProblem('warn', project.active || '', 0, tips[ti]);
+          nw++;
+        }
+        if (tips.length) renderProblems();
+      }
       buildLine('0 Error(s), ' + nw + ' Warning(s)', nw ? 'warn' : 'ok');
       setBuildSum('0 Error(s), ' + nw + ' Warning(s)', nw ? 'warn' : 'ok');
       setStatus('stopped', '已就绪');
@@ -9255,6 +9521,11 @@ void main()
       errLine = loc ? loc.line : uln;
       var where = (errFile || 'main.c') + '(' + (errLine || '?') + ')';
       buildLine(where + ': error: ' + brief, 'err', errLine, errFile);
+      var runHint = '';
+      try { runHint = typeof diagnose === 'function' ? diagnose(brief) : ''; } catch (e) { runHint = ''; }
+      if (runHint) buildLine('建议：' + runHint, 'warn');
+      addProblem('error', errFile, errLine, brief);
+      renderProblems();
       buildLine('1 Error(s), 0 Warning(s)', 'err');
       setBuildSum('1 Error(s)', 'err');
       log('编译未通过：' + msg + (loc ? '（' + loc.file + ' 第 ' + loc.line + ' 行）' : ''), 'err');
@@ -10039,6 +10310,7 @@ void main()
         refreshGutter();
         paintMarks();
         buildLine((errFile || 'main.c') + '(' + errLine + '): run error: ' + vm.error, 'err', errLine, errFile);
+        addRunProblem(vm.error, errFile, errLine);
         setBuildSum('运行出错', 'err');
         state = 'stopped';
         setStatus('error', '运行出错');

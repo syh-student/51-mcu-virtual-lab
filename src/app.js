@@ -3493,7 +3493,18 @@
     renderProblems();
   }
   function addProblem(level, file, line, msg) {
-    problems.push({ level: level, file: file || '', line: line || 0, msg: String(msg == null ? '' : msg) });
+    var m = String(msg == null ? '' : msg);
+    var hint = '';
+    try { hint = typeof diagnose === 'function' ? diagnose(m) : ''; } catch (e) { hint = ''; }
+    problems.push({ level: level, file: file || '', line: line || 0, msg: m, hint: hint });
+  }
+  /* 运行期错误：同样进问题列表，并附一句修改建议 */
+  function addRunProblem(msg, file, line) {
+    var hint = '';
+    try { hint = typeof diagnose === 'function' ? diagnose(msg) : ''; } catch (e) { hint = ''; }
+    if (hint) buildLine('建议：' + hint, 'warn');
+    addProblem('error', file || '', line || 0, msg);
+    renderProblems();
   }
   /* 结构化问题列表：级别 / 文件 / 行 / 说明；点一行跳到源码对应位置 */
   function renderProblems() {
@@ -3550,6 +3561,12 @@
       row.appendChild(b);
       row.appendChild(c);
       row.appendChild(d);
+      if (p.hint) {
+        var hintEl = document.createElement('span');
+        hintEl.className = 'prob-hint';
+        hintEl.textContent = '建议：' + p.hint;
+        row.appendChild(hintEl);
+      }
       if (p.line) {
         row.addEventListener('click', function () { gotoFileLine(p.file || project.active, p.line); });
       }
@@ -3578,7 +3595,78 @@
     if (cls === 'err') setBuildCollapsed(false);
   }
 
-  /* 变量监视：当前帧局部变量 + 全局变量 */
+  /* ---------- SFR 寄存器面板：十六进制值 + 位域，参考 EdSim51 的位域视图 ---------- */
+  var SFR_VIEW = ['TMOD', 'TCON', 'IE', 'SCON', 'PSW', 'ACC'];
+  var SFR_BIT_NAMES = {
+    TCON: ['IT0', 'IE0', 'IT1', 'IE1', 'TR0', 'TF0', 'TR1', 'TF1'],
+    IE: ['EX0', 'ET0', 'EX1', 'ET1', 'ES', '', '', 'EA'],
+    SCON: ['RI', 'TI', 'RB8', 'TB8', 'REN', 'SM2', 'SM1', 'SM0'],
+    PSW: ['P', '', 'OV', 'RS0', 'RS1', 'F0', 'AC', 'CY'],
+    TMOD: ['M0', 'M1', 'C/T', 'GATE', 'M0', 'M1', 'C/T', 'GATE']
+  };
+  var sfrSig = '';
+  function renderSfr() {
+    var host = $('sfr');
+    if (!host) return;
+    if (!vm) {
+      if (sfrSig !== 'none') {
+        host.innerHTML = '<div class="sfr-empty">运行后显示 TMOD / TCON / IE 等寄存器的值和每一位</div>';
+        sfrSig = 'none';
+      }
+      return;
+    }
+    var vals = [], i;
+    for (i = 0; i < SFR_VIEW.length; i++) vals.push((vm.sfr[SFR_VIEW[i]] || 0) & 0xff);
+    var t0 = ((vm.sfr.TH0 || 0) << 8) | (vm.sfr.TL0 || 0);
+    var t1 = ((vm.sfr.TH1 || 0) << 8) | (vm.sfr.TL1 || 0);
+    var sig = vals.join(',') + '|' + t0 + '|' + t1;
+    if (sig === sfrSig) return;
+    sfrSig = sig;
+    var html = '';
+    for (i = 0; i < SFR_VIEW.length; i++) {
+      var name = SFR_VIEW[i], val = vals[i];
+      html += '<div class="sfr-row"><span class="sfr-name">' + name + '</span>'
+        + '<span class="sfr-hex">' + ('0' + val.toString(16).toUpperCase()).slice(-2) + 'h</span><span class="sfr-bits">';
+      for (var b = 7; b >= 0; b--) {
+        var bitName = (SFR_BIT_NAMES[name] && SFR_BIT_NAMES[name][b]) || ('bit' + b);
+        var one = (val >> b) & 1;
+        html += '<i class="sfr-bit' + (one ? ' one' : '') + '" title="' + name + '.' + b + ' = ' + bitName + '">' + one + '</i>';
+      }
+      html += '</span></div>';
+    }
+    var tmod = vm.sfr.TMOD || 0;
+    html += '<div class="sfr-timer">T0 = 0x' + t0.toString(16).toUpperCase() + '（' + t0 + '）· 方式 ' + (tmod & 3) + ' · '
+      + ((vm.sfr.TCON & 0x10) ? '运行中' : '停止')
+      + '<br>T1 = 0x' + t1.toString(16).toUpperCase() + '（' + t1 + '）· 方式 ' + ((tmod >> 4) & 3) + ' · '
+      + ((vm.sfr.TCON & 0x40) ? '运行中' : '停止') + '</div>';
+    host.innerHTML = html;
+  }
+
+  /* 手动 Watch：用户自己加的变量名，存在本地，下次打开还在 */
+  var watchExprs = [];
+  try { watchExprs = JSON.parse(localStorage.getItem('c51.watch') || '[]') || []; } catch (e) { watchExprs = []; }
+  function saveWatchExprs() {
+    try { localStorage.setItem('c51.watch', JSON.stringify(watchExprs)); } catch (e) { /* 忽略 */ }
+  }
+  function addWatchExpr(name) {
+    name = String(name || '').trim();
+    if (!name) return;
+    if (watchExprs.indexOf(name) < 0) { watchExprs.push(name); saveWatchExprs(); }
+    watchSig = '';
+    renderWatch();
+  }
+  function removeWatchExpr(name) {
+    watchExprs = watchExprs.filter(function (n) { return n !== name; });
+    saveWatchExprs();
+    watchSig = '';
+    renderWatch();
+  }
+  function watchValueOf(name) {
+    if (!vm) return '—';
+    try { return fmtVal(vm.getVar(name)); } catch (e) { return '未定义'; }
+  }
+
+  /* 变量监视：当前帧局部变量 + 全局变量 + 手动加入的 Watch */
   var watchSig = '';
   function fmtVal(v) {
     if (Array.isArray(v)) {
@@ -3592,20 +3680,31 @@
   function renderWatch() {
     var host = $('watch');
     if (!host) return;
-    if (!vm) {
-      if (watchSig !== 'none') { host.innerHTML = '<div class="w-empty">点「运行」后，这里显示变量</div>'; watchSig = 'none'; }
-      return;
-    }
+    renderSfr();
     var rows = [];
-    var f = vm.frames && vm.frames.length ? vm.frames[vm.frames.length - 1] : null;
-    if (f && f.vars) for (var k in f.vars) rows.push([k, f.vars[k]]);
-    for (var g in vm.globals) rows.push([g, vm.globals[g]]);
-    var sig = rows.map(function (r) { return r[0] + '=' + fmtVal(r[1]); }).join('|');
+    if (vm) {
+      var f = vm.frames && vm.frames.length ? vm.frames[vm.frames.length - 1] : null;
+      if (f && f.vars) for (var k in f.vars) { if (k) rows.push([k, f.vars[k]]); }
+      for (var g in vm.globals) { if (g) rows.push([g, vm.globals[g]]); }
+    }
+    var sig = (vm ? 'run' : 'none') + '#' + watchExprs.join(',') + '#'
+      + rows.map(function (r) { return r[0] + '=' + fmtVal(r[1]); }).join('|');
     if (sig === watchSig) return;
     watchSig = sig;
-    if (!rows.length) { host.innerHTML = '<div class="w-empty">这个例程没有变量</div>'; return; }
-    var html = '';
-    for (var i = 0; i < rows.length && i < 40; i++) {
+    var html = '', i;
+    for (i = 0; i < watchExprs.length; i++) {
+      var nm = watchExprs[i];
+      html += '<div class="w-row w-custom"><span class="w-name">' + esc(nm) + '</span>'
+        + '<span class="w-val">' + esc(watchValueOf(nm))
+        + '<button class="w-del" data-watch-del="' + encodeURIComponent(nm) + '" title="移除这个监视">×</button></span></div>';
+    }
+    if (!vm) {
+      html += '<div class="w-empty">点「运行」后显示局部变量和全局变量；也可以在下面输入变量名加入监视</div>';
+      host.innerHTML = html;
+      return;
+    }
+    if (!rows.length && !watchExprs.length) { host.innerHTML = '<div class="w-empty">这个例程没有变量</div>'; return; }
+    for (i = 0; i < rows.length && i < 40; i++) {
       html += '<div class="w-row"><span class="w-name">' + esc(rows[i][0]) + '</span>'
         + '<span class="w-val">' + esc(fmtVal(rows[i][1])) + '</span></div>';
     }
@@ -4011,6 +4110,29 @@
     }
     try { localStorage.setItem('c51.buildCollapsed', on ? '1' : '0'); } catch (e) {}
   }
+  /* 手动 Watch：回车或点 ＋ 添加，点 × 移除 */
+  (function bindWatchAdd() {
+    var input = $('watch-input');
+    var btn = $('btn-watch-add');
+    function commit() {
+      if (!input) return;
+      addWatchExpr(input.value);
+      input.value = '';
+      input.focus();
+    }
+    if (input) input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    });
+    if (btn) btn.addEventListener('click', commit);
+    var host = $('watch');
+    if (host) host.addEventListener('click', function (e) {
+      var t = e.target;
+      if (!t || !t.getAttribute) return;
+      var name = t.getAttribute('data-watch-del');
+      if (name) removeWatchExpr(decodeURIComponent(name));
+    });
+  })();
+
   if (buildToggleEl) buildToggleEl.onclick = function () { setBuildCollapsed(!buildCollapsed()); };
   setBuildCollapsed((function () {
     try {
@@ -4196,6 +4318,7 @@
     refreshGutter();
     paintMarks();
     buildLine((errFile || 'main.c') + '(' + errLine + '): run error: ' + vm.error, 'err', errLine, errFile);
+    addRunProblem(vm.error, errFile, errLine);
     setBuildSum('运行出错', 'err');
     state = 'stopped';
     pausedAtBp = false;
@@ -4401,6 +4524,20 @@
         }
       }
       var nw = unit.warnings.length;
+      /* 编译通过后，再补几条"新手最容易踩"的静态提醒 */
+      if (typeof lintTips === 'function') {
+        var srcAll = '';
+        if (project && project.files) {
+          for (var pi = 0; pi < project.files.length; pi++) srcAll += '\n' + (project.files[pi].content || '');
+        }
+        var tips = lintTips(srcAll);
+        for (var ti = 0; ti < tips.length; ti++) {
+          buildLine('hint: ' + tips[ti], 'warn');
+          addProblem('warn', project.active || '', 0, tips[ti]);
+          nw++;
+        }
+        if (tips.length) renderProblems();
+      }
       buildLine('0 Error(s), ' + nw + ' Warning(s)', nw ? 'warn' : 'ok');
       setBuildSum('0 Error(s), ' + nw + ' Warning(s)', nw ? 'warn' : 'ok');
       setStatus('stopped', '已就绪');
@@ -4432,6 +4569,11 @@
       errLine = loc ? loc.line : uln;
       var where = (errFile || 'main.c') + '(' + (errLine || '?') + ')';
       buildLine(where + ': error: ' + brief, 'err', errLine, errFile);
+      var runHint = '';
+      try { runHint = typeof diagnose === 'function' ? diagnose(brief) : ''; } catch (e) { runHint = ''; }
+      if (runHint) buildLine('建议：' + runHint, 'warn');
+      addProblem('error', errFile, errLine, brief);
+      renderProblems();
       buildLine('1 Error(s), 0 Warning(s)', 'err');
       setBuildSum('1 Error(s)', 'err');
       log('编译未通过：' + msg + (loc ? '（' + loc.file + ' 第 ' + loc.line + ' 行）' : ''), 'err');
@@ -5216,6 +5358,7 @@
         refreshGutter();
         paintMarks();
         buildLine((errFile || 'main.c') + '(' + errLine + '): run error: ' + vm.error, 'err', errLine, errFile);
+        addRunProblem(vm.error, errFile, errLine);
         setBuildSum('运行出错', 'err');
         state = 'stopped';
         setStatus('error', '运行出错');

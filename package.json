@@ -15,7 +15,7 @@
   "license": "MIT",
   "scripts": {
     "build": "python build.py",
-    "test": "node test.js && node test-examples.js && node test-ui.js",
+    "test": "node test.js && node test-examples.js && node test-ui.js && node test-diagnostics.js",
     "lint": "eslint src",
     "shots": "node tools/shots.js",
     "verify": "node tools/verify.js"
