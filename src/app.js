@@ -87,12 +87,39 @@
 
   /* ---------------- 板面悬停说明 ---------------- */
   var tipEl = $('board-tip');
+  var floatEl = $('board-float');
   var TIP_IDLE = '把鼠标移到板上的元件上，这里会写出它的名称、接的引脚，以及在仿真里能不能用。';
   function setTip(t) {
-    if (!tipEl) return;
-    tipEl.textContent = t || TIP_IDLE;
-    if (tipEl.classList) tipEl.classList.toggle('on', !!t);
+    if (tipEl) {
+      tipEl.textContent = t || TIP_IDLE;
+      if (tipEl.classList) tipEl.classList.toggle('on', !!t);
+    }
+    /* 同步给跟随鼠标的浮层：说明直接出现在手边，不用低头找底部那行字 */
+    if (floatEl) {
+      floatEl.textContent = t || '';
+      floatEl.hidden = !t;
+    }
   }
+  /* 浮层跟着指针走，靠近右 / 下边缘时自动翻面，避免被裁掉 */
+  function moveFloat(x, y) {
+    if (!floatEl || floatEl.hidden || !floatEl.style) return;
+    var w = floatEl.offsetWidth || 260, h = floatEl.offsetHeight || 70;
+    var vw = (typeof window !== 'undefined' && window.innerWidth) || 1280;
+    var vh = (typeof window !== 'undefined' && window.innerHeight) || 800;
+    var left = x + 18, top = y + 20;
+    if (left + w > vw - 12) left = Math.max(12, x - w - 18);
+    if (top + h > vh - 12) top = Math.max(12, y - h - 20);
+    floatEl.style.left = left + 'px';
+    floatEl.style.top = top + 'px';
+  }
+  (function () {
+    var stage = $('board-wrap');
+    if (!stage || !stage.addEventListener) return;
+    stage.addEventListener('pointermove', function (e) {
+      if (e) moveFloat(e.clientX || 0, e.clientY || 0);
+    });
+    stage.addEventListener('pointerleave', function () { if (floatEl) floatEl.hidden = true; });
+  })();
   var hotRegions = [];
   function hot(x, y, w, h, tip) { hotRegions.push([x, y, w, h, tip]); }
 
@@ -2959,7 +2986,7 @@
       ctx.font = '10px "Cascadia Mono", Consolas, monospace';
       var w = ctx.measureText ? ctx.measureText(text).width : text.length * 6;
       var bx = Math.max(2, Math.min(W - w - 10, x + 5));
-      ctx.fillStyle = 'rgba(20, 16, 14, .88)';
+      ctx.fillStyle = 'rgba(20, 22, 27, .88)';
       if (ctx.fillRect) ctx.fillRect(bx - 3, y - 10, w + 8, 15);
       ctx.fillStyle = color;
       ctx.textAlign = 'left';
@@ -3546,7 +3573,9 @@
     var el = $('build-sum');
     if (!el) return;
     el.textContent = text;
-    el.style.color = cls === 'err' ? '#ff8f7e' : (cls === 'ok' ? '#a8d8b2' : '');
+    el.style.color = cls === 'err' ? '#ff8f7e' : (cls === 'ok' ? '#4ad79c' : '');
+    /* 编译报错时自动展开输出区，错误不能被折叠藏起来 */
+    if (cls === 'err') setBuildCollapsed(false);
   }
 
   /* 变量监视：当前帧局部变量 + 全局变量 */
@@ -3967,6 +3996,29 @@
     });
   }
 
+  /* ==================== 输出区折叠：默认只留一行状态条 ==================== */
+  var buildPanelEl = $('build-panel'), buildToggleEl = $('btn-build-toggle');
+  function buildCollapsed() {
+    return !!(buildPanelEl && buildPanelEl.classList && buildPanelEl.classList.contains && buildPanelEl.classList.contains('collapsed'));
+  }
+  function setBuildCollapsed(on) {
+    if (!buildPanelEl || !buildPanelEl.classList) return;
+    if (buildPanelEl.classList.toggle) buildPanelEl.classList.toggle('collapsed', !!on);
+    if (buildToggleEl) {
+      buildToggleEl.textContent = on ? '展开' : '收起';
+      if (buildToggleEl.setAttribute) buildToggleEl.setAttribute('aria-expanded', on ? 'false' : 'true');
+      buildToggleEl.title = on ? '展开输出区，看完整编译日志' : '收起输出区，把空间让给代码';
+    }
+    try { localStorage.setItem('c51.buildCollapsed', on ? '1' : '0'); } catch (e) {}
+  }
+  if (buildToggleEl) buildToggleEl.onclick = function () { setBuildCollapsed(!buildCollapsed()); };
+  setBuildCollapsed((function () {
+    try {
+      var v = localStorage.getItem('c51.buildCollapsed');
+      return v === null || v === undefined ? true : v === '1';
+    } catch (e) { return true; }
+  })());
+
   /* ==================== 调试面板 ==================== */
   var bottomTab = 'build';
   var lastSerialLen = -1;
@@ -4191,7 +4243,7 @@
   if ($('bottom-tabs') && $('bottom-tabs').addEventListener) {
     $('bottom-tabs').addEventListener('click', function (e) {
       var t = e && e.target;
-      if (t && t.dataset && t.dataset.tab) setBottomTab(t.dataset.tab);
+      if (t && t.dataset && t.dataset.tab) { setBuildCollapsed(false); setBottomTab(t.dataset.tab); }
     });
   }
   if ($('proj-tabs') && $('proj-tabs').addEventListener) {

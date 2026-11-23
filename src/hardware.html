@@ -3,7 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#14100E">
+<meta name="theme-color" content="#14161b">
+<meta name="description" content="51 单片机硬件虚拟实验室：电路实验台、引脚级仿真板、画板模拟、参数计算器与自测练习，纯前端离线可用。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="51 单片机 · 硬件虚拟实验室">
+<meta property="og:description" content="拖元件、拉连线、实时算电压电流；从原理图到 PCB 的双视图与 DRC 检查。">
+<meta property="og:image" content="https://syh-student.github.io/51-mcu-virtual-lab/docs/screenshots/hardware.png">
+<meta name="twitter:card" content="summary_large_image">
 <title>51 单片机 · 硬件虚拟实验室</title>
 <style>
 /* ==========================================================================
@@ -11,17 +17,17 @@
    视觉语言沿用软件篇：暖调深色底 / 毛玻璃面板 / 液态胶囊 / 取景框
    ========================================================================== */
 :root {
-  --bg: #14100e;
-  --ink: #f6f1ea;
-  --muted: rgba(246, 241, 234, .44);
-  --faint: rgba(246, 241, 234, .24);
+  --bg: #14161b;
+  --ink: #eceff5;
+  --muted: rgba(236, 239, 245, .74);
+  --faint: rgba(236, 239, 245, .54);
   --line: rgba(255, 255, 255, .08);
   --line-soft: rgba(255, 255, 255, .045);
   --panel: rgba(255, 255, 255, .07);
   --panel-soft: rgba(255, 255, 255, .04);
   --hover: rgba(255, 255, 255, .16);
   --white: #f5f0e9;
-  --accent: #78c8ff;
+  --accent: #4db8ff;
   --warn: #f0be64;
   --danger: #ff7a6b;
   --ok: #8fd3b0;
@@ -40,7 +46,7 @@ body {
 }
 body::before {
   content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-  background: radial-gradient(120% 90% at 50% 28%, #1d1713 0%, #14100e 44%, #0a0807 100%);
+  background: radial-gradient(120% 90% at 50% 28%, #1b1f26 0%, #14161b 44%, #0b0d11 100%);
 }
 ::selection { background: var(--white); color: var(--bg); }
 
@@ -103,7 +109,7 @@ main { position: relative; z-index: 1; flex: 1; min-height: 0; width: 100%; max-
   border-bottom: 1px solid var(--line-soft);
 }
 .panel-h .idx { font-family: var(--mono); font-size: 9px; color: var(--faint); letter-spacing: .1em; }
-.panel-h h2 { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .04em; }
+.panel-h h2 { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .04em; white-space: nowrap; flex: none; }
 .panel-h .hint { font-size: 10px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .panel-h .sp { flex: 1; }
 .panel-b { flex: 1; min-height: 0; overflow: auto; padding: 14px; }
@@ -205,7 +211,7 @@ main { position: relative; z-index: 1; flex: 1; min-height: 0; width: 100%; max-
 .comp.selected .comp-body { stroke: var(--accent); stroke-width: 2.6; }
 .comp-label { fill: rgba(246,241,234,.9); font-family: var(--mono); font-size: 12px; }
 .comp-val { fill: var(--accent); font-family: var(--mono); font-size: 10px; }
-.node { fill: #14100e; stroke: rgba(246,241,234,.65); stroke-width: 1.6; cursor: crosshair; }
+.node { fill: #14161b; stroke: rgba(246,241,234,.65); stroke-width: 1.6; cursor: crosshair; }
 .node:hover { fill: var(--accent); stroke: var(--accent); r: 6; }
 .node.hot { fill: var(--danger); stroke: var(--danger); }
 .node.target { fill: var(--accent); stroke: var(--accent); r: 7; }
@@ -2986,7 +2992,7 @@ html.pin-bridged .pin-left { display: none; }
       if (lit) svg('circle', { cx: 0, cy: 0, r: 26, fill: c.color, 'fill-opacity': '.14' }, g);
       svg('circle', { cx: 0, cy: 0, r: 15, 'class': 'comp-body', stroke: c.color,
         fill: c.color, 'fill-opacity': lit ? glow.toFixed(2) : '.08' }, g);
-      svg('path', { d: 'M-6 -6 L3 0 L-6 6 Z', fill: lit ? '#14100e' : c.color, 'fill-opacity': lit ? '.8' : '.5' }, g);
+      svg('path', { d: 'M-6 -6 L3 0 L-6 6 Z', fill: lit ? '#14161b' : c.color, 'fill-opacity': lit ? '.8' : '.5' }, g);
       svg('line', { x1: -24, y1: 0, x2: -15, y2: 0, 'class': 'comp-body' }, g);
       svg('line', { x1: 15, y1: 0, x2: 24, y2: 0, 'class': 'comp-body' }, g);
       svg('text', { x: 0, y: 26, 'class': 'comp-val', 'text-anchor': 'middle' }, g).textContent =

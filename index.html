@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#14100E">
+<meta name="theme-color" content="#14161b">
 <meta name="description" content="纯前端、零依赖的 51 单片机（STC89C52RC）虚拟实验台：在浏览器里写 C51、跑虚拟开发板、看时序波形，双击 HTML 即可离线使用。">
 <meta name="author" content="syh-student">
 <link rel="canonical" href="https://syh-student.github.io/51-mcu-virtual-lab/">
@@ -16,7 +16,7 @@
 <meta property="og:image:width" content="1440">
 <meta property="og:image:height" content="900">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%2314100e'/%3E%3Crect x='18' y='18' width='28' height='28' rx='3' fill='none' stroke='%23e8a33d' stroke-width='3'/%3E%3Cpath d='M26 10v8M32 10v8M38 10v8M26 46v8M32 46v8M38 46v8M10 26h8M10 32h8M10 38h8M46 26h8M46 32h8M46 38h8' stroke='%23e8a33d' stroke-width='3'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%2314161b'/%3E%3Crect x='18' y='18' width='28' height='28' rx='3' fill='none' stroke='%234db8ff' stroke-width='3'/%3E%3Cpath d='M26 10v8M32 10v8M38 10v8M26 46v8M32 46v8M38 46v8M10 26h8M10 32h8M10 38h8M46 26h8M46 32h8M46 38h8' stroke='%234db8ff' stroke-width='3'/%3E%3C/svg%3E">
 <title>51 单片机 · 虚拟实验台</title>
 <style>
 /* ==========================================================================
@@ -26,16 +26,23 @@
    ========================================================================== */
 
 :root {
-  --bg: #14100e;
-  --ink: #f6f1ea;
-  --muted: rgba(246, 241, 234, .44);
-  --faint: rgba(246, 241, 234, .24);
-  --line: rgba(255, 255, 255, .08);
-  --line-soft: rgba(255, 255, 255, .045);
+  --bg: #14161b;
+  --ink: #eceff5;
+  --muted: rgba(236, 239, 245, .74);
+  --faint: rgba(236, 239, 245, .54);
+  --line: rgba(255, 255, 255, .1);
+  --line-soft: rgba(255, 255, 255, .055);
   --panel: rgba(255, 255, 255, .07);
   --panel-soft: rgba(255, 255, 255, .04);
   --hover: rgba(255, 255, 255, .16);
-  --white: #f5f0e9;
+  --white: #f2f5fa;
+  /* 主色与状态色：运行、当前页签、选中行、焦点环统一用 accent */
+  --accent: #4db8ff;
+  --accent-ink: #06283d;
+  --accent-soft: rgba(77, 184, 255, .16);
+  --ok: #4ad79c;
+  --warn: #f5c451;
+  --err: #ff8f7e;
   --ease: cubic-bezier(.22, 1, .36, 1);
   --mono: "Cascadia Mono", Consolas, "SFMono-Regular", "Courier New", monospace;
   --sans: "Inter", "Helvetica Neue", "Segoe UI", Arial, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -66,7 +73,7 @@ body::before {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background: radial-gradient(120% 90% at 50% 28%, #1d1713 0%, #14100e 44%, #0a0807 100%);
+  background: radial-gradient(120% 90% at 50% 28%, #1b1f26 0%, #14161b 44%, #0b0d11 100%);
 }
 
 ::selection { background: var(--white); color: var(--bg); }
@@ -126,7 +133,7 @@ body::before {
   transition: background .3s var(--ease);
 }
 .status.running { color: rgba(246, 241, 234, .82); border-color: rgba(255, 255, 255, .13); }
-.status.running::before { background: #ff3b5c; animation: blink 1.6s ease-in-out infinite; }
+.status.running::before { background: var(--ok); animation: blink 1.6s ease-in-out infinite; }
 .status.error { color: #ff8f7e; border-color: rgba(255, 90, 70, .28); }
 .status.error::before { background: #ff5a46; }
 @keyframes blink { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
@@ -178,9 +185,9 @@ body::before {
   transition: color .3s var(--ease);
   -webkit-tap-highlight-color: transparent;
 }
-.nav-item.on { color: var(--bg); background: var(--white); }
-.nav-item.ink { color: var(--bg); }
-.nav-item:focus-visible { outline: 1px solid rgba(255, 255, 255, .4); outline-offset: 3px; }
+.nav-item.on { color: var(--accent-ink); background: var(--accent); }
+.nav-item.ink { color: var(--accent-ink); }
+.nav-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 .hover-pill, .blob {
   position: absolute;
@@ -199,8 +206,8 @@ body::before {
 .blob {
   z-index: 2;
   width: 0;
-  background: var(--white);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, .2);
+  background: var(--accent);
+  box-shadow: 0 4px 20px rgba(77, 184, 255, .22);
   transform-origin: 50% 50%;
   will-change: transform, width, border-radius;
 }
@@ -211,7 +218,7 @@ body::before {
   top: 43%;
   width: 56%;
   height: 124%;
-  background: var(--white);
+  background: var(--accent);
   border-radius: 50%;
   transform: translate(-50%, -50%) scale(var(--bulge, 0)) rotate(var(--tilt, 0deg));
   transform-origin: 50% 50%;
@@ -229,18 +236,18 @@ body::before {
   height: 36px;
   padding: 0 18px;
   border-radius: 12px;
-  background: var(--white);
-  color: var(--bg);
+  background: var(--accent);
+  color: var(--accent-ink);
   font-family: var(--sans);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: .04em;
   cursor: pointer;
-  box-shadow: 0 10px 26px rgba(0, 0, 0, .3);
+  box-shadow: 0 10px 26px rgba(77, 184, 255, .18);
   transition: transform .3s var(--ease), box-shadow .3s var(--ease), background .3s;
   -webkit-tap-highlight-color: transparent;
 }
-.play:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(0, 0, 0, .36); background: #fffaf3; }
+.play:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(77, 184, 255, .26); background: #6cc6ff; }
 .play svg { width: 12px; height: 12px; }
 .circle {
   appearance: none;
@@ -259,7 +266,7 @@ body::before {
 .circle:hover { background: rgba(255, 255, 255, .1); transform: translateY(-2px); border-color: rgba(255, 255, 255, .14); }
 .circle:disabled { opacity: .3; cursor: default; transform: none; background: rgba(255, 255, 255, .03); }
 .circle svg { width: 15px; height: 15px; }
-.play:focus-visible, .circle:focus-visible { outline: 1px solid rgba(255, 255, 255, .45); outline-offset: 3px; }
+.play:focus-visible, .circle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 .speed {
   display: inline-flex;
@@ -270,7 +277,7 @@ body::before {
   color: var(--faint);
   white-space: nowrap;
 }
-.speed input { width: 52px; height: 2px; accent-color: var(--white); cursor: pointer; }
+.speed input { width: 52px; height: 2px; accent-color: var(--accent); cursor: pointer; }
 .speed b {
   font-family: var(--mono);
   font-size: 10px;
@@ -322,10 +329,10 @@ main {
   cursor: pointer; white-space: nowrap;
 }
 #board-view-tabs button:hover { color: rgba(246,241,234,.78); }
-#board-view-tabs button.on { color: var(--ink); }
+#board-view-tabs button.on { color: var(--accent); }
 #board-view-tabs button.on::after {
   content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
-  background: var(--white); border-radius: 1px;
+  background: var(--accent); border-radius: 1px;
 }
 .board-modes .hint {
   font-size: 10px; color: var(--muted); white-space: nowrap;
@@ -340,10 +347,10 @@ main {
   display: flex; align-items: center; gap: 5px;
 }
 .hw-menu-btn:hover { color: rgba(246,241,234,.78); }
-.hw-menu-btn.on { color: var(--ink); }
+.hw-menu-btn.on { color: var(--accent); }
 .hw-menu-btn.on::after {
   content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
-  background: #f0be64; border-radius: 1px;
+  background: var(--accent); border-radius: 1px;
 }
 .hw-menu-btn b { font-weight: 400; }
 .hw-menu-btn span { font-size: 8px; opacity: .5; }
@@ -380,7 +387,7 @@ main {
 .page-board.hw-mode .hw-view { display: block; }
 .hw-view iframe {
   position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block;
-  border-radius: 16px; background: #14100e;
+  border-radius: 16px; background: #14161b;
 }
 
 /* 首次进入的快速开始条：跟着页面走，不浮在内容上 */
@@ -830,7 +837,7 @@ main {
   user-select: none;
 }
 .p-row:hover { background: rgba(255, 255, 255, .05); color: var(--ink); }
-.p-row.on { background: rgba(255, 255, 255, .11); color: #fff; }
+.p-row.on { background: var(--accent-soft); color: var(--accent); box-shadow: inset 2px 0 0 var(--accent); }
 .p-row .ico {
   flex: none;
   width: 15px;
@@ -1244,7 +1251,7 @@ main {
   padding: 6px 12px 4px;
   position: sticky;
   top: 0;
-  background: rgba(20, 16, 14, .96);
+  background: rgba(20, 22, 27, .96);
   z-index: 2;
 }
 .prob-filter button {
@@ -1275,13 +1282,13 @@ main {
 .prob-head {
   position: sticky;
   top: 28px;
-  background: rgba(20, 16, 14, .96);
+  background: rgba(20, 22, 27, .96);
   color: rgba(246, 241, 234, .34);
   font-size: 9.5px;
   cursor: default;
   z-index: 1;
 }
-.prob-head:hover { background: rgba(20, 16, 14, .96); }
+.prob-head:hover { background: rgba(20, 22, 27, .96); }
 
 /* ---------------- 开发板 ---------------- */
 .board-stage {
@@ -1560,7 +1567,7 @@ body.zoomed .appbar { display: none; }
   transition: background .2s var(--ease), color .2s var(--ease);
 }
 .seg button:hover { color: rgba(246, 241, 234, .7); }
-.seg button.on { background: rgba(255, 255, 255, .14); color: var(--ink); }
+.seg button.on { background: var(--accent-soft); color: var(--accent); }
 
 /* ---------------- 讲义 ---------------- */
 .ex-list { display: flex; flex-direction: column; gap: 0; }
@@ -1595,7 +1602,7 @@ body.zoomed .appbar { display: none; }
 .ex-btn .t { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .ex-btn:hover { background: var(--panel); color: rgba(246, 241, 234, .88); }
 .ex-btn.active { background: var(--white); color: var(--bg); }
-.ex-btn.active .n { color: rgba(20, 16, 14, .42); }
+.ex-btn.active .n { color: rgba(6, 40, 61, .6); }
 .ex-btn:focus-visible { outline: 1px solid rgba(255, 255, 255, .4); outline-offset: 1px; }
 
 .chapter {
@@ -1707,6 +1714,81 @@ body.zoomed .appbar { display: none; }
   .status.running::before { animation: none; }
 }
 
+
+/* ================= 视觉改版：可读性 / 主色 / 折叠输出区 / 悬停浮层 ================= */
+
+/* 面板标题不换行，避免窄屏被挤成两行 */
+.panel-h h2 { white-space: nowrap; flex: none; }
+.panel-h .hint { min-width: 0; }
+
+/* 全局焦点环：键盘 Tab 也能看清当前位置 */
+.ghost:focus-visible, .mini:focus-visible, .linky:focus-visible,
+.proj-acts button:focus-visible, .proj-f button:focus-visible,
+.seg button:focus-visible, select:focus-visible, input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* 滚动条贴主题，别再用浏览器默认的粗灰条 */
+* { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .2) transparent; }
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, .16);
+  border-radius: 99px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, .3); background-clip: content-box; }
+
+/* 编译输出默认折叠成一行状态条，把高度还给编辑器；
+   有编译错误、或手动点底部页签时会自动展开 */
+.build-panel.collapsed { height: auto; }
+.build-panel.collapsed .build-log,
+.build-panel.collapsed .build-problems,
+.build-panel.collapsed .debug-view,
+.build-panel.collapsed .serial-view { display: none !important; }
+.build-panel.collapsed .panel-h { border-bottom: 0; }
+#btn-build-toggle { min-width: 44px; }
+#build-sum { font-family: var(--mono); letter-spacing: .04em; }
+.build-panel:not(.collapsed) #build-sum { color: var(--muted); }
+
+/* 开发板悬停浮层：说明跟着鼠标走，不用再低头看底部那行小字 */
+.board-float {
+  position: fixed;
+  z-index: 90;
+  max-width: 300px;
+  padding: 9px 12px;
+  border: 1px solid rgba(77, 184, 255, .35);
+  border-radius: 10px;
+  background: rgba(18, 22, 29, .96);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .45);
+  color: var(--ink);
+  font-size: 11.5px;
+  line-height: 1.65;
+  pointer-events: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.board-float[hidden] { display: none; }
+@media (pointer: coarse) { .board-float { display: none !important; } }
+
+/* 悬停时说明条本身也呼应主色 */
+.board-tip.on {
+  color: var(--ink);
+  border-color: rgba(77, 184, 255, .32);
+  background: var(--accent-soft);
+}
+
+/* 空状态：一句话提示，而不是一行几乎看不见的灰字 */
+.watch:empty::before,
+#console:empty::before {
+  content: "暂无内容";
+  display: block;
+  padding: 10px 2px;
+  color: var(--faint);
+  font-size: 11px;
+}
 </style>
 </head>
 <body>
@@ -1718,7 +1800,7 @@ body.zoomed .appbar { display: none; }
   </div>
   <div class="head-right">
     <span class="head-note">例程 01—15 · 离线可用</span>
-    <span class="build-tag" id="build-tag">构建 11-23 10:19</span>
+    <span class="build-tag" id="build-tag">构建 11-23 10:53</span>
     <span id="status" class="status">已停止</span>
   </div>
 </header>
@@ -1883,7 +1965,7 @@ body.zoomed .appbar { display: none; }
         </div>
       </div>
 
-      <div class="panel build-panel">
+      <div class="panel build-panel" id="build-panel">
         <div class="panel-h">
           <div class="seg seg-sm" id="bottom-tabs">
             <button type="button" data-tab="build" class="on">编译输出</button>
@@ -1892,6 +1974,7 @@ body.zoomed .appbar { display: none; }
           </div>
           <span class="sp"></span>
           <span id="build-sum" class="hint">就绪</span>
+          <button id="btn-build-toggle" class="ghost" type="button" title="展开或收起输出区（有编译错误时会自动展开）" aria-expanded="false">展开</button>
           <button id="btn-build" class="ghost">编译</button>
         </div>
         <div id="build-problems" class="build-problems" hidden></div>
@@ -2079,6 +2162,9 @@ body.zoomed .appbar { display: none; }
 </div>
 
 <input id="file-input" type="file" multiple accept=".c,.h,.inc,.txt,text/plain" hidden>
+
+<!-- 悬停元件时跟随鼠标的说明浮层，内容与底部说明条同步 -->
+<div id="board-float" class="board-float" hidden aria-hidden="true"></div>
 
 <div class="dlg-mask" id="dlg" aria-hidden="true">
   <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
@@ -4824,12 +4910,39 @@ void main()
 
   /* ---------------- 板面悬停说明 ---------------- */
   var tipEl = $('board-tip');
+  var floatEl = $('board-float');
   var TIP_IDLE = '把鼠标移到板上的元件上，这里会写出它的名称、接的引脚，以及在仿真里能不能用。';
   function setTip(t) {
-    if (!tipEl) return;
-    tipEl.textContent = t || TIP_IDLE;
-    if (tipEl.classList) tipEl.classList.toggle('on', !!t);
+    if (tipEl) {
+      tipEl.textContent = t || TIP_IDLE;
+      if (tipEl.classList) tipEl.classList.toggle('on', !!t);
+    }
+    /* 同步给跟随鼠标的浮层：说明直接出现在手边，不用低头找底部那行字 */
+    if (floatEl) {
+      floatEl.textContent = t || '';
+      floatEl.hidden = !t;
+    }
   }
+  /* 浮层跟着指针走，靠近右 / 下边缘时自动翻面，避免被裁掉 */
+  function moveFloat(x, y) {
+    if (!floatEl || floatEl.hidden || !floatEl.style) return;
+    var w = floatEl.offsetWidth || 260, h = floatEl.offsetHeight || 70;
+    var vw = (typeof window !== 'undefined' && window.innerWidth) || 1280;
+    var vh = (typeof window !== 'undefined' && window.innerHeight) || 800;
+    var left = x + 18, top = y + 20;
+    if (left + w > vw - 12) left = Math.max(12, x - w - 18);
+    if (top + h > vh - 12) top = Math.max(12, y - h - 20);
+    floatEl.style.left = left + 'px';
+    floatEl.style.top = top + 'px';
+  }
+  (function () {
+    var stage = $('board-wrap');
+    if (!stage || !stage.addEventListener) return;
+    stage.addEventListener('pointermove', function (e) {
+      if (e) moveFloat(e.clientX || 0, e.clientY || 0);
+    });
+    stage.addEventListener('pointerleave', function () { if (floatEl) floatEl.hidden = true; });
+  })();
   var hotRegions = [];
   function hot(x, y, w, h, tip) { hotRegions.push([x, y, w, h, tip]); }
 
@@ -7696,7 +7809,7 @@ void main()
       ctx.font = '10px "Cascadia Mono", Consolas, monospace';
       var w = ctx.measureText ? ctx.measureText(text).width : text.length * 6;
       var bx = Math.max(2, Math.min(W - w - 10, x + 5));
-      ctx.fillStyle = 'rgba(20, 16, 14, .88)';
+      ctx.fillStyle = 'rgba(20, 22, 27, .88)';
       if (ctx.fillRect) ctx.fillRect(bx - 3, y - 10, w + 8, 15);
       ctx.fillStyle = color;
       ctx.textAlign = 'left';
@@ -8283,7 +8396,9 @@ void main()
     var el = $('build-sum');
     if (!el) return;
     el.textContent = text;
-    el.style.color = cls === 'err' ? '#ff8f7e' : (cls === 'ok' ? '#a8d8b2' : '');
+    el.style.color = cls === 'err' ? '#ff8f7e' : (cls === 'ok' ? '#4ad79c' : '');
+    /* 编译报错时自动展开输出区，错误不能被折叠藏起来 */
+    if (cls === 'err') setBuildCollapsed(false);
   }
 
   /* 变量监视：当前帧局部变量 + 全局变量 */
@@ -8704,6 +8819,29 @@ void main()
     });
   }
 
+  /* ==================== 输出区折叠：默认只留一行状态条 ==================== */
+  var buildPanelEl = $('build-panel'), buildToggleEl = $('btn-build-toggle');
+  function buildCollapsed() {
+    return !!(buildPanelEl && buildPanelEl.classList && buildPanelEl.classList.contains && buildPanelEl.classList.contains('collapsed'));
+  }
+  function setBuildCollapsed(on) {
+    if (!buildPanelEl || !buildPanelEl.classList) return;
+    if (buildPanelEl.classList.toggle) buildPanelEl.classList.toggle('collapsed', !!on);
+    if (buildToggleEl) {
+      buildToggleEl.textContent = on ? '展开' : '收起';
+      if (buildToggleEl.setAttribute) buildToggleEl.setAttribute('aria-expanded', on ? 'false' : 'true');
+      buildToggleEl.title = on ? '展开输出区，看完整编译日志' : '收起输出区，把空间让给代码';
+    }
+    try { localStorage.setItem('c51.buildCollapsed', on ? '1' : '0'); } catch (e) {}
+  }
+  if (buildToggleEl) buildToggleEl.onclick = function () { setBuildCollapsed(!buildCollapsed()); };
+  setBuildCollapsed((function () {
+    try {
+      var v = localStorage.getItem('c51.buildCollapsed');
+      return v === null || v === undefined ? true : v === '1';
+    } catch (e) { return true; }
+  })());
+
   /* ==================== 调试面板 ==================== */
   var bottomTab = 'build';
   var lastSerialLen = -1;
@@ -8928,7 +9066,7 @@ void main()
   if ($('bottom-tabs') && $('bottom-tabs').addEventListener) {
     $('bottom-tabs').addEventListener('click', function (e) {
       var t = e && e.target;
-      if (t && t.dataset && t.dataset.tab) setBottomTab(t.dataset.tab);
+      if (t && t.dataset && t.dataset.tab) { setBuildCollapsed(false); setBottomTab(t.dataset.tab); }
     });
   }
   if ($('proj-tabs') && $('proj-tabs').addEventListener) {

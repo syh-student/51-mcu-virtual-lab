@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#14100E">
+<meta name="theme-color" content="#14161b">
 <meta name="description" content="纯前端、零依赖的 51 单片机（STC89C52RC）虚拟实验台：在浏览器里写 C51、跑虚拟开发板、看时序波形，双击 HTML 即可离线使用。">
 <meta name="author" content="syh-student">
 <link rel="canonical" href="https://syh-student.github.io/51-mcu-virtual-lab/">
@@ -16,7 +16,7 @@
 <meta property="og:image:width" content="1440">
 <meta property="og:image:height" content="900">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%2314100e'/%3E%3Crect x='18' y='18' width='28' height='28' rx='3' fill='none' stroke='%23e8a33d' stroke-width='3'/%3E%3Cpath d='M26 10v8M32 10v8M38 10v8M26 46v8M32 46v8M38 46v8M10 26h8M10 32h8M10 38h8M46 26h8M46 32h8M46 38h8' stroke='%23e8a33d' stroke-width='3'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%2314161b'/%3E%3Crect x='18' y='18' width='28' height='28' rx='3' fill='none' stroke='%234db8ff' stroke-width='3'/%3E%3Cpath d='M26 10v8M32 10v8M38 10v8M26 46v8M32 46v8M38 46v8M10 26h8M10 32h8M10 38h8M46 26h8M46 32h8M46 38h8' stroke='%234db8ff' stroke-width='3'/%3E%3C/svg%3E">
 <title>51 单片机 · 虚拟实验台</title>
 <style>
 /*__STYLE__*/
@@ -196,7 +196,7 @@
         </div>
       </div>
 
-      <div class="panel build-panel">
+      <div class="panel build-panel" id="build-panel">
         <div class="panel-h">
           <div class="seg seg-sm" id="bottom-tabs">
             <button type="button" data-tab="build" class="on">编译输出</button>
@@ -205,6 +205,7 @@
           </div>
           <span class="sp"></span>
           <span id="build-sum" class="hint">就绪</span>
+          <button id="btn-build-toggle" class="ghost" type="button" title="展开或收起输出区（有编译错误时会自动展开）" aria-expanded="false">展开</button>
           <button id="btn-build" class="ghost">编译</button>
         </div>
         <div id="build-problems" class="build-problems" hidden></div>
@@ -392,6 +393,9 @@
 </div>
 
 <input id="file-input" type="file" multiple accept=".c,.h,.inc,.txt,text/plain" hidden>
+
+<!-- 悬停元件时跟随鼠标的说明浮层，内容与底部说明条同步 -->
+<div id="board-float" class="board-float" hidden aria-hidden="true"></div>
 
 <div class="dlg-mask" id="dlg" aria-hidden="true">
   <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
