@@ -179,7 +179,8 @@ main { position: relative; z-index: 1; flex: 1; min-height: 0; width: 100%; max-
 .canvas-hint {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
   z-index: 3;
-  font-size: 12px; color: var(--faint); pointer-events: none; text-align: center;
+  font-size: 12px; line-height: 1.9; color: var(--faint); pointer-events: none; text-align: center;
+  white-space: pre-line;
 }
 .canvas-hint[hidden] { display: none; }
 .canvas-tools {
@@ -204,18 +205,40 @@ main { position: relative; z-index: 1; flex: 1; min-height: 0; width: 100%; max-
 .legend .dot.cur { background: var(--accent); margin-left: 6px; }
 
 /* SVG 元件样式 */
-.wire { stroke: #b8912e; stroke-width: 3.2; fill: none; cursor: pointer; stroke-linecap: round; }
+.wire { stroke: #8c7a49; stroke-width: 2.6; fill: none; cursor: pointer; stroke-linecap: round; }
+.wire.live {
+  stroke: #63b7e6;
+  filter: drop-shadow(0 0 5px rgba(99, 183, 230, .3));
+}
 .wire:hover { stroke: var(--danger); stroke-width: 4; }
 .comp { cursor: pointer; }
-.comp-body { stroke: rgba(246,241,234,.85); stroke-width: 2; fill: none; }
-.comp.selected .comp-body { stroke: var(--accent); stroke-width: 2.6; }
-.comp-label { fill: rgba(246,241,234,.9); font-family: var(--mono); font-size: 12px; }
+.comp-body { stroke: rgba(236,239,245,.86); stroke-width: 1.8; fill: none; stroke-linejoin: round; }
+.comp-lead { stroke: rgba(236,239,245,.48); stroke-width: 1.25; fill: none; stroke-linecap: round; }
+.comp-outline { stroke: rgba(236,239,245,.34); stroke-width: 1.2; fill: none; }
+.comp-contact { fill: rgba(236,239,245,.82); stroke: none; }
+.comp-live { stroke: var(--accent); }
+.comp.selected .comp-body { stroke: var(--accent); stroke-width: 2.2; filter: drop-shadow(0 0 3px rgba(77,184,255,.32)); }
+.comp.selected .comp-lead { stroke: rgba(77,184,255,.7); }
+.comp.selected .comp-outline { stroke: rgba(77,184,255,.45); }
+.comp-label { fill: rgba(236,239,245,.92); font-family: var(--mono); font-size: 12px; }
+.comp-id { fill: rgba(236,239,245,.74); font-family: var(--mono); font-size: 10.5px; letter-spacing: .04em; }
 .comp-val { fill: var(--accent); font-family: var(--mono); font-size: 10px; }
-.node { fill: #14161b; stroke: rgba(246,241,234,.65); stroke-width: 1.6; cursor: crosshair; }
+.pin-tag { fill: rgba(236,239,245,.56); font-family: var(--mono); font-size: 8.5px; font-weight: 600; }
+.comp:hover .pin-tag { fill: var(--ink); }
+.ckt-pin-tip {
+  position: absolute; z-index: 5; pointer-events: none;
+  padding: 4px 7px; border-radius: 6px;
+  background: rgba(12,14,18,.94); border: 1px solid rgba(120,200,255,.34);
+  color: var(--ink); font-family: var(--mono); font-size: 10px; line-height: 1.35;
+  white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,.35);
+}
+.ckt-pin-tip[hidden] { display: none; }
+.node { fill: #10131a; stroke: rgba(236,239,245,.56); stroke-width: 1.35; cursor: crosshair; }
 .node:hover { fill: var(--accent); stroke: var(--accent); r: 6; }
 .node.hot { fill: var(--danger); stroke: var(--danger); }
 .node.target { fill: var(--accent); stroke: var(--accent); r: 7; }
-.node.connected { fill: var(--ink); }
+.node.connected { fill: rgba(77,184,255,.08); stroke: rgba(77,184,255,.42); }
+.comp.selected .node { stroke: var(--accent); }
 .wire-flow { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 4 8; fill: none; pointer-events: none; animation: flow 1s linear infinite; }
 @keyframes flow { to { stroke-dashoffset: -12; } }
 .measure { fill: var(--warn); font-family: var(--mono); font-size: 10px; }
@@ -563,11 +586,14 @@ html.pin-bridged .pin-left { display: none; }
         <div class="canvas-wrap" id="canvas-wrap">
           <canvas id="canvas-dots" class="canvas-dots" aria-hidden="true"></canvas>
           <svg id="circuit" xmlns="http://www.w3.org/2000/svg" aria-label="电路图"></svg>
-          <div class="canvas-hint" id="canvas-hint">从左边点一个元件开始搭电路</div>
+          <div class="canvas-hint" id="canvas-hint">从左边点一个元件开始搭电路
+滚轮缩放 · 空格 + 拖动平移</div>
+          <div class="ckt-pin-tip" id="ckt-pin-tip" hidden></div>
           <div class="canvas-tools">
             <button id="btn-zoom-out" class="ghost" type="button" title="缩小（滚轮也可以）">−</button>
             <button id="btn-zoom-reset" class="ghost" type="button" title="恢复 100%">100%</button>
             <button id="btn-zoom-in" class="ghost" type="button" title="放大（滚轮也可以）">＋</button>
+            <button id="btn-zoom-fit" class="ghost" type="button" title="适应画布：把整张电路放到视口中央">适应</button>
           </div>
         </div>
         <div class="canvas-foot">
@@ -2471,6 +2497,7 @@ html.pin-bridged .pin-left { display: none; }
   /* ================= 画布视图（缩放 / 平移） ================= */
   var GRID = 10;
   var view = { x: 0, y: 0, k: 1 };
+  var viewTouched = false;
   var scene = null;
   var guideXEl = null, guideYEl = null;
   var wireDrag = null, wirePreview = null, hoverPinEl = null;
@@ -2480,11 +2507,31 @@ html.pin-bridged .pin-left { display: none; }
     return 'translate(' + view.x + ',' + view.y + ') scale(' + view.k + ')';
   }
   function applyView() {
+    hidePinTip();
     if (scene) scene.setAttribute('transform', viewTransform());
     var b = $('btn-zoom-reset');
     if (b) b.textContent = Math.round(view.k * 100) + '%';
   }
-  function resetView() { view = { x: 0, y: 0, k: 1 }; applyView(); }
+  function resetView() { view = { x: 0, y: 0, k: 1 }; viewTouched = true; applyView(); }
+  /* 把整张电路放进视口中央：按元件包围盒算缩放，最多放大到 1.8 倍 */
+  function fitView(maxK) {
+    var w = svgRoot.clientWidth, h = svgRoot.clientHeight;
+    if (!w || !h || !components.length) { view = { x: 0, y: 0, k: 1 }; viewTouched = false; applyView(); return; }
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    components.forEach(function (c) {
+      minX = Math.min(minX, c.x - 34); maxX = Math.max(maxX, c.x + 34);
+      minY = Math.min(minY, c.y - 34); maxY = Math.max(maxY, c.y + 40);
+    });
+    var bw = Math.max(80, maxX - minX), bh = Math.max(60, maxY - minY);
+    var margin = w < 560 ? 26 : 64;
+    var cap = maxK || 1.8;
+    var k = Math.max(0.35, Math.min(cap, (w - margin * 2) / bw, (h - margin * 2) / bh));
+    view.k = k;
+    view.x = (w - bw * k) / 2 - minX * k;
+    view.y = (h - bh * k) / 2 - minY * k;
+    viewTouched = false;
+    applyView();
+  }
   function scenePoint(clientX, clientY) {
     var r = svgRoot.getBoundingClientRect();
     return { x: (clientX - r.left - view.x) / view.k, y: (clientY - r.top - view.y) / view.k };
@@ -2499,6 +2546,7 @@ html.pin-bridged .pin-left { display: none; }
     view.k = newK;
     view.x = sx - px * newK;
     view.y = sy - py * newK;
+    viewTouched = true;
     applyView();
   }
 
@@ -2616,7 +2664,8 @@ html.pin-bridged .pin-left { display: none; }
     diode: { label: '二极管', pins: [{ x: -24, y: 0 }, { x: 24, y: 0 }], def: { vf: 0.7 } },
     capacitor: { label: '电容', pins: [{ x: -24, y: 0 }, { x: 24, y: 0 }], def: { c: 100e-6 } },
     ground: { label: 'GND', pins: [{ x: 0, y: -16 }], def: {} },
-    switch: { label: '按键', pins: [{ x: -24, y: 0 }, { x: 24, y: 0 }], def: { closed: false } }
+    switch: { label: '按键', pins: [{ x: -24, y: 0 }, { x: 24, y: 0 }], def: { closed: false } },
+    transistor: { label: '三极管', pins: [{ x: -26, y: 0 }, { x: 10, y: -20 }, { x: 10, y: 20 }], def: {} }
   };
 
   /* 引脚绝对坐标 */
@@ -2661,12 +2710,13 @@ html.pin-bridged .pin-left { display: none; }
         parts.push({ type: 'ground', node: nameOf(nodeKey(c.id, 0)) });
       }
     });
-    /* 把地根的名字统一为 GND */
+    /* 把地根的名字统一为 GND（端点与地元件一起改，避免求解器把 GND 当成新节点） */
     if (gndRoot !== null) {
       var gname = names[gndRoot];
       parts.forEach(function (p) {
         if (p.type === 'source' && p.b === gname) p.b = 'GND';
         if (p.type === 'resistor') { if (p.a === gname) p.a = 'GND'; if (p.b === gname) p.b = 'GND'; }
+        if (p.type === 'ground' && p.node === gname) p.node = 'GND';
       });
       names[gndRoot] = 'GND';
     }
@@ -2735,22 +2785,24 @@ html.pin-bridged .pin-left { display: none; }
       }
     },
     transistor: {
-      title: '三极管驱动继电器', desc: '5V/80mA/β=100，算基极电阻',
+      title: '三极管开关驱动 LED', desc: '5V/18.7mA/β=100，Rb 取 7.5kΩ 留 3 倍饱和裕量',
       build: function () {
         return {
           comps: [
-            { id: 'v1', kind: 'source', x: 90, y: 160, v: 5 },
-            { id: 'rb1', kind: 'resistor', x: 230, y: 90, r: 1792 },
-            { id: 'rled', kind: 'resistor', x: 400, y: 70, r: 220 },
-            { id: 'd1', kind: 'led', x: 520, y: 70, vf: 2, color: '#ffcf5a' },
-            { id: 'g1', kind: 'ground', x: 90, y: 260 }
+            { id: 'v1', kind: 'source', x: 90, y: 230, v: 5 },
+            { id: 'rb1', kind: 'resistor', x: 250, y: 180, r: 7500 },
+            { id: 'q1', kind: 'transistor', x: 420, y: 230 },
+            { id: 'rled', kind: 'resistor', x: 420, y: 90, r: 150 },
+            { id: 'd1', kind: 'led', x: 560, y: 90, vf: 2, color: '#ffcf5a' },
+            { id: 'g1', kind: 'ground', x: 430, y: 310 }
           ],
           wires: [
             { a: { id: 'v1', pin: 0 }, b: { id: 'rb1', pin: 0 } },
+            { a: { id: 'rb1', pin: 1 }, b: { id: 'q1', pin: 0 } },
             { a: { id: 'v1', pin: 0 }, b: { id: 'rled', pin: 0 } },
             { a: { id: 'rled', pin: 1 }, b: { id: 'd1', pin: 0 } },
-            { a: { id: 'd1', pin: 1 }, b: { id: 'g1', pin: 0 } },
-            { a: { id: 'rb1', pin: 1 }, b: { id: 'g1', pin: 0 } },
+            { a: { id: 'd1', pin: 1 }, b: { id: 'q1', pin: 1 } },
+            { a: { id: 'q1', pin: 2 }, b: { id: 'g1', pin: 0 } },
             { a: { id: 'v1', pin: 1 }, b: { id: 'g1', pin: 0 } }
           ]
         };
@@ -2765,12 +2817,15 @@ html.pin-bridged .pin-left { display: none; }
     var data = p.build();
     components = data.comps.map(function (c) { return Object.assign({}, c); });
     wires = data.wires.map(function (w) { return { a: Object.assign({}, w.a), b: Object.assign({}, w.b) }; });
-    selected = null; pendingPin = null;
-    view = { x: 0, y: 0, k: 1 };
+    /* 预置加载后直接选中限流/分压电阻，右侧参数面板不再空着 */
+    var firstR = components.filter(function (c) { return c.kind === 'resistor'; })[0];
+    selected = firstR ? firstR.id : (components[0] ? components[0].id : null);
+    pendingPin = null;
     $('ckt-title').textContent = p.title;
     $('ckt-desc').textContent = p.desc;
     syncPresetButtons();
     render();
+    fitView(1.6);
   }
 
   /* ================= 画布持久化（刷新后保留搭好的电路） ================= */
@@ -2812,13 +2867,61 @@ html.pin-bridged .pin-left { display: none; }
       $('ckt-desc').textContent = s.desc || '';
       syncPresetButtons();
       render();
+      fitView(1.6);
       return true;
     } catch (e) { return false; }
   }
 
   /* ================= 渲染电路 ================= */
   var svgRoot = $('circuit');
+  var pinTip = $('ckt-pin-tip');
+  var pinNodeState = {};
+  function hidePinTip() { if (pinTip) pinTip.hidden = true; }
+  function pinRole(kind, pi) {
+    if (kind === 'source') return pi === 0 ? '+ 正极' : '− 负极';
+    if (kind === 'led' || kind === 'diode') return pi === 0 ? 'A 阳极' : 'K 阴极';
+    if (kind === 'ground') return '接地';
+    if (kind === 'transistor') return ['B 基极', 'C 集电极', 'E 发射极'][pi] || ('引脚 ' + (pi + 1));
+    return '引脚 ' + (pi + 1);
+  }
+  function showPinTip(dot, c, pi) {
+    if (!pinTip) return;
+    var node = pinNodeState[nodeKey(c.id, pi)];
+    pinTip.textContent = refDes(c) + ' · ' + pinRole(c.kind, pi) + ' · ' + (node ? '节点 ' + node : '未连接');
+    pinTip.hidden = false;
+    var wr = $('canvas-wrap').getBoundingClientRect();
+    var dr = dot.getBoundingClientRect();
+    var tw = pinTip.offsetWidth, th = pinTip.offsetHeight;
+    var left = dr.left - wr.left + dr.width / 2 - tw / 2;
+    var top = dr.top - wr.top - th - 8;
+    left = Math.max(6, Math.min(wr.width - tw - 6, left));
+    top = Math.max(6, Math.min(wr.height - th - 6, top));
+    pinTip.style.left = left + 'px';
+    pinTip.style.top = top + 'px';
+  }
   function compAt(id) { for (var i = 0; i < components.length; i++) if (components[i].id === id) return components[i]; return null; }
+
+  function refPrefix(kind) {
+    if (kind === 'resistor') return 'R';
+    if (kind === 'capacitor') return 'C';
+    if (kind === 'led' || kind === 'diode') return 'D';
+    if (kind === 'source') return 'V';
+    if (kind === 'switch') return 'SW';
+    if (kind === 'ground') return 'G';
+    if (kind === 'transistor') return 'Q';
+    return 'X';
+  }
+  /* 预置元件的 id 本身带语义（rb1 / rled），直接用；库中新建的 cN 按类型编号 */
+  function refDes(c) {
+    if (!/^c\d+$/.test(c.id)) return c.id.toUpperCase();
+    var p = refPrefix(c.kind), n = 0;
+    for (var i = 0; i < components.length; i++) {
+      if (refPrefix(components[i].kind) !== p) continue;
+      n++;
+      if (components[i] === c) return p + n;
+    }
+    return p;
+  }
 
   /* ================= 画布背景：点阵排斥 ================= */
   var dotCanvas = $('canvas-dots');
@@ -2921,6 +3024,7 @@ html.pin-bridged .pin-left { display: none; }
   };
 
   function render(skipParams) {
+    hidePinTip();
     while (svgRoot.firstChild) svgRoot.removeChild(svgRoot.firstChild);
     scene = svg('g', { id: 'viewport' }, svgRoot);
     $('canvas-hint').hidden = components.length > 0;
@@ -2944,6 +3048,10 @@ html.pin-bridged .pin-left { display: none; }
     if (currentPreset === 'led') {
       var lv = compAt('v1'), lr = compAt('r1'), ld = compAt('d1');
       if (lv && lr && ld) ledCurrents.d1 = Math.max(0, (lv.v - ld.vf) / lr.r);
+    } else if (currentPreset === 'transistor') {
+      /* 共射开关：LED 支路电流由 Rled、Vf 和 VCE(sat) 决定 */
+      var tlv = compAt('v1'), tlr = compAt('rled'), tld = compAt('d1');
+      if (tlv && tlr && tld) ledCurrents.d1 = Math.max(0, (tlv.v - tld.vf - 0.2) / tlr.r);
     } else {
       components.forEach(function (c) {
         if (c.kind !== 'led') return;
@@ -2952,15 +3060,41 @@ html.pin-bridged .pin-left { display: none; }
         if (sources.length) ledCurrents[c.id] = Math.max(0, (sources[0].v - c.vf) / 1000);
       });
     }
+    /* 先建网表：元件标签和引脚悬停都要用节点名 */
+    var net = buildNetlist();
+    var sol = net.parts.length ? C.solveCircuit(net.parts) : null;
+    var touched = {};
+    wires.forEach(function (w) {
+      touched[nodeKey(w.a.id, w.a.pin)] = 1;
+      touched[nodeKey(w.b.id, w.b.pin)] = 1;
+    });
+    pinNodeState = {};
+    components.forEach(function (c) {
+      KINDS[c.kind].pins.forEach(function (_, pi) {
+        var k = nodeKey(c.id, pi);
+        if (touched[k]) pinNodeState[k] = net.nameOf(k);
+      });
+    });
     /* 再画元件 */
     components.forEach(function (c) { drawComponent(c, ledCurrents[c.id]); });
     /* 对齐辅助线（拖动时显示） */
     guideXEl = svg('line', { 'class': 'guide', visibility: 'hidden' }, scene);
     guideYEl = svg('line', { 'class': 'guide', visibility: 'hidden' }, scene);
     /* 画电流动画（若可解） */
-    var net = buildNetlist();
-    var sol = net.parts.length ? C.solveCircuit(net.parts) : null;
-    if (sol && sol.ok) drawFlow(sol, net);
+    var energized = false;
+    if (sol && sol.ok) {
+      drawFlow(sol, net);
+      energized = sol.currents.some(function (cur) { return Math.abs(cur.current) > 1e-9; });
+    }
+    /* LED 是恒压降模型、不进线性方程组，用点亮估算判断回路是否通流 */
+    if (!energized) {
+      energized = Object.keys(ledCurrents).some(function (id) { return ledCurrents[id] > 1e-9; });
+    }
+    if (energized) {
+      Array.prototype.forEach.call(svgRoot.querySelectorAll('line.wire'), function (l) {
+        l.classList.add('live');
+      });
+    }
     applyView();
     /* 更新右侧（拖参数滑块时保留面板，避免滑块被重建打断） */
     if (!skipParams) renderParams();
@@ -2974,58 +3108,116 @@ html.pin-bridged .pin-left { display: none; }
       'class': 'comp' + (selected === c.id ? ' selected' : ''),
       transform: 'translate(' + c.x + ',' + c.y + ') rotate(' + (c.rot || 0) + ')'
     }, scene);
+    function partId(x, y, anchor) {
+      var t = svg('text', { x: x, y: y, 'class': 'comp-id', 'text-anchor': anchor || 'middle' }, g);
+      t.textContent = refDes(c);
+      return t;
+    }
+    function partVal(x, y, str, anchor) {
+      var t = svg('text', { x: x, y: y, 'class': 'comp-val', 'text-anchor': anchor || 'middle' }, g);
+      t.textContent = str;
+      return t;
+    }
+    function pinTag(x, y, str, anchor) {
+      var t = svg('text', { x: x, y: y, 'class': 'pin-tag', 'text-anchor': anchor || 'middle' }, g);
+      t.textContent = str;
+      return t;
+    }
+    function lead(x1, y1, x2, y2) {
+      svg('line', { x1: x1, y1: y1, x2: x2, y2: y2, 'class': 'comp-lead' }, g);
+    }
+    var glass = 'fill:rgba(236,239,245,.045)';
     /* 本体 */
     if (c.kind === 'resistor') {
-      svg('rect', { x: -18, y: -8, width: 36, height: 16, rx: 3, 'class': 'comp-body' }, g);
-      svg('line', { x1: -26, y1: 0, x2: -18, y2: 0, 'class': 'comp-body' }, g);
-      svg('line', { x1: 18, y1: 0, x2: 26, y2: 0, 'class': 'comp-body' }, g);
-      svg('text', { x: 0, y: -14, 'class': 'comp-label', 'text-anchor': 'middle' }, g).textContent = c.id.toUpperCase();
-      svg('text', { x: 0, y: 22, 'class': 'comp-val', 'text-anchor': 'middle' }, g).textContent = C.fmtR(c.r);
+      svg('rect', { x: -18, y: -8, width: 36, height: 16, rx: 4, 'class': 'comp-body', style: glass }, g);
+      lead(-26, 0, -18, 0);
+      lead(18, 0, 26, 0);
+      partId(0, -14);
+      partVal(0, 22, C.fmtR(c.r));
     } else if (c.kind === 'source') {
-      svg('circle', { cx: 0, cy: 0, r: 17, 'class': 'comp-body' }, g);
-      svg('text', { x: 0, y: -3, 'class': 'comp-label', 'text-anchor': 'middle' }, g).textContent = '+';
-      svg('text', { x: 0, y: 11, 'class': 'comp-label', 'text-anchor': 'middle' }, g).textContent = '−';
-      svg('text', { x: 25, y: 4, 'class': 'comp-val' }, g).textContent = fmt(c.v, 1) + 'V';
+      svg('circle', { cx: 0, cy: 0, r: 17, 'class': 'comp-body', style: glass }, g);
+      lead(0, -26, 0, -17);
+      lead(0, 17, 0, 26);
+      svg('text', { x: 0, y: -4, 'class': 'comp-label', 'text-anchor': 'middle', style: 'fill:var(--accent)' }, g).textContent = '+';
+      svg('text', { x: 0, y: 12, 'class': 'comp-label', 'text-anchor': 'middle', style: 'fill:rgba(236,239,245,.52)' }, g).textContent = '−';
+      partId(25, -6, 'start');
+      partVal(25, 10, fmt(c.v, 1) + ' V', 'start');
     } else if (c.kind === 'led') {
       var lit = ledCur > 0.5e-3;
-      var glow = Math.min(0.85, 0.18 + (ledCur || 0) * 12);
-      if (lit) svg('circle', { cx: 0, cy: 0, r: 26, fill: c.color, 'fill-opacity': '.14' }, g);
-      svg('circle', { cx: 0, cy: 0, r: 15, 'class': 'comp-body', stroke: c.color,
-        fill: c.color, 'fill-opacity': lit ? glow.toFixed(2) : '.08' }, g);
-      svg('path', { d: 'M-6 -6 L3 0 L-6 6 Z', fill: lit ? '#14161b' : c.color, 'fill-opacity': lit ? '.8' : '.5' }, g);
-      svg('line', { x1: -24, y1: 0, x2: -15, y2: 0, 'class': 'comp-body' }, g);
-      svg('line', { x1: 15, y1: 0, x2: 24, y2: 0, 'class': 'comp-body' }, g);
-      svg('text', { x: 0, y: 26, 'class': 'comp-val', 'text-anchor': 'middle' }, g).textContent =
-        'Vf=' + fmt(c.vf, 1) + (lit ? ' · 亮' : ' · 灭');
+      var glow = Math.min(0.82, 0.56 + (ledCur || 0) * 18);
+      if (lit) {
+        svg('circle', { cx: 0, cy: 0, r: 24, fill: c.color, 'fill-opacity': '.14' }, g);
+        svg('circle', { cx: 0, cy: 0, r: 19, 'class': 'comp-outline', style: 'stroke:' + c.color + ';stroke-opacity:.42' }, g);
+      }
+      svg('circle', { cx: 0, cy: 0, r: 15, 'class': 'comp-body',
+        style: 'fill:' + c.color + ';fill-opacity:' + (lit ? glow.toFixed(2) : '.13') }, g);
+      svg('path', { d: 'M-6 -6 L3 0 L-6 6 Z', fill: '#f4f7fb', 'fill-opacity': lit ? '.96' : '.72' }, g);
+      svg('line', { x1: 4, y1: -9, x2: 4, y2: 9, 'class': 'comp-body' }, g);
+      lead(-24, 0, -15, 0);
+      lead(15, 0, 24, 0);
+      partId(0, -22);
+      partVal(-22, 28, 'Vf=' + fmt(c.vf, 1) + (lit ? ' · 亮' : ' · 灭'), 'end');
+      pinTag(-30, -9, 'A');
+      pinTag(30, -9, 'K');
     } else if (c.kind === 'diode') {
-      svg('path', { d: 'M-14 -10 L-14 10 L8 0 Z', 'class': 'comp-body' }, g);
+      svg('path', { d: 'M-14 -10 L-14 10 L8 0 Z', 'class': 'comp-body', style: glass }, g);
       svg('line', { x1: 8, y1: -10, x2: 8, y2: 10, 'class': 'comp-body' }, g);
-      svg('line', { x1: -24, y1: 0, x2: -14, y2: 0, 'class': 'comp-body' }, g);
-      svg('line', { x1: 8, y1: 0, x2: 24, y2: 0, 'class': 'comp-body' }, g);
+      lead(-24, 0, -14, 0);
+      lead(8, 0, 24, 0);
+      partId(0, -20);
+      partVal(0, 22, 'Vf ' + fmt(c.vf, 1) + ' V');
+      pinTag(-30, -9, 'A');
+      pinTag(30, -9, 'K');
     } else if (c.kind === 'capacitor') {
-      svg('line', { x1: -24, y1: 0, x2: -5, y2: 0, 'class': 'comp-body' }, g);
-      svg('line', { x1: -5, y1: -12, x2: -5, y2: 12, 'class': 'comp-body' }, g);
-      svg('line', { x1: 5, y1: -12, x2: 5, y2: 12, 'class': 'comp-body' }, g);
-      svg('line', { x1: 5, y1: 0, x2: 24, y2: 0, 'class': 'comp-body' }, g);
-      svg('text', { x: 0, y: 26, 'class': 'comp-val', 'text-anchor': 'middle' }, g).textContent = C.fmtTime(c.c);
+      lead(-24, 0, -5, 0);
+      svg('line', { x1: -5, y1: -12, x2: -5, y2: 12, 'class': 'comp-body', style: 'stroke-width:2.2' }, g);
+      svg('line', { x1: 5, y1: -12, x2: 5, y2: 12, 'class': 'comp-body', style: 'stroke-width:2.2' }, g);
+      lead(5, 0, 24, 0);
+      partId(0, -22);
+      partVal(-20, 28, fmt(c.c * 1e6, 0) + ' μF', 'end');
     } else if (c.kind === 'ground') {
-      svg('line', { x1: 0, y1: -16, x2: 0, y2: -6, 'class': 'comp-body' }, g);
+      lead(0, -16, 0, -6);
       svg('line', { x1: -10, y1: -6, x2: 10, y2: -6, 'class': 'comp-body' }, g);
       svg('line', { x1: -6, y1: 0, x2: 6, y2: 0, 'class': 'comp-body' }, g);
       svg('line', { x1: -2, y1: 6, x2: 2, y2: 6, 'class': 'comp-body' }, g);
+      partId(14, 2, 'start');
     } else if (c.kind === 'switch') {
-      svg('line', { x1: -24, y1: 0, x2: -8, y2: 0, 'class': 'comp-body' }, g);
-      svg('line', { x1: 8, y1: 0, x2: 24, y2: 0, 'class': 'comp-body' }, g);
-      svg('line', { x1: -8, y1: 0, x2: c.closed ? 8 : 6, y2: c.closed ? 0 : -10, 'class': 'comp-body' }, g);
+      lead(-24, 0, -8, 0);
+      lead(8, 0, 24, 0);
+      svg('circle', { cx: -8, cy: 0, r: 1.8, 'class': 'comp-contact' }, g);
+      svg('circle', { cx: 8, cy: 0, r: 1.8, 'class': 'comp-contact' }, g);
+      svg('line', { x1: -8, y1: 0, x2: c.closed ? 8 : 6, y2: c.closed ? 0 : -10,
+        'class': 'comp-body' + (c.closed ? ' comp-live' : '') }, g);
+      partId(0, -20);
+      partVal(0, 26, c.closed ? '闭合' : '断开');
+    } else if (c.kind === 'transistor') {
+      svg('circle', { cx: 0, cy: 0, r: 20, 'class': 'comp-outline', style: 'fill:rgba(236,239,245,.02)' }, g);
+      lead(-26, 0, -8, 0);
+      svg('line', { x1: -8, y1: -12, x2: -8, y2: 12, 'class': 'comp-body' }, g);
+      svg('line', { x1: -8, y1: -6, x2: 10, y2: -20, 'class': 'comp-body' }, g);
+      svg('line', { x1: -8, y1: 6, x2: 10, y2: 20, 'class': 'comp-body' }, g);
+      /* 发射极箭头 */
+      svg('path', { d: 'M9 18 L2 14 L4 10 Z', 'class': 'comp-body', style: 'fill:rgba(236,239,245,.82)' }, g);
+      partId(0, -30);
+      partVal(-4, 38, 'NPN', 'end');
+      pinTag(-36, -16, 'B', 'end');
+      pinTag(24, -18, 'C', 'start');
+      pinTag(24, 24, 'E', 'start');
     }
     /* 引脚 */
     KINDS[c.kind].pins.forEach(function (p, pi) {
       var isPending = pendingPin && pendingPin.id === c.id && pendingPin.pin === pi;
-      var dot = svg('circle', { cx: p.x, cy: p.y, r: isPending ? 7 : 5, 'class': 'node' + (isPending ? ' hot' : '') }, g);
+      var isConnected = !!pinNodeState[nodeKey(c.id, pi)];
+      var dot = svg('circle', { cx: p.x, cy: p.y, r: isPending ? 7 : 5,
+        'class': 'node' + (isPending ? ' hot' : '') + (isConnected && !isPending ? ' connected' : '') }, g);
       dot.setAttribute('data-cid', c.id);
       dot.setAttribute('data-pin', pi);
       (function (cid, pin) {
-        dot.addEventListener('pointerdown', function (e) { startWireDrag(e, cid, pin); });
+        dot.addEventListener('pointerenter', function () {
+          if (!wireDrag && !panDrag) showPinTip(dot, c, pin);
+        });
+        dot.addEventListener('pointerleave', hidePinTip);
+        dot.addEventListener('pointerdown', function (e) { hidePinTip(); startWireDrag(e, cid, pin); });
         /* 阻止冒泡到画布空白处的“取消选择” */
         dot.addEventListener('click', function (e) { e.stopPropagation(); });
       })(c.id, pi);
@@ -3107,7 +3299,7 @@ html.pin-bridged .pin-left { display: none; }
     sol.currents.forEach(function (cur) {
       var c = compAt(cur.id);
       if (!c || Math.abs(cur.current) < 1e-9) return;
-      var label = svg('text', { x: c.x, y: c.y - 16, 'class': 'measure', 'text-anchor': 'middle' }, scene);
+      var label = svg('text', { x: c.x, y: c.y - 32, 'class': 'measure', 'text-anchor': 'middle' }, scene);
       label.textContent = (cur.current >= 0 ? '→ ' : '← ') + C.fmtI(Math.abs(cur.current));
     });
   }
@@ -3121,7 +3313,7 @@ html.pin-bridged .pin-left { display: none; }
       return;
     }
     var c = compAt(selected);
-    el('div', '', KINDS[c.kind].label + ' · ' + c.id.toUpperCase(), host).style.cssText = 'font-size:11px;color:var(--accent);margin-bottom:10px;font-family:var(--mono)';
+    el('div', '', KINDS[c.kind].label + ' · ' + refDes(c), host).style.cssText = 'font-size:11px;color:var(--accent);margin-bottom:10px;font-family:var(--mono)';
     function addSlider(label, key, min, max, step, display) {
       var row = el('div', 'param-row', null, host);
       var lab = el('label', null, null, row);
@@ -3240,17 +3432,24 @@ html.pin-bridged .pin-left { display: none; }
         kb.onclick = function () { simulateRC(rr.r, rc.c); };
       }
     } else if (currentPreset === 'transistor') {
-      var rbc = compAt('rb1'), vs2 = compAt('v1');
-      if (rbc && vs2) {
+      var rbc = compAt('rb1'), vs2 = compAt('v1'), rload = compAt('rled'), dled = compAt('d1');
+      if (rbc && vs2 && rload && dled) {
         presetHandled = true;
+        var ic = Math.max(0, (vs2.v - dled.vf - 0.2) / rload.r);
         var ib = (vs2.v - 0.7) / rbc.r;
-        var ic = ib * 100;
+        var needIb = ic / 100;
+        var margin = needIb > 0 ? ib / needIb : 0;
         item('驱动电压', C.fmtV(vs2.v), true);
+        item('负载电流 Ic（LED 支路）', C.fmtI(ic), true);
         item('基极电阻 Rb', C.fmtR(rbc.r));
-        item('基极电流 Ib', C.fmtI(ib), true);
-        item('集电极电流 Ic≈β·Ib', C.fmtI(ic));
-        el('div', 'formula', '课程 23.2：Ib > Ic/β 且乘 2~5 倍裕量保证饱和；Ic≈β·Ib 只在放大区成立。', host);
-        if (ib < 80e-3 / 100) el('div', 'warn-box', '基极电流偏小，三极管可能进不了饱和区。', host);
+        item('基极电流 Ib', C.fmtI(ib));
+        item('饱和裕量', fmt(margin, 1) + ' ×（需 ≥ 1，建议 2~5）');
+        if (margin < 1) {
+          el('div', 'warn-box danger', 'Ib 小于 Ic/β，三极管可能停在放大区、发热。把 Rb 调小。', host);
+        } else {
+          el('div', 'warn-box', '✓ Ib 足以让三极管饱和，LED 支路按 ' + C.fmtI(ic) + ' 估算。', host);
+        }
+        el('div', 'formula', '课程 23.2：Ib=(Vdrive−Vbe)/Rb　Ic≈(VCC−VF−VCEsat)/Rc　Ib>Ic/β', host);
       }
     }
 
@@ -3269,8 +3468,8 @@ html.pin-bridged .pin-left { display: none; }
     /* 各电阻电流与功耗 */
     sol.currents.forEach(function (cur) {
       var c = compAt(cur.id);
-      item((c ? c.id.toUpperCase() : cur.id) + ' 电流', C.fmtI(Math.abs(cur.current)));
-      item((c ? c.id.toUpperCase() : cur.id) + ' 功耗', fmt(cur.power * 1000, 2) + ' mW');
+      item((c ? refDes(c) : cur.id) + ' 电流', C.fmtI(Math.abs(cur.current)));
+      item((c ? refDes(c) : cur.id) + ' 功耗', fmt(cur.power * 1000, 2) + ' mW');
     });
   }
 
@@ -3378,6 +3577,14 @@ html.pin-bridged .pin-left { display: none; }
   $('btn-zoom-in').onclick = function () { zoomByButton(1.2); };
   $('btn-zoom-out').onclick = function () { zoomByButton(1 / 1.2); };
   $('btn-zoom-reset').onclick = resetView;
+  var fitBtn = $('btn-zoom-fit');
+  if (fitBtn) fitBtn.onclick = function () { fitView(1.6); };
+  var fitTimer = 0;
+  window.addEventListener('resize', function () {
+    if (viewTouched) return;
+    if (fitTimer) clearTimeout(fitTimer);
+    fitTimer = setTimeout(function () { fitTimer = 0; if (!viewTouched) fitView(1.6); }, 120);
+  });
 
   svgRoot.addEventListener('wheel', function (e) {
     e.preventDefault();
@@ -3399,6 +3606,7 @@ html.pin-bridged .pin-left { display: none; }
     if (Math.abs(dx) + Math.abs(dy) > 3) panDrag.moved = true;
     view.x = panDrag.vx + dx;
     view.y = panDrag.vy + dy;
+    viewTouched = true;
     applyView();
   });
   svgRoot.addEventListener('pointerup', function (e) {

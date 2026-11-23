@@ -1884,3 +1884,81 @@ html.light .board-stage {
     linear-gradient(90deg, rgba(18, 23, 33, .012) 1px, transparent 1px) 0 0 / 40px 40px;
 }
 html.light #board svg { filter: drop-shadow(0 16px 34px rgba(16, 24, 40, .18)); }
+
+/* ==========================================================================
+   原版精修：不改结构，只收敛字号阶梯、浅色主题一致性和板卡底栏
+   ========================================================================== */
+
+/* ---- 1. 字号阶梯：正文与元信息不再低于 10px ---- */
+.qb-tag, .qb-step, .qb-sep { flex: none; white-space: nowrap; }
+.brand b { font-size: 14px; }
+.brand span, .brand em { font-size: 10px; }
+.status { font-size: 10px; letter-spacing: .12em; padding: 4px 12px; }
+.head-note { font-size: 10px; }
+.build-tag { font-size: 10px; }
+.nav-item { font-size: 12px; padding: 6px 18px; }
+.speed { font-size: 10px; }
+.speed b { font-size: 11px; }
+.quickbar { font-size: 11px; }
+.qb-tag, .qb-step i { font-size: 10px; }
+.qb-go, .qb-close { font-size: 10.5px; }
+.panel-h { padding: 9px 14px 8px; }
+.panel-h .idx { font-size: 10px; }
+.panel-h h2 { font-size: 12.5px; }
+.panel-h .hint { font-size: 10.5px; }
+.ghost { font-size: 11px; }
+.tab { font-size: 11px; }
+.sel select { font-size: 11px; max-width: 178px; }
+.proj-h { font-size: 10px; }
+.proj-h .pn { font-size: 11px; }
+.p-row { font-size: 12px; }
+.proj-tip { font-size: 10px; }
+.proj-stat { font-size: 10px; }
+.proj-acts button, .proj-f button { font-size: 10px; }
+.editor-foot { font-size: 10.5px; padding: 8px 14px; }
+#hl, #code { font-size: 13px; }
+#gutter { width: 44px; font-size: 11.5px; color: rgba(var(--fg-rgb), .28); }
+.build-log { font-size: 11px; }
+.ports-legend { font-size: 10px; }
+.board-modes .hint, #board-view-tabs button, .hw-menu-btn { font-size: 10.5px; }
+
+/* ---- 2. 浅色主题：去掉写死的浅色文字和深色浮层 ---- */
+html.light .quickbar { background: rgba(18, 23, 33, .025); }
+html.light .qb-step { color: rgba(24, 30, 42, .78); }
+html.light .qb-tag, html.light .qb-sep, html.light .qb-close { color: rgba(24, 30, 42, .45); }
+html.light .qb-go { color: var(--ink); }
+html.light .pin-cap-note { color: rgba(24, 30, 42, .72); background: rgba(162, 98, 7, .06); }
+html.light .pin-cap-note button { color: #96620f; }
+html.light .hw-menu-pop { background: var(--panel); border-color: var(--line); box-shadow: 0 16px 36px rgba(16, 24, 40, .18); }
+html.light .hw-menu-pop button { color: var(--muted); }
+html.light .hw-menu-pop button:hover { background: rgba(18, 23, 33, .06); color: var(--ink); }
+html.light .ac { background: var(--panel); box-shadow: 0 16px 36px rgba(16, 24, 40, .16); }
+html.light .dlg { background: var(--panel); }
+html.light .sel select option { background: var(--panel); color: var(--ink); }
+html.light .prob-filter, html.light .prob-head { background: var(--panel-soft); }
+html.light .corner { border-color: rgba(24, 30, 42, .72); }
+html.light .reticle-label { color: rgba(24, 30, 42, .9); }
+
+/* ---- 3. 开发板说明条：收成卡片底栏，不再像外挂提示框 ---- */
+.board-tip {
+  height: 46px;
+  margin: 0;
+  padding: 8px 14px;
+  border: 0;
+  border-top: 1px solid var(--line-soft);
+  border-radius: 0;
+  background: transparent;
+}
+.board-tip.on {
+  background: var(--accent-soft);
+  border-top-color: rgba(63, 154, 214, .3);
+}
+
+/* ---- 4. 板子投影收一点，别让台面被压黑 ---- */
+#board svg { filter: drop-shadow(0 20px 44px rgba(0, 0, 0, .42)); }
+html.light #board svg { filter: drop-shadow(0 14px 30px rgba(16, 24, 40, .15)); }
+
+/* 手机上的快速开始条：去掉“快速开始”竖排标签，给步骤和关闭按钮留出宽度 */
+@media (max-width: 760px) {
+  .qb-tag { display: none; }
+}
