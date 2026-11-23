@@ -2753,7 +2753,16 @@
   if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator
     && typeof location !== 'undefined' && /^https?:$/.test(location.protocol)) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function () { /* 离线缓存不可用时静默 */ });
+      /* 已经受旧版本控制时，新 SW 接管后自动刷新一次，避免一直看旧页面 */
+      var hadController = !!navigator.serviceWorker.controller;
+      if (hadController) {
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+          location.reload();
+        });
+      }
+      navigator.serviceWorker.register('sw.js').then(function (reg) {
+        if (reg && reg.update) reg.update().catch(function () { /* 静默 */ });
+      }).catch(function () { /* 离线缓存不可用时静默 */ });
     });
   }
 
