@@ -89,11 +89,23 @@ jobs:
           npm run lint
           npm test
 
-      - name: 提交并推送
+      - name: 提交
         run: |
           set -euo pipefail
           git config user.name 'syh-student'
           git config user.email '2137438918@qq.com'
           git add -A
           git commit -m '优化：工程树多级文件夹、README 重写、CI 与工程化配置'
-          git push origin HEAD:main
+
+      - name: 推送
+        run: |
+          set +e
+          OUT=$(git push origin HEAD:main 2>&1)
+          CODE=$?
+          set -e
+          echo "$OUT"
+          if [ $CODE -ne 0 ]; then
+            MSG=$(echo "$OUT" | tr '\n' ' ' | tr -s ' ' | cut -c1-700)
+            echo "::error title=PUSHFAIL::${MSG}"
+            exit 1
+          fi
