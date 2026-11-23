@@ -1,7 +1,7 @@
 name: Apply optimization (one-shot)
 
 # 一次性发布工作流：把本地优化补丁应用到 main，构建产物后推送。
-# 成功跑完后本文件会在同一次提交里被删除。
+# 二职位：ci.yml 由连接器单独提交（GITHUB_TOKEN 无 workflows 权限）。
 
 on:
   push:
@@ -71,8 +71,7 @@ jobs:
       - name: 应用补丁
         run: |
           set -euo pipefail
-          git -c core.autocrlf=false apply -p2 --index "$RUNNER_TEMP/opt.patch"
-          rm -f .github/workflows/apply-optimization.yml
+          git -c core.autocrlf=false apply -p2 --index --exclude='.github/workflows/ci.yml' "$RUNNER_TEMP/opt.patch"
           git rm -q --ignore-unmatch docs/_binprobe2.png || true
 
       - name: 安装依赖与构建
