@@ -1,0 +1,37 @@
+name: teaching-refresh
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/teaching-refresh.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 下载补丁
+        run: curl -fSL 'https://aka.doubaocdn.com/s/myJ5IVuoyr' -o /tmp/opt.patch
+      - name: 应用补丁
+        run: git apply --whitespace=nowarn /tmp/opt.patch
+      - name: 安装依赖
+        run: npm ci || npm install --no-audit --no-fund
+      - name: 构建与测试
+        run: |
+          python build.py
+          npm run lint
+          npm test
+      - name: 提交推送
+        run: |
+          git config user.name 'syh-student'
+          git config user.email '2137438918@qq.com'
+          git add -A
+          git commit -m 'feat: 诊断建议、静态提醒、SFR 位域面板与手动 Watch'
+          git push
