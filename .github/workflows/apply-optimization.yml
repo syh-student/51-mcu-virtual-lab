@@ -1,0 +1,74 @@
+name: 应用优化补丁（一次性）
+
+on:
+  push:
+    paths:
+      - .github/workflows/apply-optimization.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 准备 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 准备 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 取补丁与截图
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 "https://aka.doubaocdn.com/s/xOFrhDUS49" -o "$RUNNER_TEMP/opt.patch"
+          wc -c "$RUNNER_TEMP/opt.patch"
+          mkdir -p docs/screenshots
+          curl -fsSL --retry 3 "https://aka.doubaocdn.com/s/98fREXcDJN" -o docs/screenshots/code.png
+          curl -fsSL --retry 3 "https://aka.doubaocdn.com/s/nKHYpbKfHG" -o docs/screenshots/board.png
+          curl -fsSL --retry 3 "https://aka.doubaocdn.com/s/lXgzA9WmrA" -o docs/screenshots/pins.png
+          curl -fsSL --retry 3 "https://aka.doubaocdn.com/s/3qMvpCgvs1" -o docs/screenshots/scope.png
+          curl -fsSL --retry 3 "https://aka.doubaocdn.com/s/i3WA6Wubtc" -o docs/screenshots/hardware.png
+          curl -fsSL --retry 3 "https://aka.doubaocdn.com/s/fVlVigkOIN" -o docs/screenshots/mobile.png
+          ls -l docs/screenshots
+
+      - name: 应用补丁
+        run: |
+          set -euo pipefail
+          git apply -p2 --index "$RUNNER_TEMP/opt.patch"
+          rm -f .github/workflows/apply-optimization.yml
+
+      - name: 安装依赖并构建
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts
+          python build.py
+          test -s index.html
+          test -s hardware.html
+          if grep -q "__STYLE__\|__VM__\|__APP__" index.html; then
+            echo "构建产物里还残留占位符"; exit 1
+          fi
+
+      - name: 静态检查与回归
+        run: |
+          set -euo pipefail
+          npm run lint
+          npm test
+
+      - name: 提交并推送
+        run: |
+          set -euo pipefail
+          git config user.name "syh-student"
+          git config user.email "2137438918@qq.com"
+          git add -A
+          git commit -m "优化：多级文件夹、README 重写、CI 与工程化配置"
+          git push
