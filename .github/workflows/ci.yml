@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: 构建 + 测试 + 静态检查
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 准备 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 准备 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      # --ignore-scripts：跳过 puppeteer 下载浏览器，CI 只跑 lint 与纯 Node 测试
+      - name: 安装开发依赖
+        run: npm ci --ignore-scripts
+
+      - name: 构建单文件页面
+        run: python build.py
+
+      - name: 检查构建产物
+        run: |
+          test -s index.html
+          test -s hardware.html
+          if grep -q "__STYLE__\|__VM__\|__APP__" index.html; then
+            echo "构建产物里还残留占位符"; exit 1
+          fi
+
+      - name: 静态检查
+        run: npm run lint
+
+      - name: 回归测试
+        run: npm test
