@@ -2706,6 +2706,71 @@
     if (e.key === 'Enter') { e.preventDefault(); snapSave(); }
   });
 
+  /* ---------------- 实验报告导出（Markdown）：代码 + 诊断 + 运行状态 ---------------- */
+  $('btn-report').onclick = function () {
+    var cur = fileOf(project.active);
+    if (cur) cur.content = codeEl.value;
+    var lines = [];
+    lines.push('# 51 单片机实验报告');
+    lines.push('');
+    lines.push('- 工程名称：' + project.name);
+    lines.push('- 导出时间：' + new Date().toLocaleString());
+    lines.push('- 文件数量：' + project.files.length);
+    lines.push('');
+    lines.push('## 一、实验代码');
+    project.files.forEach(function (f) {
+      lines.push('');
+      lines.push('### ' + f.path);
+      lines.push('```c');
+      lines.push(f.content);
+      lines.push('```');
+    });
+    lines.push('');
+    lines.push('## 二、编译与诊断');
+    lines.push('```');
+    lines.push($('problems') ? $('problems').innerText.trim() : '没有发现问题。');
+    lines.push('```');
+    lines.push('');
+    lines.push('## 三、运行观察');
+    if (vm) {
+      ['P0', 'P1', 'P2', 'P3'].forEach(function (p) {
+        var bits = portBits[p] || [];
+        var value = 0;
+        var bin = '';
+        for (var b = 0; b < 8; b++) {
+          var bit = bits[b] && bits[b].textContent === '1' ? 1 : 0;
+          value |= bit << b;
+          bin = bit + bin;
+        }
+        lines.push('- 端口 ' + p + '：0b' + bin + '（0x' + value.toString(16).toUpperCase().padStart(2, '0') + '）');
+      });
+      lines.push('- 寄存器：' + ($('sfr') ? $('sfr').innerText.replace(/\s*\n\s*/g, '；') : ''));
+      lines.push('- 虚拟时间：' + vm.vtime.toFixed(0) + ' ms；已执行语句：' + vm.stepCount + ' 条');
+    } else {
+      lines.push('（还没运行过。先点「运行」再导出，这里就会有端口、寄存器和虚拟时间。）');
+    }
+    lines.push('');
+    lines.push('### 控制台记录（最近 30 条）');
+    lines.push('```');
+    var logLines = consoleEl ? consoleEl.innerText.trim().split('\n').slice(-30) : [];
+    logLines.forEach(function (l) { lines.push(l); });
+    lines.push('```');
+    lines.push('');
+    lines.push('## 四、实验总结（请自行补充）');
+    lines.push('');
+    lines.push('在这里写：实验目的、观察到的现象、遇到的问题和解决思路。');
+    var blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = project.name.replace(/[\\/:*?"<>|]/g, '_') + '-实验报告.md';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    log('实验报告已导出（Markdown，含代码、诊断和运行状态），总结部分记得自己补。', 'ok');
+  };
+
   /* ---------------- 浅色 / 深色主题 ---------------- */
   function setTheme(light) {
     try {
@@ -3505,13 +3570,13 @@
       && curExample && project.files[0].content === curExample.code;
     var url;
     if (single) {
-      url = base + '#ex=' + id;
+      url = base + '#ex=' + id + '&ro=1';
     } else {
       url = base + '#ex=' + id + '&p=' + b64enc(JSON.stringify({
         name: project.name, files: project.files,
         folders: project.folders, folderGroup: project.folderGroup,
     groups: project.groups, open: project.open, active: project.active
-      }));
+      })) + '&ro=1';
     }
     copyText(url).then(function () {
       log(single
@@ -4213,12 +4278,75 @@
     var loc = vm ? mapUnitLine(vm.line) : null;
     return loc && loc.file === project.active ? loc.line : 0;
   }
+  /* ---------------- 条件断点 / 日志断点：Shift + 点行号设置 ---------------- */
+  var bpConds = {};
+  try { bpConds = JSON.parse(localStorage.getItem('c51.bpconds') || '{}') || {}; } catch (e) { bpConds = {}; }
+  function saveBpConds() {
+    try { localStorage.setItem('c51.bpconds', JSON.stringify(bpConds)); } catch (e) { /* 忽略 */ }
+  }
+  function bpCondOf(key) { return bpConds[key] || ''; }
+  function evalBpValue(name) {
+    if (!vm) return undefined;
+    try { return vm.getVar(name); } catch (e) { return undefined; }
+  }
+  /* 只支持教学够用的形式：i == 10、count >= 3、P2 != 0xFF，或单变量 i（非零即真） */
+  function evalBpCond(expr) {
+    var m = /^\s*([A-Za-z_]\w*)\s*(==|!=|>=|<=|>|<)\s*(-?\d+(?:\.\d+)?|0x[0-9a-fA-F]+)\s*$/.exec(expr);
+    if (m) {
+      var left = evalBpValue(m[1]);
+      var right = Number(m[3]);
+      if (left === undefined) return false;
+      if (m[2] === '==') return left == right;
+      if (m[2] === '!=') return left != right;
+      if (m[2] === '>') return left > right;
+      if (m[2] === '<') return left < right;
+      if (m[2] === '>=') return left >= right;
+      if (m[2] === '<=') return left <= right;
+    }
+    var single = /^\s*([A-Za-z_]\w*)\s*$/.exec(expr);
+    if (single) return !!evalBpValue(single[1]);
+    return false;
+  }
+  function editBpCond(file, line) {
+    if (!file || !line) return;
+    var key = file + ':' + line;
+    askModal('条件 / 日志断点 · ' + key, {
+      msg: '条件：i == 10、count >= 3、P2 != 0xFF（满足才停）；日志：log:i,count（每次经过在控制台打印变量，不停下）。留空就是普通断点。',
+      input: true, value: bpCondOf(key), ok: '保存'
+    }).then(function (val) {
+      if (val === null || val === undefined) return;
+      var v = String(val).trim();
+      if (v) bpConds[key] = v; else delete bpConds[key];
+      saveBpConds();
+      if (v && bpOf(file).indexOf(line) < 0) toggleBp(file, line);
+      renderDebug();
+      log(v ? ('已设置 ' + key + '：' + v) : ('已清除 ' + key + ' 的条件，按普通断点处理'), 'dim');
+    });
+  }
+
   function checkBp(v) {
     var loc = mapUnitLine(v.line);
     if (!loc || !loc.line) { lastStopKey = ''; return false; }
     var key = loc.file + ':' + loc.line;
     if (!bpSnap[key]) { lastStopKey = ''; return false; }
     if (key === lastStopKey) return false;
+    var cond = bpCondOf(key);
+    if (cond) {
+      if (/^log\s*:/i.test(cond)) {
+        var names = cond.replace(/^log\s*:/i, '').split(',');
+        var parts = [];
+        for (var ni = 0; ni < names.length; ni++) {
+          var nm = names[ni].trim();
+          if (!nm) continue;
+          var val = evalBpValue(nm);
+          parts.push(nm + ' = ' + (val === undefined ? '未定义' : val));
+        }
+        log('[日志断点] ' + key + ' · ' + parts.join('，'), 'dim');
+        return false;
+      }
+      if (!evalBpCond(cond)) return false;   /* 条件不满足：当没这个断点，继续跑 */
+      log('条件断点命中：' + key + '（' + cond + '）', 'dim');
+    }
     lastStopKey = key;
     return true;
   }
@@ -4228,7 +4356,10 @@
       while (t && t !== gutter && !(t.dataset && t.dataset.l)) t = t.parentNode;
       if (!t || t === gutter) return;
       var ln = parseInt(t.dataset.l, 10);
-      if (ln) toggleBp(project.active, ln);
+      if (ln) {
+        if (e.shiftKey) editBpCond(project.active, ln);
+        else toggleBp(project.active, ln);
+      }
     });
   }
 
@@ -4401,7 +4532,8 @@
           row.className = 'row';
           var nm = document.createElement('span');
           nm.className = 'fn';
-          nm.textContent = it[0] + ':' + it[1];
+          var condText = bpCondOf(it[0] + ':' + it[1]);
+          nm.textContent = it[0] + ':' + it[1] + (condText ? '（' + condText + '）' : '');
           var x = document.createElement('span');
           x.className = 'x';
           x.textContent = '\u00d7';
@@ -5587,6 +5719,39 @@
       log('分享链接里的代码解析失败，已退回例程原版。', 'err');
     }
   }
+  /* ---------------- 只读分享：链接带 ro=1 时锁编辑，可一键复制成自己的工程 ---------------- */
+  if (/[#&]ro=1(?:&|$)/.test(hash)) {
+    var roLockIds = ['btn-format', 'btn-restore', 'btn-new-file', 'btn-new-folder', 'btn-import', 'btn-clean', 'proj-import', 'proj-clean'];
+    var roSetLock = function (locked) {
+      roLockIds.forEach(function (id) {
+        var b = $(id);
+        if (b) b.disabled = locked;
+      });
+    };
+    codeEl.readOnly = true;
+    roSetLock(true);
+    var roBar = document.createElement('div');
+    roBar.className = 'ro-bar';
+    var roText = document.createElement('span');
+    roText.textContent = '这是别人分享的只读工程，可以运行、调试、看开发板；想改代码，先复制成自己的工程。';
+    var roFork = document.createElement('button');
+    roFork.className = 'btn sm';
+    roFork.textContent = '复制为自己的工程';
+    roFork.onclick = function () {
+      codeEl.readOnly = false;
+      roSetLock(false);
+      roBar.remove();
+      project.name += '（副本）';
+      saveProject();
+      log('已复制为可编辑工程「' + project.name + '」，随便改。', 'ok');
+    };
+    roBar.appendChild(roText);
+    roBar.appendChild(roFork);
+    var roWrap = document.querySelector('.editor-wrap');
+    if (roWrap && roWrap.parentNode) roWrap.parentNode.insertBefore(roBar, roWrap);
+    log('当前是只读分享模式：运行和调试都能用，编辑请先复制为自己的工程。', 'dim');
+  }
+
   var bt = $('build-tag');
   log('已就绪' + (bt ? ' · ' + bt.textContent : ''), 'ok');
   log('F5 运行 · F9 断点 · F11 单步 · Ctrl+F 查找', 'dim');

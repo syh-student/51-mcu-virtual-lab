@@ -1708,6 +1708,16 @@ body.zoomed .appbar { display: none; }
 .w-del:hover { color: var(--err); }
 .prob-hint { grid-column: 1 / -1; color: var(--accent); font-size: 10.5px; padding: 0 0 4px; line-height: 1.6; }
 
+/* ===== 只读分享提示条 ===== */
+.ro-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 8px 14px; margin: 0 0 8px;
+  background: var(--accent-dim); border: 1px solid var(--line2); border-radius: 8px;
+  font-size: 12px; color: var(--fg);
+}
+.ro-bar span { flex: 1; min-width: 220px; line-height: 1.7; }
+.ro-bar .btn { flex: none; }
+
 /* ===== 浅色主题：页头内联脚本给 <html> 加 .light，变量整体切换 ===== */
 :root.light {
   --bg: #f4f6f9;

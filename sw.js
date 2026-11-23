@@ -1,6 +1,6 @@
 /* 离线缓存：缓存优先 + 后台回源更新（stale-while-revalidate）。
  * 发布新功能时把 CACHE 里的版本号 +1，旧缓存会在激活时清掉。 */
-const CACHE = 'c51lab-v1';
+const CACHE = 'c51lab-v2';
 const ASSETS = ['./', './index.html', './hardware.html', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', (e) => {

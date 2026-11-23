@@ -179,6 +179,7 @@ try { if (localStorage.getItem('c51.theme') === 'light') document.documentElemen
               <button id="btn-save-proj" type="button" title="把整个工程（文件、分组、标签）存成一个 .json 文件">存工程</button>
               <button id="btn-load-proj" type="button" title="打开之前存的工程文件">开工程</button>
               <button id="btn-export" type="button" title="把整个工程打包成 zip（Keil 能直接用）">导出 zip</button>
+              <button id="btn-report" type="button" title="导出实验报告：代码 + 诊断 + 运行状态（Markdown）">报告</button>
             </div>
             <input id="proj-input" type="file" accept=".json,application/json" hidden>
           </aside>
@@ -221,7 +222,7 @@ try { if (localStorage.getItem('c51.theme') === 'light') document.documentElemen
           <div class="dbg-line" id="dbg-state">还没运行。按 F5 运行，或点工具栏的播放键。</div>
           <div class="dbg-k">调用栈</div>
           <div class="stack" id="callstack"></div>
-          <div class="dbg-k">断点<span class="dbg-tip">点行号切换 F9</span></div>
+          <div class="dbg-k">断点<span class="dbg-tip">点行号设断点 · Shift+点设条件 / 日志</span></div>
           <div class="stack" id="bp-list"></div>
         </div>
         <div id="serial-view" class="serial-view" hidden>
