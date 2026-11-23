@@ -10,6 +10,7 @@
 
 ### 修复
 
+- 收回开发板悬停时的跟随鼠标浮层：说明回到板面下方的固定说明条，不再有黑色浮层挡住板子。
 - 修复 F12「跳转到定义」被自动补全的同名符号表覆盖，跳转行号变成 `undefined` 的问题；两张符号表改名为 `collectSymbols` / `completionSymbols`。
 - 去掉 `hex2` 的重复定义（波形区改用 `hex2Byte`），端口读数不再出现 `NaN` 兜底路径。
 - 清理未使用的 `pageInited` / `scopeEl` / `self` 变量。

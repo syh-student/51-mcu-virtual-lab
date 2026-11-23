@@ -1389,28 +1389,7 @@ body.no-scroll { overflow: hidden; }
    会整体压在全屏面板(60, 在 main 内)上面，盖住「退出全屏」按钮并拦截点击。 */
 body.zoomed .page-head,
 body.zoomed .appbar { display: none; }
-/* 开发板页：说明改成左上角浮层（那块地方是空的，不会盖住板子和按键），
-   平时收起、悬停元件才浮现，把整块高度都留给板子 */
-.page-board .board-tip {
-  position: absolute;
-  left: 14px;
-  top: 10px;
-  margin: 0;
-  height: auto;
-  max-height: 84px;
-  max-width: min(300px, 30vw);
-  z-index: 4;
-  pointer-events: none;
-  background: rgba(18, 14, 12, .82);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border-color: rgba(var(--fg-rgb), .1);
-  opacity: 0;
-  transform: translateY(-6px);
-  transition: opacity .18s var(--ease), transform .18s var(--ease),
-    color .25s var(--ease), border-color .25s var(--ease), background .25s var(--ease);
-}
-.page-board .board-tip.on { opacity: 1; transform: none; }
+/* 放大看板 */
 .board-panel.board-full {
   position: fixed;
   inset: 14px;
@@ -1699,8 +1678,6 @@ body.zoomed .appbar { display: none; }
   .quickbar { overflow-x: auto; scrollbar-width: none; }
   .quickbar::-webkit-scrollbar { display: none; }
   .qb-go { display: none; }
-  /* 手机上 30vw 只剩一百来像素，说明文字会挤成一条窄缝 */
-  .page-board .board-tip { max-width: min(260px, 62vw); }
   /* 真窄屏兜底：顶部信息收掉，导航和控件允许换行/横滚，别把按钮挤出屏幕 */
   .build-tag { display: none; }
   .capsule { overflow-x: auto; scrollbar-width: none; }
@@ -1838,26 +1815,6 @@ html.light .marks i.focus { background: rgba(20, 25, 35, .05); }
 #build-sum { font-family: var(--mono); letter-spacing: .04em; }
 .build-panel:not(.collapsed) #build-sum { color: var(--muted); }
 
-/* 开发板悬停浮层：说明跟着鼠标走，不用再低头看底部那行小字 */
-.board-float {
-  position: fixed;
-  z-index: 90;
-  max-width: 300px;
-  padding: 9px 12px;
-  border: 1px solid rgba(77, 184, 255, .35);
-  border-radius: 10px;
-  background: rgba(18, 22, 29, .96);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, .45);
-  color: var(--ink);
-  font-size: 11.5px;
-  line-height: 1.65;
-  pointer-events: none;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-.board-float[hidden] { display: none; }
-@media (pointer: coarse) { .board-float { display: none !important; } }
-
 /* 悬停时说明条本身也呼应主色 */
 .board-tip.on {
   color: var(--ink);
@@ -1890,7 +1847,7 @@ try { if (localStorage.getItem('c51.theme') === 'light') document.documentElemen
   </div>
   <div class="head-right">
     <span class="head-note">例程 01—15 · 离线可用</span>
-    <span class="build-tag" id="build-tag">构建 11-23 11:49</span>
+    <span class="build-tag" id="build-tag">构建 11-23 12:29</span>
     <span id="status" class="status">已停止</span>
   </div>
 </header>
@@ -2266,9 +2223,6 @@ try { if (localStorage.getItem('c51.theme') === 'light') document.documentElemen
 </div>
 
 <input id="file-input" type="file" multiple accept=".c,.h,.inc,.txt,text/plain" hidden>
-
-<!-- 悬停元件时跟随鼠标的说明浮层，内容与底部说明条同步 -->
-<div id="board-float" class="board-float" hidden aria-hidden="true"></div>
 
 <div class="dlg-mask" id="dlg" aria-hidden="true">
   <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
@@ -5126,39 +5080,13 @@ void main()
 
   /* ---------------- 板面悬停说明 ---------------- */
   var tipEl = $('board-tip');
-  var floatEl = $('board-float');
   var TIP_IDLE = '把鼠标移到板上的元件上，这里会写出它的名称、接的引脚，以及在仿真里能不能用。';
   function setTip(t) {
     if (tipEl) {
       tipEl.textContent = t || TIP_IDLE;
       if (tipEl.classList) tipEl.classList.toggle('on', !!t);
     }
-    /* 同步给跟随鼠标的浮层：说明直接出现在手边，不用低头找底部那行字 */
-    if (floatEl) {
-      floatEl.textContent = t || '';
-      floatEl.hidden = !t;
-    }
   }
-  /* 浮层跟着指针走，靠近右 / 下边缘时自动翻面，避免被裁掉 */
-  function moveFloat(x, y) {
-    if (!floatEl || floatEl.hidden || !floatEl.style) return;
-    var w = floatEl.offsetWidth || 260, h = floatEl.offsetHeight || 70;
-    var vw = (typeof window !== 'undefined' && window.innerWidth) || 1280;
-    var vh = (typeof window !== 'undefined' && window.innerHeight) || 800;
-    var left = x + 18, top = y + 20;
-    if (left + w > vw - 12) left = Math.max(12, x - w - 18);
-    if (top + h > vh - 12) top = Math.max(12, y - h - 20);
-    floatEl.style.left = left + 'px';
-    floatEl.style.top = top + 'px';
-  }
-  (function () {
-    var stage = $('board-wrap');
-    if (!stage || !stage.addEventListener) return;
-    stage.addEventListener('pointermove', function (e) {
-      if (e) moveFloat(e.clientX || 0, e.clientY || 0);
-    });
-    stage.addEventListener('pointerleave', function () { if (floatEl) floatEl.hidden = true; });
-  })();
   var hotRegions = [];
   function hot(x, y, w, h, tip) { hotRegions.push([x, y, w, h, tip]); }
 
@@ -5218,18 +5146,7 @@ void main()
       timer = setTimeout(function () { timer = 0; hideReticle(); setTip(''); }, 5000);
     });
   })();
-  window.addEventListener('resize', function () { if (lastHot) showReticle(lastHot); syncTipPos(); });
-
-  /* 开发板页把说明条浮到板面左上（那块是空的）。浮层锚在整张卡片上，
-     所以用标题栏实际高度把它推到板面区域里去。 */
-  function syncTipPos() {
-    if (!tipEl || !tipEl.style) return;
-    if (curPage !== 'board') { tipEl.style.top = ''; return; }
-    var head = null, card = $('board-card');
-    if (card && card.querySelector) head = card.querySelector('.panel-h');
-    var hh = head && head.offsetHeight ? head.offsetHeight : 42;
-    tipEl.style.top = (hh + 10) + 'px';
-  }
+  window.addEventListener('resize', function () { if (lastHot) showReticle(lastHot); });
 
   function buildBoard() {
     var host = $('board');
@@ -5845,7 +5762,6 @@ void main()
     if (name === 'notes') updateFade();
     closeZoom();            /* 换页时别让全屏板盖在新页面上 */
     updateZoomLabel();      /* 按钮文案跟着当前页面走 */
-    syncTipPos();           /* 说明条的位置随页面切换 */
     forceRender = true;
     if (name === 'board' && !boardViewRestored) {
       boardViewRestored = true;

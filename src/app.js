@@ -87,39 +87,13 @@
 
   /* ---------------- 板面悬停说明 ---------------- */
   var tipEl = $('board-tip');
-  var floatEl = $('board-float');
   var TIP_IDLE = '把鼠标移到板上的元件上，这里会写出它的名称、接的引脚，以及在仿真里能不能用。';
   function setTip(t) {
     if (tipEl) {
       tipEl.textContent = t || TIP_IDLE;
       if (tipEl.classList) tipEl.classList.toggle('on', !!t);
     }
-    /* 同步给跟随鼠标的浮层：说明直接出现在手边，不用低头找底部那行字 */
-    if (floatEl) {
-      floatEl.textContent = t || '';
-      floatEl.hidden = !t;
-    }
   }
-  /* 浮层跟着指针走，靠近右 / 下边缘时自动翻面，避免被裁掉 */
-  function moveFloat(x, y) {
-    if (!floatEl || floatEl.hidden || !floatEl.style) return;
-    var w = floatEl.offsetWidth || 260, h = floatEl.offsetHeight || 70;
-    var vw = (typeof window !== 'undefined' && window.innerWidth) || 1280;
-    var vh = (typeof window !== 'undefined' && window.innerHeight) || 800;
-    var left = x + 18, top = y + 20;
-    if (left + w > vw - 12) left = Math.max(12, x - w - 18);
-    if (top + h > vh - 12) top = Math.max(12, y - h - 20);
-    floatEl.style.left = left + 'px';
-    floatEl.style.top = top + 'px';
-  }
-  (function () {
-    var stage = $('board-wrap');
-    if (!stage || !stage.addEventListener) return;
-    stage.addEventListener('pointermove', function (e) {
-      if (e) moveFloat(e.clientX || 0, e.clientY || 0);
-    });
-    stage.addEventListener('pointerleave', function () { if (floatEl) floatEl.hidden = true; });
-  })();
   var hotRegions = [];
   function hot(x, y, w, h, tip) { hotRegions.push([x, y, w, h, tip]); }
 
@@ -179,18 +153,7 @@
       timer = setTimeout(function () { timer = 0; hideReticle(); setTip(''); }, 5000);
     });
   })();
-  window.addEventListener('resize', function () { if (lastHot) showReticle(lastHot); syncTipPos(); });
-
-  /* 开发板页把说明条浮到板面左上（那块是空的）。浮层锚在整张卡片上，
-     所以用标题栏实际高度把它推到板面区域里去。 */
-  function syncTipPos() {
-    if (!tipEl || !tipEl.style) return;
-    if (curPage !== 'board') { tipEl.style.top = ''; return; }
-    var head = null, card = $('board-card');
-    if (card && card.querySelector) head = card.querySelector('.panel-h');
-    var hh = head && head.offsetHeight ? head.offsetHeight : 42;
-    tipEl.style.top = (hh + 10) + 'px';
-  }
+  window.addEventListener('resize', function () { if (lastHot) showReticle(lastHot); });
 
   function buildBoard() {
     var host = $('board');
@@ -806,7 +769,6 @@
     if (name === 'notes') updateFade();
     closeZoom();            /* 换页时别让全屏板盖在新页面上 */
     updateZoomLabel();      /* 按钮文案跟着当前页面走 */
-    syncTipPos();           /* 说明条的位置随页面切换 */
     forceRender = true;
     if (name === 'board' && !boardViewRestored) {
       boardViewRestored = true;
