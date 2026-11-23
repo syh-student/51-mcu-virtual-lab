@@ -2741,7 +2741,7 @@
       localStorage.setItem('c51.theme', light ? 'light' : 'dark');
     } catch (e) { /* 忽略 */ }
     var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', light ? '#f4f6f9' : '#14161b');
+    if (meta) meta.setAttribute('content', light ? '#f4f6f9' : '#0a0b0e');
   }
   if ($('btn-theme')) $('btn-theme').onclick = function () {
     var light = !document.documentElement.classList.contains('light');
@@ -3161,13 +3161,13 @@
       tag(xAt(scopeCursorA), 18, 'A ' + fmtMs(scopeCursorA), '#78c8ff');
     }
     if (scopeHoverT != null) {
-      line(scopeHoverT, 'rgba(246, 241, 234, .45)', true);
+      line(scopeHoverT, 'rgba(228, 234, 242, .45)', true);
       var s = 't ' + fmtMs(scopeHoverT);
       for (var i = 0; i < PORT_ORDER.length; i++) {
         var p = PORT_ORDER[i];
         s += '  ' + p + ' ' + hex2Byte(scopeValueByte(p, scopeHoverT));
       }
-      tag(xAt(scopeHoverT), 34, s, 'rgba(246, 241, 234, .92)');
+      tag(xAt(scopeHoverT), 34, s, 'rgba(228, 234, 242, .92)');
     }
     ctx.textAlign = 'left';
   }
@@ -3267,7 +3267,7 @@
       ? padT + Math.max(0, (visH - lanes.length * laneH) / 2)
       : padT - scrollY;
 
-    ctx.strokeStyle = 'rgba(255,255,255,.055)';
+    ctx.strokeStyle = 'rgba(255,255,255,.03)';
     ctx.lineWidth = 1;
     for (var g = 0; g <= 4; g++) {
       var gx = Math.round(padL + visW * g / 4) + 0.5;
@@ -3275,7 +3275,7 @@
     }
 
     if (!lanes.length) {
-      ctx.fillStyle = 'rgba(246,241,234,.3)';
+      ctx.fillStyle = 'rgba(228,234,242,.3)';
       ctx.font = '11px "Microsoft YaHei", "PingFang SC", sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(now < 20 ? '点「运行」，这里会画出引脚电平的变化' : '这个时间窗口里没有任何引脚变化',
@@ -3296,7 +3296,7 @@
       var ln = lanes[li];
       var hiY = Math.round(top + laneH * 0.3) + 0.5;
       var loY = Math.round(top + laneH * 0.74) + 0.5;
-      ctx.fillStyle = 'rgba(246,241,234,.44)';
+      ctx.fillStyle = 'rgba(228,234,242,.44)';
       ctx.fillText(ln.port + '.' + ln.bit, 2, top + laneH / 2 + 3.5);
 
       var v = (start[ln.port] >> ln.bit) & 1;
@@ -3319,12 +3319,13 @@
         lastX = x;
       }
       ctx.lineTo(padL + visW, v ? hiY : loY);
-      ctx.strokeStyle = 'rgba(246,241,234,.82)';
-      ctx.lineWidth = 1.4;
+      /* 波形用冰蓝描边，比纯白更像示波器；线宽略加，缩小时也看得清 */
+      ctx.strokeStyle = 'rgba(143,208,255,.92)';
+      ctx.lineWidth = 1.7;
       ctx.stroke();
     }
 
-    ctx.fillStyle = 'rgba(246,241,234,.26)';
+    ctx.fillStyle = 'rgba(228,234,242,.26)';
     ctx.font = '9px "Cascadia Mono", Consolas, monospace';
     ctx.fillText(scopeSpan === 0 && scrollX <= 0 ? '0' : fmtMs(t0v), padL, H - 4);
     var rightT = t0 + Math.min(winDur, (scrollX + visW) / plotScale);

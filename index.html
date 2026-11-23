@@ -26,30 +26,32 @@
    ========================================================================== */
 
 :root {
-  --bg: #14161b;
-  --fg-rgb: 246, 241, 234;
-  --inset: rgba(0, 0, 0, .3);
-  --ink: #eceff5;
-  --muted: rgba(236, 239, 245, .74);
-  --faint: rgba(236, 239, 245, .54);
-  --line: rgba(var(--fg-rgb), .1);
-  --line-soft: rgba(var(--fg-rgb), .055);
-  --panel: rgba(var(--fg-rgb), .07);
-  --panel-soft: rgba(var(--fg-rgb), .04);
-  --hover: rgba(var(--fg-rgb), .16);
-  --white: #f2f5fa;
-  /* 主色与状态色：运行、当前页签、选中行、焦点环统一用 accent */
-  --accent: #4db8ff;
-  --accent-ink: #06283d;
-  --accent-soft: rgba(77, 184, 255, .16);
-  --ok: #4ad79c;
-  --warn: #f5c451;
-  --err: #ff8f7e;
+  /* 深夜仪表台：亮度阶梯（底 → 卡片 → 悬浮）+ 发丝边框，层级靠表面亮度而不是阴影 */
+  --bg: #0a0b0e;
+  --fg-rgb: 228, 234, 242;
+  --inset: rgba(0, 0, 0, .42);
+  --ink: #e7ecf3;
+  --muted: rgba(231, 236, 243, .72);
+  --faint: rgba(231, 236, 243, .48);
+  --line: rgba(255, 255, 255, .075);
+  --line-soft: rgba(255, 255, 255, .045);
+  --panel: #14161c;
+  --panel-soft: #101218;
+  --hover: rgba(255, 255, 255, .06);
+  --white: #f0f4fa;
+  /* 主色：大面积用低饱和 accent，高饱和 strong 只给运行按钮 / 状态点 / 波形 */
+  --accent: #3f9ad6;
+  --accent-strong: #58b6f5;
+  --accent-ink: #04121c;
+  --accent-soft: rgba(63, 154, 214, .13);
+  --ok: #3ecf92;
+  --warn: #e8bb4e;
+  --err: #f28070;
   --ease: cubic-bezier(.22, 1, .36, 1);
   --mono: "Cascadia Mono", Consolas, "SFMono-Regular", "Courier New", monospace;
   --sans: "Inter", "Helvetica Neue", "Segoe UI", Arial, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
-  --r-md: 16px;
-  --r-sm: 12px;
+  --r-md: 14px;
+  --r-sm: 10px;
 }
 
 * { box-sizing: border-box; }
@@ -75,7 +77,11 @@ body::before {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background: radial-gradient(120% 90% at 50% 28%, #1b1f26 0%, #14161b 44%, #0b0d11 100%);
+  /* 极淡 64px 网格 + 近黑径向：给大块纯色一点质感，不抢内容 */
+  background:
+    linear-gradient(rgba(255, 255, 255, .016) 1px, transparent 1px) 0 0 / 64px 64px,
+    linear-gradient(90deg, rgba(255, 255, 255, .016) 1px, transparent 1px) 0 0 / 64px 64px,
+    radial-gradient(120% 90% at 50% 16%, #15181f 0%, #0c0e13 46%, #07080a 100%);
 }
 
 ::selection { background: var(--white); color: var(--bg); }
@@ -187,7 +193,16 @@ body::before {
   transition: color .3s var(--ease);
   -webkit-tap-highlight-color: transparent;
 }
-.nav-item.on { color: var(--accent-ink); background: var(--accent); }
+.nav-item.on {
+  color: #a8dcff;
+  background: rgba(63, 154, 214, .18);
+  box-shadow: inset 0 0 0 1px rgba(88, 182, 245, .32);
+}
+html.light .nav-item.on {
+  color: #0a5b9c;
+  background: rgba(11, 114, 196, .12);
+  box-shadow: inset 0 0 0 1px rgba(11, 114, 196, .22);
+}
 .nav-item.ink { color: var(--accent-ink); }
 .nav-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
@@ -209,7 +224,7 @@ body::before {
   z-index: 2;
   width: 0;
   background: var(--accent);
-  box-shadow: 0 4px 20px rgba(77, 184, 255, .22);
+  box-shadow: 0 4px 20px rgba(63, 154, 214, .22);
   transform-origin: 50% 50%;
   will-change: transform, width, border-radius;
 }
@@ -237,19 +252,20 @@ body::before {
   gap: 9px;
   height: 36px;
   padding: 0 18px;
-  border-radius: 12px;
-  background: var(--accent);
+  border-radius: 11px;
+  background: var(--accent-strong);
   color: var(--accent-ink);
   font-family: var(--sans);
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: .04em;
+  letter-spacing: .03em;
   cursor: pointer;
-  box-shadow: 0 10px 26px rgba(77, 184, 255, .18);
-  transition: transform .3s var(--ease), box-shadow .3s var(--ease), background .3s;
+  box-shadow: 0 8px 22px rgba(63, 154, 214, .22), inset 0 1px 0 rgba(255, 255, 255, .18);
+  transition: transform .2s var(--ease), box-shadow .2s var(--ease), filter .2s var(--ease);
   -webkit-tap-highlight-color: transparent;
 }
-.play:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(77, 184, 255, .26); background: #6cc6ff; }
+.play:hover { transform: translateY(-1px); filter: brightness(1.08); box-shadow: 0 12px 28px rgba(63, 154, 214, .3), inset 0 1px 0 rgba(255, 255, 255, .2); }
+.play:active { transform: translateY(0); filter: brightness(.96); }
 .play svg { width: 12px; height: 12px; }
 .circle {
   appearance: none;
@@ -330,7 +346,7 @@ main {
   padding: 4px 0 8px; font-family: var(--sans); font-size: 10.5px; color: var(--muted);
   cursor: pointer; white-space: nowrap;
 }
-#board-view-tabs button:hover { color: rgba(246,241,234,.78); }
+#board-view-tabs button:hover { color: rgba(228,234,242,.78); }
 #board-view-tabs button.on { color: var(--accent); }
 #board-view-tabs button.on::after {
   content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
@@ -348,7 +364,7 @@ main {
   font-size: 10.5px; cursor: pointer; white-space: nowrap;
   display: flex; align-items: center; gap: 5px;
 }
-.hw-menu-btn:hover { color: rgba(246,241,234,.78); }
+.hw-menu-btn:hover { color: rgba(228,234,242,.78); }
 .hw-menu-btn.on { color: var(--accent); }
 .hw-menu-btn.on::after {
   content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
@@ -364,7 +380,7 @@ main {
 }
 .hw-menu-pop[hidden] { display: none; }
 .hw-menu-pop button {
-  appearance: none; border: 0; background: none; color: rgba(246,241,234,.68);
+  appearance: none; border: 0; background: none; color: rgba(228,234,242,.68);
   text-align: left; padding: 7px 9px; border-radius: 6px; font-family: var(--sans);
   font-size: 10.5px; cursor: pointer; white-space: nowrap;
 }
@@ -373,7 +389,7 @@ main {
 .pin-cap-note {
   flex: 1 1 100%; display: flex; align-items: center; gap: 10px; min-width: 0;
   padding: 6px 0 6px 10px; border: 0; border-left: 2px solid #f0be64; border-radius: 0;
-  background: rgba(240,190,100,.035); color: rgba(246,241,234,.66);
+  background: rgba(240,190,100,.035); color: rgba(228,234,242,.66);
   font-size: 9.5px; line-height: 1.6;
 }
 .pin-cap-note[hidden] { display: none; }
@@ -389,7 +405,7 @@ main {
 .page-board.hw-mode .hw-view { display: block; }
 .hw-view iframe {
   position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block;
-  border-radius: 16px; background: #14161b;
+  border-radius: 16px; background: #0a0b0e;
 }
 
 /* 首次进入的快速开始条：跟着页面走，不浮在内容上 */
@@ -407,7 +423,7 @@ main {
   font-family: var(--mono); font-size: 9px; letter-spacing: .12em; color: var(--faint);
   padding-right: 11px; border-right: 1px solid var(--line);
 }
-.qb-step { color: rgba(246,241,234,.72); white-space: nowrap; }
+.qb-step { color: rgba(228,234,242,.72); white-space: nowrap; }
 .qb-step i {
   font-style: normal; font-family: var(--mono); font-size: 9px;
   color: var(--faint); margin-right: 4px;
@@ -435,17 +451,20 @@ main {
   min-height: 0;
   border: 1px solid var(--line);
   border-radius: var(--r-md);
-  background: var(--panel-soft);
+  background: var(--panel);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   overflow: hidden;
+  transition: border-color .2s var(--ease);
 }
+.panel:hover { border-color: rgba(255, 255, 255, .11); }
 .panel-h {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 10px 13px 9px;
+  gap: 8px;
+  padding: 9px 13px 8px;
   border-bottom: 1px solid var(--line-soft);
 }
 .panel-h .idx {
@@ -457,19 +476,30 @@ main {
 }
 .panel-h h2 {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
-  letter-spacing: .045em;
-  color: rgba(var(--fg-rgb), .9);
+  letter-spacing: .02em;
+  color: rgba(var(--fg-rgb), .92);
 }
 .panel-h .sp { flex: 1; }
 .panel-h .hint {
   font-size: 9.5px;
-  letter-spacing: .12em;
+  letter-spacing: .08em;
   color: var(--faint);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* 统一的“状态角”：每个卡片标题右侧都有一个小圆点，视觉秩序一致 */
+.panel-h .hint::before {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: rgba(var(--fg-rgb), .26);
+  vertical-align: 1px;
 }
 .panel-b { flex: 1; min-height: 0; overflow: auto; padding: 12px 15px; }
 .panel-b.fade {
@@ -1300,7 +1330,10 @@ main {
   min-width: 0;
   overflow: hidden;
   padding: 0;
-  background: radial-gradient(58% 48% at 50% 46%, rgba(255, 238, 221, .05), rgba(255, 238, 221, 0) 72%);
+  background:
+    radial-gradient(58% 48% at 50% 46%, rgba(88, 182, 245, .07), rgba(88, 182, 245, 0) 72%),
+    linear-gradient(rgba(255, 255, 255, .018) 1px, transparent 1px) 0 0 / 40px 40px,
+    linear-gradient(90deg, rgba(255, 255, 255, .018) 1px, transparent 1px) 0 0 / 40px 40px;
 }
 /* 绝对定位铺满舞台：板子按可用空间等比缩放，永不撑破卡片 */
 #board {
@@ -1394,8 +1427,8 @@ body.zoomed .appbar { display: none; }
   position: fixed;
   inset: 14px;
   z-index: 60;
-  border-color: rgba(var(--fg-rgb), .14);
-  background: #171310;
+  border-color: rgba(255, 255, 255, .14);
+  background: #0d0f14;
   box-shadow: 0 50px 140px rgba(0, 0, 0, .7);
 }
 /* 板卡标题栏再收一点 */
@@ -1695,7 +1728,7 @@ body.zoomed .appbar { display: none; }
 .sfr-hex { color: var(--accent); font-size: 10.5px; text-align: right; }
 .sfr-bits { display: flex; gap: 3px; justify-content: flex-end; }
 .sfr-bit { width: 14px; height: 14px; border: 1px solid var(--line); border-radius: 3px; font-size: 9px; display: grid; place-items: center; color: var(--muted); }
-.sfr-bit.one { background: var(--accent-soft); border-color: rgba(77, 184, 255, .5); color: var(--accent); }
+.sfr-bit.one { background: var(--accent-soft); border-color: rgba(63, 154, 214, .5); color: var(--accent); }
 .sfr-timer { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 10px; line-height: 1.8; }
 .sfr-empty { color: var(--muted); font-size: 11px; padding: 6px 0; }
 .watch-add { display: flex; gap: 6px; padding: 6px 10px 10px; }
@@ -1716,28 +1749,36 @@ body.zoomed .appbar { display: none; }
 .ro-bar span { flex: 1; min-width: 220px; line-height: 1.7; }
 .ro-bar .btn { flex: none; }
 
-/* ===== 浅色主题：页头内联脚本给 <html> 加 .light，变量整体切换 ===== */
+/* ===== 浅色主题：同样按“越靠上越白”的表面阶梯，而不是简单反转 ===== */
 :root.light {
-  --bg: #f4f6f9;
-  --fg-rgb: 28, 34, 48;
-  --inset: rgba(255, 255, 255, .78);
-  --ink: #1c2230;
-  --muted: rgba(28, 34, 48, .74);
-  --faint: rgba(28, 34, 48, .55);
-  --line: rgba(20, 25, 35, .13);
-  --line-soft: rgba(20, 25, 35, .07);
-  --panel: rgba(255, 255, 255, .8);
-  --panel-soft: rgba(255, 255, 255, .56);
-  --hover: rgba(20, 25, 35, .08);
+  --bg: #f1f3f7;
+  --fg-rgb: 24, 30, 42;
+  --inset: #fbfcfe;
+  --ink: #161b26;
+  --muted: rgba(22, 27, 38, .7);
+  --faint: rgba(22, 27, 38, .5);
+  --line: rgba(18, 23, 33, .11);
+  --line-soft: rgba(18, 23, 33, .06);
+  --panel: #ffffff;
+  --panel-soft: #f7f9fc;
+  --hover: rgba(18, 23, 33, .06);
   --white: #ffffff;
-  --accent: #0b7fd6;
+  --accent: #0b72c4;
+  --accent-strong: #0b72c4;
   --accent-ink: #ffffff;
-  --accent-soft: rgba(11, 127, 214, .13);
+  --accent-soft: rgba(11, 114, 196, .1);
   --ok: #15803d;
   --warn: #a16207;
   --err: #c2410c;
 }
-html.light body::before { background: radial-gradient(120% 90% at 50% 28%, #ffffff 0%, #f4f6f9 46%, #e6ebf2 100%); }
+html.light body::before {
+  background:
+    linear-gradient(rgba(18, 23, 33, .028) 1px, transparent 1px) 0 0 / 64px 64px,
+    linear-gradient(90deg, rgba(18, 23, 33, .028) 1px, transparent 1px) 0 0 / 64px 64px,
+    radial-gradient(120% 90% at 50% 16%, #ffffff 0%, #f1f3f7 46%, #e5e9f0 100%);
+}
+html.light .panel { box-shadow: 0 1px 2px rgba(16, 24, 40, .05); }
+html.light .panel:hover { border-color: rgba(18, 23, 33, .18); }
 html.light ::selection { background: #0b7fd6; color: #fff; }
 html.light .hl-k { color: #c2410c; }
 html.light .hl-t { color: #0f766e; }
@@ -1749,7 +1790,12 @@ html.light .hl-r { color: #1d4ed8; }
 html.light .hl-f { color: #1c2230; }
 html.light .marks i.cur { background: rgba(20, 25, 35, .06); }
 html.light .sfr-bit.one { border-color: rgba(11, 127, 214, .45); }
-html.light .bit.one { background: var(--accent); border-color: var(--accent); color: #fff; }
+html.light .bit.one {
+  background: rgba(11, 114, 196, .1);
+  border-color: rgba(11, 114, 196, .45);
+  color: #0a5b9c;
+  box-shadow: none;
+}
 
 /* 光标所在行的底色（marks 层，和错误行 / 执行行同一套机制） */
 .marks i.focus { background: rgba(var(--fg-rgb), .04); }
@@ -1818,7 +1864,7 @@ html.light .marks i.focus { background: rgba(20, 25, 35, .05); }
 /* 悬停时说明条本身也呼应主色 */
 .board-tip.on {
   color: var(--ink);
-  border-color: rgba(77, 184, 255, .32);
+  border-color: rgba(63, 154, 214, .32);
   background: var(--accent-soft);
 }
 
@@ -1831,6 +1877,42 @@ html.light .marks i.focus { background: rgba(20, 25, 35, .05); }
   color: var(--faint);
   font-size: 11px;
 }
+
+/* ================= A 风「深夜仪表台」：仪器化细节 ================= */
+
+/* 端口 / 寄存器位点亮起时带一点冷光，像真仪器的指示灯 */
+.bit.one { box-shadow: 0 0 7px rgba(240, 244, 250, .26); }
+.sfr-bit.one { box-shadow: 0 0 6px rgba(63, 154, 214, .36); }
+
+/* 所有读数统一 tabular 等宽，数值变化时不抖动 */
+.bit, .hexval, .sfr-hex, .sfr-name, #vtime, #steps, .build-tag,
+.w-val, .port-row, .snap-time, .status, .hint { font-variant-numeric: tabular-nums; }
+
+/* 卡片标题：索引弱化、标题提亮，形成统一的“设备面板”抬头 */
+.panel-h .idx { color: rgba(var(--fg-rgb), .3); letter-spacing: .08em; }
+.panel-h .hint { color: rgba(var(--fg-rgb), .42); }
+
+/* 页签 / 选中行：表面提亮，而不是整块高饱和色 */
+.tab.on { background: rgba(var(--fg-rgb), .09); color: var(--ink); }
+html.light .tab.on { background: rgba(18, 23, 33, .08); color: var(--ink); }
+
+/* 打字机光标 / 查找命中：
+   保留 accent，但只做细线，不铺色块 */
+.marks i.cur { background: rgba(63, 154, 214, .1); }
+
+/* 深色下卡片只需要一圈极淡的内高光；阴影交给表面阶梯 */
+html.light .editor-panel,
+html.light .build-panel { box-shadow: 0 1px 2px rgba(16, 24, 40, .06); }
+
+/* 开发板工作台：淡蓝聚光 + 40px 细网格，让板子周围的留白像台面而不是空洞 */
+html.light .board-stage {
+  background:
+    radial-gradient(58% 48% at 50% 46%, rgba(11, 114, 196, .05), rgba(11, 114, 196, 0) 72%),
+    linear-gradient(rgba(18, 23, 33, .022) 1px, transparent 1px) 0 0 / 40px 40px,
+    linear-gradient(90deg, rgba(18, 23, 33, .022) 1px, transparent 1px) 0 0 / 40px 40px;
+}
+html.light #board svg { filter: drop-shadow(0 16px 34px rgba(16, 24, 40, .18)); }
+
 </style>
 <link rel="manifest" href="manifest.webmanifest">
 <script>
@@ -1847,7 +1929,7 @@ try { if (localStorage.getItem('c51.theme') === 'light') document.documentElemen
   </div>
   <div class="head-right">
     <span class="head-note">例程 01—15 · 离线可用</span>
-    <span class="build-tag" id="build-tag">构建 11-23 12:29</span>
+    <span class="build-tag" id="build-tag">构建 11-23 12:50</span>
     <span id="status" class="status">已停止</span>
   </div>
 </header>
@@ -7734,7 +7816,7 @@ void main()
       localStorage.setItem('c51.theme', light ? 'light' : 'dark');
     } catch (e) { /* 忽略 */ }
     var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', light ? '#f4f6f9' : '#14161b');
+    if (meta) meta.setAttribute('content', light ? '#f4f6f9' : '#0a0b0e');
   }
   if ($('btn-theme')) $('btn-theme').onclick = function () {
     var light = !document.documentElement.classList.contains('light');
@@ -8154,13 +8236,13 @@ void main()
       tag(xAt(scopeCursorA), 18, 'A ' + fmtMs(scopeCursorA), '#78c8ff');
     }
     if (scopeHoverT != null) {
-      line(scopeHoverT, 'rgba(246, 241, 234, .45)', true);
+      line(scopeHoverT, 'rgba(228, 234, 242, .45)', true);
       var s = 't ' + fmtMs(scopeHoverT);
       for (var i = 0; i < PORT_ORDER.length; i++) {
         var p = PORT_ORDER[i];
         s += '  ' + p + ' ' + hex2Byte(scopeValueByte(p, scopeHoverT));
       }
-      tag(xAt(scopeHoverT), 34, s, 'rgba(246, 241, 234, .92)');
+      tag(xAt(scopeHoverT), 34, s, 'rgba(228, 234, 242, .92)');
     }
     ctx.textAlign = 'left';
   }
@@ -8260,7 +8342,7 @@ void main()
       ? padT + Math.max(0, (visH - lanes.length * laneH) / 2)
       : padT - scrollY;
 
-    ctx.strokeStyle = 'rgba(255,255,255,.055)';
+    ctx.strokeStyle = 'rgba(255,255,255,.03)';
     ctx.lineWidth = 1;
     for (var g = 0; g <= 4; g++) {
       var gx = Math.round(padL + visW * g / 4) + 0.5;
@@ -8268,7 +8350,7 @@ void main()
     }
 
     if (!lanes.length) {
-      ctx.fillStyle = 'rgba(246,241,234,.3)';
+      ctx.fillStyle = 'rgba(228,234,242,.3)';
       ctx.font = '11px "Microsoft YaHei", "PingFang SC", sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(now < 20 ? '点「运行」，这里会画出引脚电平的变化' : '这个时间窗口里没有任何引脚变化',
@@ -8289,7 +8371,7 @@ void main()
       var ln = lanes[li];
       var hiY = Math.round(top + laneH * 0.3) + 0.5;
       var loY = Math.round(top + laneH * 0.74) + 0.5;
-      ctx.fillStyle = 'rgba(246,241,234,.44)';
+      ctx.fillStyle = 'rgba(228,234,242,.44)';
       ctx.fillText(ln.port + '.' + ln.bit, 2, top + laneH / 2 + 3.5);
 
       var v = (start[ln.port] >> ln.bit) & 1;
@@ -8312,12 +8394,13 @@ void main()
         lastX = x;
       }
       ctx.lineTo(padL + visW, v ? hiY : loY);
-      ctx.strokeStyle = 'rgba(246,241,234,.82)';
-      ctx.lineWidth = 1.4;
+      /* 波形用冰蓝描边，比纯白更像示波器；线宽略加，缩小时也看得清 */
+      ctx.strokeStyle = 'rgba(143,208,255,.92)';
+      ctx.lineWidth = 1.7;
       ctx.stroke();
     }
 
-    ctx.fillStyle = 'rgba(246,241,234,.26)';
+    ctx.fillStyle = 'rgba(228,234,242,.26)';
     ctx.font = '9px "Cascadia Mono", Consolas, monospace';
     ctx.fillText(scopeSpan === 0 && scrollX <= 0 ? '0' : fmtMs(t0v), padL, H - 4);
     var rightT = t0 + Math.min(winDur, (scrollX + visW) / plotScale);
