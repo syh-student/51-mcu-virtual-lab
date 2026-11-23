@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: 下载补丁
-        run: curl -fSL 'https://aka.doubaocdn.com/s/TVl8HYE2f9' -o /tmp/opt.patch
+        run: curl -fSL 'https://aka.doubaocdn.com/s/ybzwR5vTVn' -o /tmp/opt.patch
       - name: 应用补丁
         run: git apply --whitespace=nowarn /tmp/opt.patch
       - name: 安装依赖
