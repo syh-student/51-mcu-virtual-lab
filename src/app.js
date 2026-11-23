@@ -755,7 +755,6 @@
   ---------------------------------------------------------------- */
   var PAGE_ORDER = ['code', 'board', 'scope', 'notes'];
   var curPage = 'code';
-  var pageInited = false;
   var capsuleGo = null;   /* 由 initCapsule 注入：把白色滑块移到对应页面 */
 
   function setPage(name) {
@@ -782,7 +781,6 @@
     updateZoomLabel();      /* 按钮文案跟着当前页面走 */
     syncTipPos();           /* 说明条的位置随页面切换 */
     forceRender = true;
-    pageInited = true;
     if (name === 'board' && !boardViewRestored) {
       boardViewRestored = true;
       var sv = readSavedBoardView();
@@ -1246,6 +1244,7 @@
       p.files = p.files.filter(function (f) { return f && f.path && typeof f.content === 'string'; });
       if (!p.files.length) return null;
       p.folders = (p.folders || []).filter(function (x) { return typeof x === 'string' && x; });
+      p.folderGroup = (p.folderGroup && typeof p.folderGroup === 'object') ? p.folderGroup : {};
       p.open = (p.open || []).filter(function (x) {
         return p.files.some(function (f) { return f.path === x; });
       });
@@ -1370,6 +1369,85 @@
     return row;
   }
 
+  /* 把组里的文件按路径铺成层级树；组里暂时没有源码的空目录也挂进来 */
+  function fileTreeOf(g) {
+    var root = { dirs: {}, files: [] };
+    function nodeOf(path) {
+      var node = root;
+      String(path).split('/').forEach(function (seg) {
+        if (!seg) return;
+        if (!node.dirs[seg]) node.dirs[seg] = { dirs: {}, files: [] };
+        node = node.dirs[seg];
+      });
+      return node;
+    }
+    g.files.forEach(function (path) {
+      var f = fileOf(path);
+      if (f) nodeOf(dirName(path)).files.push(f);
+    });
+    (project.folders || []).forEach(function (fd) {
+      var owner = (project.folderGroup || {})[fd] || (project.groups[0] && project.groups[0].name);
+      if (owner === g.name) nodeOf(fd);
+    });
+    return root;
+  }
+
+  function renderTreeLevel(node, host, depth, prefix) {
+    Object.keys(node.dirs).sort(cmpName).forEach(function (name) {
+      var path = joinPath(prefix, name);
+      var key = 'd:' + path;
+      var open = !collapsed[key];
+      var row = projRow('dir', key, name + '/', depth, open ? '\u25be' : '\u25b8');
+      row.setAttribute('title', path + '/');
+      row.addEventListener('click', function () { collapsed[key] = !!open; renderTree(); });
+      row.addEventListener('dblclick', function (ev) {
+        if (ev && ev.stopPropagation) ev.stopPropagation();
+        renameFolder(path);
+      });
+      row.closeBtn.title = '删除文件夹';
+      row.closeBtn.addEventListener('click', function (ev) {
+        if (ev && ev.stopPropagation) ev.stopPropagation();
+        removeFolder(path);
+      });
+      host.appendChild(row);
+      if (open) renderTreeLevel(node.dirs[name], host, depth + 1, path);
+    });
+    node.files.slice().sort(function (a, b) {
+      return cmpName(baseName(a.path), baseName(b.path));
+    }).forEach(function (f) { renderFileRow(f, host, depth); });
+  }
+
+  function renderFileRow(f, host, depth) {
+    var path = f.path;
+    var ext = (/\.([a-z0-9]+)$/i.exec(path) || [])[1];
+    var frow = projRow('file', path, baseName(path), depth,
+      /^h$/i.test(ext || '') ? 'H' : (/^c$/i.test(ext || '') ? 'C' : '\u00b7'));
+    frow.setAttribute('draggable', 'true');
+    frow.setAttribute('title', path);
+    if (f.dirty) {
+      var dd = document.createElement('span');
+      dd.className = 'dirty';
+      dd.title = '还没写回磁盘';
+      frow.insertBefore(dd, frow.closeBtn);
+    }
+    frow.addEventListener('click', function () { openFile(path); });
+    frow.addEventListener('dblclick', function (ev) {
+      if (ev && ev.stopPropagation) ev.stopPropagation();
+      renameFile(path);
+    });
+    frow.addEventListener('dragstart', function (ev) {
+      if (ev && ev.dataTransfer) {
+        ev.dataTransfer.setData('text/plain', path);
+        ev.dataTransfer.effectAllowed = 'move';
+      }
+    });
+    frow.closeBtn.addEventListener('click', function (ev) {
+      if (ev && ev.stopPropagation) ev.stopPropagation();
+      removeFile(path);
+    });
+    host.appendChild(frow);
+  }
+
   function renderTree() {
     var host = $('proj-tree');
     if (!host) return;
@@ -1435,38 +1513,7 @@
       });
       host.appendChild(row);
       if (!open) return;
-      g.files.slice().sort(cmpName).forEach(function (path) {
-        var f = fileOf(path);
-        if (!f) return;
-        var name = baseName(path);
-        var ext = (/\.([a-z0-9]+)$/i.exec(path) || [])[1];
-        var frow = projRow('file', path, name, 3,
-          /^h$/i.test(ext || '') ? 'H' : (/^c$/i.test(ext || '') ? 'C' : '\u00b7'));
-        frow.setAttribute('draggable', 'true');
-        frow.setAttribute('title', path);
-        if (f.dirty) {
-          var dd = document.createElement('span');
-          dd.className = 'dirty';
-          dd.title = '还没写回磁盘';
-          frow.insertBefore(dd, frow.closeBtn);
-        }
-        frow.addEventListener('click', function () { openFile(path); });
-        frow.addEventListener('dblclick', function (ev) {
-          if (ev && ev.stopPropagation) ev.stopPropagation();
-          renameFile(path);
-        });
-        frow.addEventListener('dragstart', function (ev) {
-          if (ev && ev.dataTransfer) {
-            ev.dataTransfer.setData('text/plain', path);
-            ev.dataTransfer.effectAllowed = 'move';
-          }
-        });
-        frow.closeBtn.addEventListener('click', function (ev) {
-          if (ev && ev.stopPropagation) ev.stopPropagation();
-          removeFile(path);
-        });
-        host.appendChild(frow);
-      });
+      renderTreeLevel(fileTreeOf(g), host, 3, '');
     });
     finish();
 
@@ -1976,10 +2023,12 @@
     log('已新建 ' + path, 'ok');
   }
 
-  function createFolder(rawPath) {
+  function createFolder(rawPath, groupName) {
     var path = normPath(rawPath);
     if (!path) return;
     if (project.folders.indexOf(path) < 0) project.folders.push(path);
+    if (!project.folderGroup) project.folderGroup = {};
+    project.folderGroup[path] = groupName || (project.groups[0] && project.groups[0].name) || GROUP_DEFAULT;
     addFolders(path + '/x');
     collapsed[path] = false;
     renderTree();
@@ -2097,11 +2146,15 @@
       var go = function () {
         project.files = project.files.filter(function (f) { return f.path.indexOf(path + '/') !== 0; });
         project.folders = project.folders.filter(function (f) { return f !== path && f.indexOf(path + '/') !== 0; });
+        if (project.folderGroup) Object.keys(project.folderGroup).forEach(function (k) {
+          if (k === path || k.indexOf(path + '/') === 0) delete project.folderGroup[k];
+        });
         project.groups.forEach(function (g) {
           g.files = g.files.filter(function (p) { return p.indexOf(path + '/') !== 0; });
         });
         Object.keys(collapsed).forEach(function (k) {
-          if (k === path || k.indexOf(path + '/') === 0) delete collapsed[k];
+          var raw = k.indexOf('d:') === 0 ? k.slice(2) : k;
+          if (raw === path || raw.indexOf(path + '/') === 0) delete collapsed[k];
         });
         project.open = project.open.filter(function (p) {
           return project.files.some(function (f) { return f.path === p; });
@@ -2198,11 +2251,22 @@
           project.folders = project.folders.map(function (fd) {
             return fd === path ? np : (fd.indexOf(path + '/') === 0 ? np + fd.slice(path.length) : fd);
           });
+          if (project.folderGroup) {
+            var nextGroup = {};
+            Object.keys(project.folderGroup).forEach(function (k) {
+              var nk = k === path ? np : (k.indexOf(path + '/') === 0 ? np + k.slice(path.length) : k);
+              nextGroup[nk] = project.folderGroup[k];
+            });
+            project.folderGroup = nextGroup;
+          }
           project.open = project.open.map(remap);
           if (project.active.indexOf(path + '/') === 0) project.active = remap(project.active);
           var nextCollapsed = {};
           Object.keys(collapsed).forEach(function (k) {
-            nextCollapsed[k === path ? np : (k.indexOf(path + '/') === 0 ? np + k.slice(path.length) : k)] = collapsed[k];
+            var pre = k.indexOf('d:') === 0 ? 'd:' : '';
+            var raw = pre ? k.slice(2) : k;
+            var nk = raw === path ? np : (raw.indexOf(path + '/') === 0 ? np + raw.slice(path.length) : raw);
+            nextCollapsed[pre + nk] = collapsed[k];
           });
           collapsed = nextCollapsed;
           addFolders(np + '/x');
@@ -2638,6 +2702,19 @@
   }
 
   if ($('btn-new-file')) $('btn-new-file').onclick = function () { openNewItem(); };
+  if ($('btn-new-folder')) $('btn-new-folder').onclick = function () {
+    if (project.fs && !project.groups.length) return;
+    var g = groupOf(project.active) || project.groups[0];
+    askModal('新建文件夹', {
+      msg: '建在当前分组里；可以写多级，如 driver/led',
+      value: 'src', ok: '新建'
+    }).then(function (v) {
+      var p = normPath(v);
+      if (!p) return;
+      if (project.folders.indexOf(p) >= 0) { log('已经有同名文件夹：' + p + '/', 'err'); return; }
+      createFolder(p, g ? g.name : '');
+    });
+  };
   if ($('btn-new-group')) $('btn-new-group').onclick = function () { createGroup(); };
   if ($('btn-import')) $('btn-import').onclick = function () { pickImport(); };
   if ($('file-input')) $('file-input').onchange = function () {
@@ -2791,7 +2868,7 @@
      200ms / 1s / 5s 是以当前时刻为右端的局部放大，用来看密集扫描的细节。
      横轴是虚拟时间；build() 会重建硬件对象，波形随新一次运行自动清空。
   ------------------------------------------------------------------ */
-  var scopeEl = $('scope-panel'), scopeCanvas = $('scope');
+  var scopeCanvas = $('scope');
   var scopeScroll = $('scope-scroll'), scopeSpacer = $('scope-spacer');
   var scopeSpan = 0;                 /* 0 = 全程 */
   var scopeZoom = 0;                 /* 横向缩放：0 = 适应窗口，>0 = 每毫秒多少像素 */
@@ -2859,7 +2936,8 @@
     }
     return v;
   }
-  function hex2(v) { return '0x' + ('0' + (v & 0xFF).toString(16).toUpperCase()).slice(-2); }
+  /* 波形区专用：取值可能是 undefined，先兜成 0 再格式化成两位十六进制 */
+  function hex2Byte(v) { return '0x' + ('0' + (v & 0xFF).toString(16).toUpperCase()).slice(-2); }
 
   /* 悬停竖线与端口读数、A/B 光标与 Δt，全部画在波形之上 */
   function drawScopeOverlay(ctx, W, H) {
@@ -2900,7 +2978,7 @@
       var s = 't ' + fmtMs(scopeHoverT);
       for (var i = 0; i < PORT_ORDER.length; i++) {
         var p = PORT_ORDER[i];
-        s += '  ' + p + ' ' + hex2(scopeValueByte(p, scopeHoverT));
+        s += '  ' + p + ' ' + hex2Byte(scopeValueByte(p, scopeHoverT));
       }
       tag(xAt(scopeHoverT), 34, s, 'rgba(246, 241, 234, .92)');
     }
@@ -3221,7 +3299,7 @@
       var lines = ['时间(ms),端口,十六进制,二进制'];
       for (var i = 0; i < tr.length; i++) {
         var e = tr[i];
-        lines.push(e.t.toFixed(3) + ',' + e.port + ',' + hex2(e.v) + ','
+        lines.push(e.t.toFixed(3) + ',' + e.port + ',' + hex2Byte(e.v) + ','
           + ('00000000' + e.v.toString(2)).slice(-8));
       }
       if (typeof Blob === 'undefined') { log('当前浏览器不支持导出 CSV。', 'err'); return; }
@@ -3271,7 +3349,8 @@
     } else {
       url = base + '#ex=' + id + '&p=' + b64enc(JSON.stringify({
         name: project.name, files: project.files,
-        folders: project.folders, groups: project.groups, open: project.open, active: project.active
+        folders: project.folders, folderGroup: project.folderGroup,
+    groups: project.groups, open: project.open, active: project.active
       }));
     }
     copyText(url).then(function () {
@@ -4571,8 +4650,8 @@
     Object.keys(node).forEach(function (k) { walkNodes(node[k], fn); });
   }
 
-  /* 符号表：函数（带形参）、全局/局部变量、sbit/sfr、宏、内置函数与 SFR 名 */
-  function collectSymbols() {
+  /* 符号表（自动补全用）：从 VM 的 AST 与内置名表收集，和上面的 collectSymbols 不是一回事 */
+  function completionSymbols() {
     var seen = {}, list = [];
     function put(name, kind, detail) {
       if (!name || seen[name]) return;
@@ -4652,7 +4731,7 @@
     var info = acCurrentWord();
     if (!info) { acClose(); return; }
     var q = info.word.toLowerCase();
-    var hits = collectSymbols().filter(function (it) {
+    var hits = completionSymbols().filter(function (it) {
       return it.name !== info.word && it.name.toLowerCase().indexOf(q) === 0;
     }).sort(function (a, b) {
       return a.name.length - b.name.length || cmpName(a.name, b.name);

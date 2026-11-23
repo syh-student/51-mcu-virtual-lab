@@ -1,0 +1,30 @@
+{
+  "name": "51-mcu-virtual-lab",
+  "version": "1.0.0",
+  "private": true,
+  "description": "51 单片机虚拟实验台：纯前端、零依赖、可离线的单页 IDE",
+  "keywords": [
+    "8051",
+    "stc89c52",
+    "c51",
+    "simulator",
+    "ide",
+    "education",
+    "offline"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "build": "python build.py",
+    "test": "node test.js && node test-examples.js && node test-ui.js",
+    "lint": "eslint src",
+    "shots": "node tools/shots.js",
+    "verify": "node tools/verify.js"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.1",
+    "puppeteer": "^25.18.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

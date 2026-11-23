@@ -1,0 +1,11 @@
+# 源码与配置一律按文本处理，换行统一成 LF，避免 Windows 下整文件 diff
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.gif binary
+*.zip binary
+
+# 构建产物是生成文件，但 GitHub Pages 直接从仓库根目录发布，必须保留
+index.html linguist-generated=true
+hardware.html linguist-generated=true

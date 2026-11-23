@@ -4,6 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#14100E">
+<meta name="description" content="纯前端、零依赖的 51 单片机（STC89C52RC）虚拟实验台：在浏览器里写 C51、跑虚拟开发板、看时序波形，双击 HTML 即可离线使用。">
+<meta name="author" content="syh-student">
+<link rel="canonical" href="https://syh-student.github.io/51-mcu-virtual-lab/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="51 单片机 · 虚拟实验台">
+<meta property="og:title" content="51 单片机 · 虚拟实验台">
+<meta property="og:description" content="写 C51、跑开发板、量时序，全在一个离线网页里。15 个配套例程，无需开发板与 Keil。">
+<meta property="og:url" content="https://syh-student.github.io/51-mcu-virtual-lab/">
+<meta property="og:image" content="https://syh-student.github.io/51-mcu-virtual-lab/docs/screenshots/board.png">
+<meta property="og:image:width" content="1440">
+<meta property="og:image:height" content="900">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%2314100e'/%3E%3Crect x='18' y='18' width='28' height='28' rx='3' fill='none' stroke='%23e8a33d' stroke-width='3'/%3E%3Cpath d='M26 10v8M32 10v8M38 10v8M26 46v8M32 46v8M38 46v8M10 26h8M10 32h8M10 38h8M46 26h8M46 32h8M46 38h8' stroke='%23e8a33d' stroke-width='3'/%3E%3C/svg%3E">
 <title>51 单片机 · 虚拟实验台</title>
 <style>
 /*__STYLE__*/
@@ -141,6 +154,7 @@
 
             <div class="proj-acts">
               <button id="btn-new-file" type="button" title="新建 .c / .h / .txt 文件">＋文件</button>
+              <button id="btn-new-folder" type="button" title="新建文件夹（可以写 a/b 这样的多级路径）">＋文件夹</button>
               <button id="btn-new-group" type="button" title="新建分组（Keil 的 Source Group）">＋分组</button>
               <button id="btn-import" type="button" title="从电脑选择 .c / .h 文件，也可以直接把文件拖进来">导入</button>
             </div>

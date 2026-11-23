@@ -378,7 +378,31 @@ try {
   expect('新建后对话框关闭',
     registry['dlg-new'].className.indexOf('on') < 0, true);
 
-  console.log('\n界面冒烟测试通过');
+  /* 文件夹：新建 src → 在 src 里建文件 → 文件要缩进在文件夹下面 */
+  registry['btn-new-folder'].onclick();
+  registry['dlg-input'].value = 'src';
+  registry['dlg-ok'].onclick();
+  setImmediate(() => {
+    labels = rows();
+    expect('新建文件夹后树里出现 src/', labels.filter(x => x === 'src/').length, 1);
+
+    registry['btn-new-file'].onclick();
+    registry['item-name'].value = 'src/delay.c';
+    registry['item-ok'].onclick();
+    setImmediate(() => {
+      const tree = registry['proj-tree'].children;
+      const nameOf = r => { const nm = r.children.filter(c => c.className === 'nm')[0]; return nm ? nm.textContent : ''; };
+      const padOf = r => parseInt(String(r.style.paddingLeft), 10);
+      const dirRow = tree.filter(r => nameOf(r) === 'src/')[0];
+      const fileRow = tree.filter(r => nameOf(r) === 'delay.c')[0];
+      expect('文件挂进文件夹', !!(dirRow && fileRow), true);
+      expect('文件缩进比文件夹深', fileRow && dirRow && padOf(fileRow) > padOf(dirRow), true);
+      expect('文件夹在组里只出现一次', tree.filter(r => nameOf(r) === 'src/').length, 1);
+
+      console.log('\n界面冒烟测试通过');
+      if (fail) process.exit(1);
+    });
+  });
 } catch (e) {
   console.log('FAIL  渲染过程异常: ' + e.stack);
   process.exit(1);

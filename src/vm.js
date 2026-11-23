@@ -1081,7 +1081,7 @@
 
   VM.prototype.execStmt = function* (s) {
     yield* this.tick(s.line);
-    var self = this, i, v, r;
+    var i, v, r;
     switch (s.t) {
       case 'empty': return;
       case 'block': yield* this.execBlock(s); return;
