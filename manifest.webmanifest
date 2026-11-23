@@ -1,0 +1,14 @@
+{
+  "name": "51 单片机 · 虚拟实验台",
+  "short_name": "51 实验台",
+  "description": "纯前端、零依赖的 51 单片机虚拟实验台：写 C51、跑虚拟开发板、看时序波形。",
+  "lang": "zh-CN",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#14161b",
+  "theme_color": "#4db8ff",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

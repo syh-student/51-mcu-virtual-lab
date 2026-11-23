@@ -21,6 +21,11 @@
 <style>
 /*__STYLE__*/
 </style>
+<link rel="manifest" href="manifest.webmanifest">
+<script>
+/* 主题要在第一帧之前应用，避免先深色闪一下 */
+try { if (localStorage.getItem('c51.theme') === 'light') document.documentElement.classList.add('light'); } catch (e) {}
+</script>
 </head>
 <body>
 
@@ -117,7 +122,9 @@
           </label>
           <button id="btn-restore" class="ghost" title="还原成讲义原始代码">还原</button>
           <button id="btn-format" class="ghost" title="缩进改 4 空格、清行尾空白">整理</button>
+          <button id="btn-snap" class="ghost" title="工程快照：把当前工程存到浏览器里，随时可以恢复">快照</button>
           <button id="btn-share" class="ghost" title="复制带工程的分享链接">分享</button>
+          <button id="btn-theme" class="ghost" type="button" title="切换浅色 / 深色主题">◐</button>
           <button id="btn-keys" class="ghost" title="快捷键一览">?</button>
         </div>
 
@@ -477,6 +484,19 @@
 <script>
 /*__EXAMPLES__*/
 </script>
+<div class="dlg-mask" id="dlg-snap" aria-hidden="true">
+  <div class="dlg dlg-item" role="dialog" aria-modal="true" aria-labelledby="snap-title">
+    <h3 id="snap-title">工程快照</h3>
+    <p class="dlg-msg">快照保存在当前浏览器里，最多 8 个；换电脑或换浏览器请用「存工程」导出文件。</p>
+    <div class="snap-save">
+      <input id="snap-name" type="text" placeholder="快照名称，例如：定时器秒表完成版" maxlength="40">
+      <button id="snap-save" type="button">保存当前工程</button>
+    </div>
+    <div class="snap-list" id="snap-list"></div>
+    <div class="dlg-f"><button id="snap-close" type="button">关闭</button></div>
+  </div>
+</div>
+
 <script>
 /*__DIAG__*/
 /*__APP__*/

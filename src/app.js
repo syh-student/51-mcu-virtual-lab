@@ -2509,10 +2509,10 @@
   }
 
   /* ---------------- 工程文件（JSON）：存下来、换台电脑再打开 ---------------- */
-  function exportProjectFile() {
+  function projectData() {
     var cur = fileOf(project.active);
     if (cur) cur.content = codeEl.value;
-    var data = {
+    return {
       format: 'c51lab-project',
       version: 1,
       savedAt: new Date().toISOString(),
@@ -2524,6 +2524,10 @@
       open: project.open.slice(),
       active: project.active
     };
+  }
+
+  function exportProjectFile() {
+    var data = projectData();
     try {
       var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       var url = URL.createObjectURL(blob);
@@ -2560,41 +2564,170 @@
         input: false, ok: '打开'
       }).then(function (yes) {
         if (!yes) return;
-        project = {
-          name: data.name || '导入的工程',
-          files: data.files.filter(function (f) { return f && f.path; }).map(function (f) {
-            return {
-              path: normPath(f.path),
-              content: String(f.content == null ? '' : f.content),
-              handle: null, dirty: false
-            };
-          }),
-          folders: [],
-          groups: Array.isArray(data.groups) ? data.groups : [],
-          open: [], active: '', fs: false
-        };
-        ensureGroups(project);
-        project.open = (data.open || []).filter(function (p) { return !!fileOf(p); });
-        if (!project.open.length) project.open = [project.files[0].path];
-        project.active = fileOf(data.active) ? data.active : project.open[0];
-        curExample = null;
-        histMap = {};
-        codeEl.value = fileOf(project.active).content;
-        histReset(project.active, codeEl.value);
-        loadBp();
-        renderTabs();
-        renderTree();
-        refreshGutter();
-        paintCode();
-        updateFsUi();
-        saveProject();
-        build();
-        log('已打开工程「' + project.name + '」，' + project.files.length
-          + ' 个文件，' + project.groups.length + ' 个分组', 'ok');
+        applyProjectData(data);
       });
     };
     rd.onerror = function () { log('读取工程文件失败。', 'err'); };
     rd.readAsText(file, 'utf-8');
+  }
+
+  /* 把工程 JSON 应用到当前工作区：开工程文件、恢复快照共用 */
+  function applyProjectData(data) {
+    project = {
+      name: data.name || '导入的工程',
+      files: data.files.filter(function (f) { return f && f.path; }).map(function (f) {
+        return {
+          path: normPath(f.path),
+          content: String(f.content == null ? '' : f.content),
+          handle: null, dirty: false
+        };
+      }),
+      folders: [],
+      groups: Array.isArray(data.groups) ? data.groups : [],
+      open: [], active: '', fs: false
+    };
+    ensureGroups(project);
+    project.open = (data.open || []).filter(function (p) { return !!fileOf(p); });
+    if (!project.open.length) project.open = [project.files[0].path];
+    project.active = fileOf(data.active) ? data.active : project.open[0];
+    curExample = null;
+    histMap = {};
+    codeEl.value = fileOf(project.active).content;
+    histReset(project.active, codeEl.value);
+    loadBp();
+    renderTabs();
+    renderTree();
+    refreshGutter();
+    paintCode();
+    updateFsUi();
+    saveProject();
+    build();
+    log('已打开工程「' + project.name + '」，' + project.files.length
+      + ' 个文件，' + project.groups.length + ' 个分组', 'ok');
+  }
+
+  /* ---------------- 工程快照：存到 localStorage，随时恢复 ---------------- */
+  var SNAP_KEY = 'c51.snapshots';
+  function snapAll() {
+    try {
+      var arr = JSON.parse(localStorage.getItem(SNAP_KEY) || '[]');
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) { return []; }
+  }
+  function snapWrite(arr) {
+    try { localStorage.setItem(SNAP_KEY, JSON.stringify(arr)); return true; }
+    catch (e) { log('快照保存失败：浏览器存储空间不足，可以先删掉几个旧快照。', 'err'); return false; }
+  }
+  function snapOpen() {
+    var m = $('dlg-snap');
+    if (!m) return;
+    m.classList.add('on');
+    m.setAttribute('aria-hidden', 'false');
+    snapRender();
+  }
+  function snapClose() {
+    var m = $('dlg-snap');
+    if (!m) return;
+    m.classList.remove('on');
+    m.setAttribute('aria-hidden', 'true');
+  }
+  function snapRender() {
+    var host = $('snap-list');
+    if (!host) return;
+    var arr = snapAll();
+    if (!arr.length) {
+      host.innerHTML = '<div class="snap-empty">还没有快照。在上面输入名字，点「保存当前工程」。</div>';
+      return;
+    }
+    host.innerHTML = '';
+    arr.forEach(function (s, i) {
+      var row = document.createElement('div');
+      row.className = 'snap-row';
+      var meta = document.createElement('div');
+      meta.className = 'snap-meta';
+      var nm = document.createElement('span');
+      nm.className = 'snap-name';
+      nm.textContent = s.name || ('快照 ' + (i + 1));
+      var tm = document.createElement('span');
+      tm.className = 'snap-time';
+      tm.textContent = (s.time || '') + ' · ' + (s.data && s.data.files ? s.data.files.length : 0) + ' 个文件';
+      meta.appendChild(nm);
+      meta.appendChild(tm);
+      var open = document.createElement('button');
+      open.type = 'button';
+      open.textContent = '恢复';
+      open.onclick = function () {
+        askModal('恢复快照', {
+          msg: '会用快照「' + (s.name || '') + '」替换当前工程，没存过的改动会丢。继续？',
+          input: false, ok: '恢复'
+        }).then(function (yes) {
+          if (!yes) return;
+          applyProjectData(s.data);
+          snapClose();
+        });
+      };
+      var del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'ghost';
+      del.textContent = '删除';
+      del.onclick = function () {
+        var arr2 = snapAll();
+        arr2.splice(i, 1);
+        snapWrite(arr2);
+        snapRender();
+      };
+      row.appendChild(meta);
+      row.appendChild(open);
+      row.appendChild(del);
+      host.appendChild(row);
+    });
+  }
+  function snapSave() {
+    var input = $('snap-name');
+    var name = input && input.value.trim() ? input.value.trim() : (project.name || '工程') + ' 快照';
+    var arr = snapAll();
+    arr.unshift({
+      name: name,
+      time: new Date().toLocaleString('zh-CN', { hour12: false }),
+      data: projectData()
+    });
+    if (arr.length > 8) arr.length = 8;
+    if (!snapWrite(arr)) return;
+    if (input) input.value = '';
+    snapRender();
+    log('已保存快照「' + name + '」（共 ' + arr.length + ' 个）', 'ok');
+  }
+  if ($('btn-snap')) $('btn-snap').onclick = snapOpen;
+  if ($('snap-save')) $('snap-save').onclick = snapSave;
+  if ($('snap-close')) $('snap-close').onclick = snapClose;
+  var snapMask = $('dlg-snap');
+  if (snapMask) snapMask.addEventListener('click', function (e) { if (e.target === snapMask) snapClose(); });
+  if ($('snap-name')) $('snap-name').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); snapSave(); }
+  });
+
+  /* ---------------- 浅色 / 深色主题 ---------------- */
+  function setTheme(light) {
+    try {
+      if (light) document.documentElement.classList.add('light');
+      else document.documentElement.classList.remove('light');
+      localStorage.setItem('c51.theme', light ? 'light' : 'dark');
+    } catch (e) { /* 忽略 */ }
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', light ? '#f4f6f9' : '#14161b');
+  }
+  if ($('btn-theme')) $('btn-theme').onclick = function () {
+    var light = !document.documentElement.classList.contains('light');
+    setTheme(light);
+    log(light ? '已切到浅色主题，再点一次回到深色' : '已切到深色主题', 'dim');
+  };
+
+  /* ---------------- PWA：http(s) 下注册 Service Worker，断网也能打开 ---------------- */
+  if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator
+    && typeof location !== 'undefined' && /^https?:$/.test(location.protocol)) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () { /* 离线缓存不可用时静默 */ });
+    });
   }
 
   /* ---------------- 状态栏 / 工程树开关 ---------------- */
@@ -3448,6 +3581,9 @@
     if (!marksEl) return;
     var html = '';
     var pad = 12;
+    /* 光标所在行：和错误行、执行行一样画在 marks 层，不用改高亮 HTML */
+    var curLn = codeEl.value.slice(0, codeEl.selectionStart).split('\n').length;
+    html += '<i class="focus" style="top:' + (pad + (curLn - 1) * LINE_H) + 'px"></i>';
     var showErr = errLine && (!errFile || errFile === project.active);
     if (showErr) html += '<i class="err" style="top:' + (pad + (errLine - 1) * LINE_H) + 'px"></i>';
     var loc = (vm && (state === 'running' || state === 'paused')) ? mapUnitLine(vm.line) : null;
@@ -3465,6 +3601,7 @@
     var line = upto.split('\n').length;
     var col = upto.length - upto.lastIndexOf('\n');
     el.textContent = '行 ' + line + '，列 ' + col;
+    paintMarks();
   }
   function gotoFileLine(file, n) {
     if (file && file !== project.active) openFile(file);
