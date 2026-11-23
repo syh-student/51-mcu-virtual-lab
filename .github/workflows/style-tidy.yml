@@ -1,0 +1,25 @@
+name: style-tidy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 下载补丁并应用
+        run: |
+          curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors -o "$RUNNER_TEMP/opt.patch" https://aka.doubaocdn.com/s/N47i2nUtcA
+          git apply --whitespace=nowarn "$RUNNER_TEMP/opt.patch"
+          git status --short
+      - name: 提交并推送
+        run: |
+          git config user.name "syh-student"
+          git config user.email "2137438918@qq.com"
+          git add -A
+          git commit -m "style: 导航选中回归液态滑块，浅色工作台网格再降噪"
+          git push origin HEAD:main
