@@ -193,16 +193,9 @@ body::before {
   transition: color .3s var(--ease);
   -webkit-tap-highlight-color: transparent;
 }
-.nav-item.on {
-  color: #a8dcff;
-  background: rgba(63, 154, 214, .18);
-  box-shadow: inset 0 0 0 1px rgba(88, 182, 245, .32);
-}
-html.light .nav-item.on {
-  color: #0a5b9c;
-  background: rgba(11, 114, 196, .12);
-  box-shadow: inset 0 0 0 1px rgba(11, 114, 196, .22);
-}
+/* 导航选中由液态滑块（.blob）负责底色，这里只保证文字对比 */
+.nav-item.on { color: var(--accent-ink); }
+html.light .nav-item.on { color: #ffffff; }
 .nav-item.ink { color: var(--accent-ink); }
 .nav-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
@@ -1908,8 +1901,8 @@ html.light .build-panel { box-shadow: 0 1px 2px rgba(16, 24, 40, .06); }
 html.light .board-stage {
   background:
     radial-gradient(58% 48% at 50% 46%, rgba(11, 114, 196, .05), rgba(11, 114, 196, 0) 72%),
-    linear-gradient(rgba(18, 23, 33, .022) 1px, transparent 1px) 0 0 / 40px 40px,
-    linear-gradient(90deg, rgba(18, 23, 33, .022) 1px, transparent 1px) 0 0 / 40px 40px;
+    linear-gradient(rgba(18, 23, 33, .012) 1px, transparent 1px) 0 0 / 40px 40px,
+    linear-gradient(90deg, rgba(18, 23, 33, .012) 1px, transparent 1px) 0 0 / 40px 40px;
 }
 html.light #board svg { filter: drop-shadow(0 16px 34px rgba(16, 24, 40, .18)); }
 
@@ -1929,7 +1922,7 @@ try { if (localStorage.getItem('c51.theme') === 'light') document.documentElemen
   </div>
   <div class="head-right">
     <span class="head-note">例程 01—15 · 离线可用</span>
-    <span class="build-tag" id="build-tag">构建 11-23 12:50</span>
+    <span class="build-tag" id="build-tag">构建 11-23 20:56</span>
     <span id="status" class="status">已停止</span>
   </div>
 </header>
