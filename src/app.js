@@ -1052,6 +1052,12 @@
       s.x = r.x; s.w = r.w; s.vx = 0; s.vw = 0;
       draw();
     }
+    function markCurrent(i) {
+      for (var k = 0; k < items.length; k++) {
+        if (k === i) items[k].setAttribute('aria-current', 'page');
+        else items[k].removeAttribute('aria-current');
+      }
+    }
     function placeHover(i) {
       if (i < 0) { hoverPill.style.opacity = '0'; return; }
       var r = itemRect(i);
@@ -1087,6 +1093,7 @@
         active = i;
         hover = i;
         placeHover(i);
+        markCurrent(i);
         setPage(item.dataset.page);
         wake();
       });
@@ -1102,12 +1109,14 @@
           active = i;
           hover = -1;
           placeHover(-1);
+          markCurrent(i);
           snap(i);
           return;
         }
       }
     };
 
+    markCurrent(active);
     snap(active);
     requestAnimationFrame(function () { snap(active); });
   })();
@@ -2690,7 +2699,9 @@
     lines.push('');
     lines.push('## 二、编译与诊断');
     lines.push('```');
-    lines.push($('problems') ? $('problems').innerText.trim() : '没有发现问题。');
+    var diagEl = $('build-problems');
+    var diagText = diagEl && diagEl.innerText ? diagEl.innerText.trim() : '';
+    lines.push(diagText || '没有发现问题。');
     lines.push('```');
     lines.push('');
     lines.push('## 三、运行观察');

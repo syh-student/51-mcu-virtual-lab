@@ -1656,6 +1656,8 @@ body.zoomed .appbar { display: none; }
   .watch-panel { height: auto; max-height: 160px; }
   .console-panel { height: 150px; flex: none; }
   .scope-panel { height: auto; }
+  /* scope-body 里只有绝对定位的画布，auto 高度会塌成 0，导致窄屏整页只剩标题栏。 */
+  .scope-body { min-height: min(58vh, 460px); }
   .scope-scroll { height: min(58vh, 460px); }
 }
 

@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#14161b">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
 <meta name="description" content="51 单片机硬件虚拟实验室：电路实验台、引脚级仿真板、画板模拟、参数计算器与自测练习，纯前端离线可用。">
 <meta property="og:type" content="website">
 <meta property="og:title" content="51 单片机 · 硬件虚拟实验室">
@@ -205,12 +206,16 @@ main { position: relative; z-index: 1; flex: 1; min-height: 0; width: 100%; max-
 .legend .dot.cur { background: var(--accent); margin-left: 6px; }
 
 /* SVG 元件样式 */
-.wire { stroke: #8c7a49; stroke-width: 2.6; fill: none; cursor: pointer; stroke-linecap: round; }
+.wire { stroke: #8c7a49; stroke-width: 2.6; fill: none; cursor: pointer; stroke-linecap: round; stroke-linejoin: round; }
 .wire.live {
   stroke: #63b7e6;
   filter: drop-shadow(0 0 5px rgba(99, 183, 230, .3));
 }
 .wire:hover { stroke: var(--danger); stroke-width: 4; }
+.wire.net { stroke: rgba(77,184,255,.62); stroke-width: 3; filter: drop-shadow(0 0 3px rgba(77,184,255,.25)); }
+.wire.net:hover { stroke: var(--danger); }
+.wire.selected { stroke: var(--accent); stroke-width: 3.6; filter: drop-shadow(0 0 5px rgba(77,184,255,.45)); }
+.wire.selected:hover { stroke: var(--danger); }
 .comp { cursor: pointer; }
 .comp-body { stroke: rgba(236,239,245,.86); stroke-width: 1.8; fill: none; stroke-linejoin: round; }
 .comp-lead { stroke: rgba(236,239,245,.48); stroke-width: 1.25; fill: none; stroke-linecap: round; }
@@ -238,6 +243,7 @@ main { position: relative; z-index: 1; flex: 1; min-height: 0; width: 100%; max-
 .node.hot { fill: var(--danger); stroke: var(--danger); }
 .node.target { fill: var(--accent); stroke: var(--accent); r: 7; }
 .node.connected { fill: rgba(77,184,255,.08); stroke: rgba(77,184,255,.42); }
+.node.net { fill: rgba(77,184,255,.16); stroke: rgba(77,184,255,.9); stroke-width: 1.8; filter: drop-shadow(0 0 4px rgba(77,184,255,.35)); }
 .comp.selected .node { stroke: var(--accent); }
 .wire-flow { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 4 8; fill: none; pointer-events: none; animation: flow 1s linear infinite; }
 @keyframes flow { to { stroke-dashoffset: -12; } }
@@ -255,6 +261,17 @@ main { position: relative; z-index: 1; flex: 1; min-height: 0; width: 100%; max-
   width: 100%; background: rgba(0,0,0,.25); border: 1px solid var(--line); color: var(--ink);
   border-radius: 7px; padding: 5px 8px; font-family: var(--mono); font-size: 11px;
 }
+.comp-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 12px; }
+.comp-actions .ghost { padding: 7px 6px; text-align: center; }
+.comp-actions .danger { color: var(--danger); border-color: rgba(255,122,107,.28); }
+.comp-actions .danger:hover { background: rgba(255,122,107,.1); color: var(--danger); }
+.wire-info { font-size: 10px; line-height: 1.8; color: var(--muted); margin-bottom: 10px; }
+.wire-info .wi-row { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line-soft); }
+.wire-info .wi-row span { color: var(--muted); }
+.wire-info .wi-row:last-child { border-bottom: 0; }
+.wire-info b { color: var(--ink); font-family: var(--mono); font-weight: 500; }
+.wire-info .wi-net { color: var(--accent); font-family: var(--mono); }
+.wire-info .wi-note { color: var(--faint); margin-top: 4px; }
 .readout .ro-item { display: flex; justify-content: space-between; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--line-soft); font-size: 11px; }
 .readout .ro-item:last-child { border-bottom: 0; }
 .readout .ro-k { color: var(--muted); }
@@ -537,7 +554,7 @@ html.pin-bridged .pin-left { display: none; }
 <div class="appbar">
   <nav class="capsule" id="capsule" role="group" aria-label="页面导航">
     <span class="hover-pill" aria-hidden="true"></span>
-    <button class="nav-item on" type="button" data-page="lab">电路实验台</button>
+    <button class="nav-item on" type="button" data-page="lab" aria-current="page">电路实验台</button>
     <button class="nav-item" type="button" data-page="pindemo">引脚级仿真板</button>
     <button class="nav-item" type="button" data-page="eda">画板模拟</button>
     <button class="nav-item" type="button" data-page="calc">参数计算器</button>
@@ -567,7 +584,7 @@ html.pin-bridged .pin-left { display: none; }
           </div>
           <div class="lib-tip" id="lib-tip">
             <b>怎么连线</b>
-            <span>从一个引脚拖到另一个引脚即可连线，也可以点一个引脚再点另一个；点已有导线可删除。滚轮缩放，空格 + 拖动平移画布。</span>
+            <span>从一个引脚拖到另一个引脚即可连线，也可以点一个引脚再点另一个；单击已有导线可选中，按 Delete 删除（Alt+单击直接删）。滚轮缩放，空格 + 拖动平移画布。</span>
           </div>
         </div>
       </aside>
@@ -605,7 +622,7 @@ html.pin-bridged .pin-left { display: none; }
 
       <!-- 右：参数 + 实时数据 -->
       <aside class="panel data-panel">
-        <div class="panel-h"><span class="idx">03</span><h2>元件参数</h2></div>
+        <div class="panel-h"><span class="idx">03</span><h2 id="param-title">元件参数</h2></div>
         <div class="panel-b" id="param-list">
           <div class="empty-note">选中画布上的元件，这里可以改它的参数</div>
         </div>
@@ -2388,6 +2405,8 @@ html.pin-bridged .pin-left { display: none; }
       var on = navs[j].getAttribute('data-page') === name;
       navs[j].classList.toggle('on', on);
       navs[j].classList.toggle('ink', on);
+      if (on) navs[j].setAttribute('aria-current', 'page');
+      else navs[j].removeAttribute('aria-current');
     }
     var active = document.querySelector('.nav-item[data-page="' + name + '"]');
     if (active) {
@@ -2415,6 +2434,7 @@ html.pin-bridged .pin-left { display: none; }
   var components = [];     // 画布上的元件
   var wires = [];          // { a:{id,pin}, b:{id,pin} }
   var selected = null;     // 选中的元件 id
+  var selectedWire = null; // 选中的导线对象（与 selected 互斥）
   var pendingPin = null;   // 等待连线的引脚 {id,pin}
   var currentPreset = 'led';
   var uid = 1;
@@ -2459,6 +2479,7 @@ html.pin-bridged .pin-left { display: none; }
     components = JSON.parse(JSON.stringify(s.components));
     wires = JSON.parse(JSON.stringify(s.wires));
     selected = s.selected || null;
+    selectedWire = null;
     currentPreset = s.preset;
     uid = s.uid;
     $('ckt-title').textContent = s.title;
@@ -2519,8 +2540,9 @@ html.pin-bridged .pin-left { display: none; }
     if (!w || !h || !components.length) { view = { x: 0, y: 0, k: 1 }; viewTouched = false; applyView(); return; }
     var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     components.forEach(function (c) {
-      minX = Math.min(minX, c.x - 34); maxX = Math.max(maxX, c.x + 34);
-      minY = Math.min(minY, c.y - 34); maxY = Math.max(maxY, c.y + 40);
+      var e = compExtent(c.kind, c.rot);
+      minX = Math.min(minX, c.x - e.hw); maxX = Math.max(maxX, c.x + e.hw);
+      minY = Math.min(minY, c.y - e.hh); maxY = Math.max(maxY, c.y + e.hh);
     });
     var bw = Math.max(80, maxX - minX), bh = Math.max(60, maxY - minY);
     var margin = w < 560 ? 26 : 64;
@@ -2561,6 +2583,30 @@ html.pin-bridged .pin-left { display: none; }
     if (gx === null) x = Math.round(x / GRID) * GRID;
     if (gy === null) y = Math.round(y / GRID) * GRID;
     return { x: x, y: y, gx: gx, gy: gy };
+  }
+  /* 新元件落位：从基准点向外找第一个不与已有元件包围盒重叠的格点。
+     这样从库里连续放多个元件时不会叠在一起，复制元件也不会盖住原件。 */
+  function findFreeSpot(kind, bx, by, rot) {
+    var gap = 10, step = 44;
+    var e = compExtent(kind, rot);
+    for (var ring = 0; ring <= 5; ring++) {
+      for (var dx = -ring; dx <= ring; dx++) {
+        for (var dy = -ring; dy <= ring; dy++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue;
+          var x = Math.round((bx + dx * step) / GRID) * GRID;
+          var y = Math.round((by + dy * step) / GRID) * GRID;
+          var free = true;
+          for (var i = 0; i < components.length; i++) {
+            var o = components[i];
+            var oe = compExtent(o.kind, o.rot);
+            if (Math.abs(x - o.x) < e.hw + oe.hw + gap &&
+                Math.abs(y - o.y) < e.hh + oe.hh + gap) { free = false; break; }
+          }
+          if (free) return { x: x, y: y };
+        }
+      }
+    }
+    return { x: Math.round((bx + 44) / GRID) * GRID, y: Math.round((by + 44) / GRID) * GRID };
   }
   function showGuides(gx, gy) {
     if (guideXEl) {
@@ -2668,6 +2714,24 @@ html.pin-bridged .pin-left { display: none; }
     transistor: { label: '三极管', pins: [{ x: -26, y: 0 }, { x: 10, y: -20 }, { x: 10, y: 20 }], def: {} }
   };
 
+  /* 每种元件的视觉包围盒半宽/半高（含位号、参数、引脚字母），
+     用于适应画布和放置避让；旋转时按角度换算成外接矩形。 */
+  var EXTENTS = {
+    source: { hw: 34, hh: 32 },
+    resistor: { hw: 32, hh: 30 },
+    led: { hw: 38, hh: 34 },
+    diode: { hw: 34, hh: 30 },
+    capacitor: { hw: 32, hh: 32 },
+    ground: { hw: 24, hh: 24 },
+    switch: { hw: 32, hh: 30 },
+    transistor: { hw: 42, hh: 42 }
+  };
+  function compExtent(kind, rot) {
+    var e = EXTENTS[kind] || { hw: 36, hh: 36 };
+    var a = (rot || 0) * Math.PI / 180;
+    var ca = Math.abs(Math.cos(a)), sa = Math.abs(Math.sin(a));
+    return { hw: e.hw * ca + e.hh * sa, hh: e.hw * sa + e.hh * ca };
+  }
   /* 引脚绝对坐标 */
   function pinPos(comp, pinIdx) {
     var k = KINDS[comp.kind];
@@ -2678,6 +2742,141 @@ html.pin-bridged .pin-left { display: none; }
     return { x: comp.x + rx, y: comp.y + ry };
   }
   function nodeKey(id, pin) { return id + ':' + pin; }
+
+  /* 导线走正交折线：按终点引脚朝向决定先横后竖 / 先竖后横，
+     再用圆角把直角磨掉，避免满屏斜线。 */
+  function pinOut(c, pin) {
+    var p = KINDS[c.kind].pins[pin];
+    var a = (c.rot || 0) * Math.PI / 180;
+    var vx = p.x * Math.cos(a) - p.y * Math.sin(a);
+    var vy = p.x * Math.sin(a) + p.y * Math.cos(a);
+    if (Math.abs(vx) >= Math.abs(vy)) return { x: vx >= 0 ? 1 : -1, y: 0 };
+    return { x: 0, y: vy >= 0 ? 1 : -1 };
+  }
+  function samePoint(a, b) { return Math.abs(a.x - b.x) < 0.01 && Math.abs(a.y - b.y) < 0.01; }
+  function simplifyWirePoints(pts) {
+    var out = [];
+    pts.forEach(function (p) {
+      if (!out.length || !samePoint(out[out.length - 1], p)) out.push({ x: p.x, y: p.y });
+    });
+    var clean = [];
+    out.forEach(function (p) {
+      while (clean.length >= 2) {
+        var a = clean[clean.length - 2], b = clean[clean.length - 1];
+        var cross = (b.x - a.x) * (p.y - b.y) - (b.y - a.y) * (p.x - b.x);
+        var dot = (b.x - a.x) * (p.x - b.x) + (b.y - a.y) * (p.y - b.y);
+        if (Math.abs(cross) < 0.01 && dot > 0) clean.pop();
+        else break;
+      }
+      clean.push(p);
+    });
+    return clean;
+  }
+  function wireBends(pts) { return Math.max(0, pts.length - 2); }
+  function wireLength(pts) {
+    var len = 0;
+    for (var i = 1; i < pts.length; i++) len += Math.abs(pts[i].x - pts[i - 1].x) + Math.abs(pts[i].y - pts[i - 1].y);
+    return len;
+  }
+  function wireHasBacktrack(pts) {
+    for (var i = 1; i < pts.length - 1; i++) {
+      var ax = pts[i].x - pts[i - 1].x, ay = pts[i].y - pts[i - 1].y;
+      var bx = pts[i + 1].x - pts[i].x, by = pts[i + 1].y - pts[i].y;
+      if (ax * bx + ay * by < -0.01) return true;
+    }
+    return false;
+  }
+  function segmentHitsRect(rect, p, q) {
+    var left = rect.x - rect.hw - 4, right = rect.x + rect.hw + 4;
+    var top = rect.y - rect.hh - 4, bottom = rect.y + rect.hh + 4;
+    if (Math.abs(p.y - q.y) < 0.01) {
+      return p.y >= top && p.y <= bottom && Math.max(p.x, q.x) >= left && Math.min(p.x, q.x) <= right;
+    }
+    if (Math.abs(p.x - q.x) < 0.01) {
+      return p.x >= left && p.x <= right && Math.max(p.y, q.y) >= top && Math.min(p.y, q.y) <= bottom;
+    }
+    return false;
+  }
+  function wireObstacleCount(pts, ca, cb) {
+    var seen = {}, count = 0;
+    components.forEach(function (c) {
+      if (c === ca || c === cb || seen[c.id]) return;
+      var e = compExtent(c.kind, c.rot);
+      var rect = { x: c.x, y: c.y, hw: e.hw, hh: e.hh };
+      for (var i = 1; i < pts.length; i++) {
+        if (segmentHitsRect(rect, pts[i - 1], pts[i])) { seen[c.id] = true; count++; return; }
+      }
+    });
+    return count;
+  }
+  function wirePinScore(pts, outA, outB) {
+    if (pts.length < 2) return 0;
+    var sx = pts[1].x - pts[0].x, sy = pts[1].y - pts[0].y;
+    var ex = pts[pts.length - 1].x - pts[pts.length - 2].x;
+    var ey = pts[pts.length - 1].y - pts[pts.length - 2].y;
+    var startOk = sx * outA.x + sy * outA.y > 0.5;
+    var endOk = ex * outB.x + ey * outB.y < -0.5;
+    return (startOk ? 0 : 60) + (endOk ? 0 : 160);
+  }
+  function cktWirePoints(a, b, ca, pinA, cb, pinB) {
+    var dx = b.x - a.x, dy = b.y - a.y;
+    var ax = Math.abs(dx), ay = Math.abs(dy);
+    if (ax < 2 || ay < 2 || (ax + ay) < 12) {
+      return simplifyWirePoints([{ x: a.x, y: a.y }, { x: b.x, y: b.y }]);
+    }
+    var outA = pinOut(ca, pinA), outB = pinOut(cb, pinB);
+    var cands = [];
+    var midX = (a.x + b.x) / 2, midY = (a.y + b.y) / 2;
+    if (outB.x) {
+      /* 终点是横引脚：优先“先竖后横”，让最后一段顺着引脚进入 */
+      cands.push([{ x: a.x, y: a.y }, { x: a.x, y: b.y }, { x: b.x, y: b.y }]);
+      cands.push([{ x: a.x, y: a.y }, { x: midX, y: a.y }, { x: midX, y: b.y }, { x: b.x, y: b.y }]);
+      cands.push([{ x: a.x, y: a.y }, { x: b.x, y: a.y }, { x: b.x, y: b.y }]);
+      cands.push([{ x: a.x, y: a.y }, { x: a.x, y: midY }, { x: b.x, y: midY }, { x: b.x, y: b.y }]);
+    } else {
+      /* 终点是竖引脚：优先“先横后竖” */
+      cands.push([{ x: a.x, y: a.y }, { x: b.x, y: a.y }, { x: b.x, y: b.y }]);
+      cands.push([{ x: a.x, y: a.y }, { x: a.x, y: midY }, { x: b.x, y: midY }, { x: b.x, y: b.y }]);
+      cands.push([{ x: a.x, y: a.y }, { x: a.x, y: b.y }, { x: b.x, y: b.y }]);
+      cands.push([{ x: a.x, y: a.y }, { x: midX, y: a.y }, { x: midX, y: b.y }, { x: b.x, y: b.y }]);
+    }
+    var best = null;
+    cands.forEach(function (pts) {
+      pts = simplifyWirePoints(pts);
+      var obstacles = wireObstacleCount(pts, ca, cb);
+      var score = wireBends(pts) * 150 + wireLength(pts) * 0.2 +
+        obstacles * 300 + (wireHasBacktrack(pts) ? 300 : 0) + wirePinScore(pts, outA, outB);
+      if (!best || score < best.score) best = { pts: pts, score: score };
+    });
+    return best.pts;
+  }
+  function roundedWirePath(pts, radius) {
+    pts = simplifyWirePoints(pts);
+    if (pts.length < 2) return '';
+    if (pts.length === 2) return 'M' + pts[0].x + ' ' + pts[0].y + 'L' + pts[1].x + ' ' + pts[1].y;
+    var d = 'M' + pts[0].x + ' ' + pts[0].y;
+    for (var i = 1; i < pts.length - 1; i++) {
+      var p0 = pts[i - 1], p1 = pts[i], p2 = pts[i + 1];
+      var d1 = Math.hypot(p0.x - p1.x, p0.y - p1.y);
+      var d2 = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+      var rr = Math.min(radius || 7, d1 / 2, d2 / 2);
+      if (rr < 1.5) {
+        d += 'L' + p1.x + ' ' + p1.y;
+        continue;
+      }
+      var sx = p1.x + (p0.x - p1.x) / d1 * rr, sy = p1.y + (p0.y - p1.y) / d1 * rr;
+      var ex = p1.x + (p2.x - p1.x) / d2 * rr, ey = p1.y + (p2.y - p1.y) / d2 * rr;
+      d += 'L' + sx + ' ' + sy + 'Q' + p1.x + ' ' + p1.y + ' ' + ex + ' ' + ey;
+    }
+    var last = pts[pts.length - 1];
+    return d + 'L' + last.x + ' ' + last.y;
+  }
+  function cktWirePath(w) {
+    var ca = compAt(w.a.id), cb = compAt(w.b.id);
+    if (!ca || !cb) return '';
+    var pa = pinPos(ca, w.a.pin), pb = pinPos(cb, w.b.pin);
+    return roundedWirePath(cktWirePoints(pa, pb, ca, w.a.pin, cb, w.b.pin), 7);
+  }
 
   /* 由元件+连线构建求解器输入：给每个"引脚位置"分配节点名，连线合并 */
   function buildNetlist() {
@@ -2820,6 +3019,7 @@ html.pin-bridged .pin-left { display: none; }
     /* 预置加载后直接选中限流/分压电阻，右侧参数面板不再空着 */
     var firstR = components.filter(function (c) { return c.kind === 'resistor'; })[0];
     selected = firstR ? firstR.id : (components[0] ? components[0].id : null);
+    selectedWire = null;
     pendingPin = null;
     $('ckt-title').textContent = p.title;
     $('ckt-desc').textContent = p.desc;
@@ -2862,7 +3062,7 @@ html.pin-bridged .pin-left { display: none; }
         if (m) maxUid = Math.max(maxUid, parseInt(m[1], 10));
       });
       uid = Math.max(s.uid || 1, maxUid + 1);
-      selected = null; pendingPin = null;
+      selected = null; selectedWire = null; pendingPin = null;
       $('ckt-title').textContent = s.title || '自由搭建';
       $('ckt-desc').textContent = s.desc || '';
       syncPresetButtons();
@@ -2876,6 +3076,8 @@ html.pin-bridged .pin-left { display: none; }
   var svgRoot = $('circuit');
   var pinTip = $('ckt-pin-tip');
   var pinNodeState = {};
+  var pinNodeVolt = {};
+  var activeNets = {};
   function hidePinTip() { if (pinTip) pinTip.hidden = true; }
   function pinRole(kind, pi) {
     if (kind === 'source') return pi === 0 ? '+ 正极' : '− 负极';
@@ -2887,7 +3089,10 @@ html.pin-bridged .pin-left { display: none; }
   function showPinTip(dot, c, pi) {
     if (!pinTip) return;
     var node = pinNodeState[nodeKey(c.id, pi)];
-    pinTip.textContent = refDes(c) + ' · ' + pinRole(c.kind, pi) + ' · ' + (node ? '节点 ' + node : '未连接');
+    var volt = pinNodeVolt[nodeKey(c.id, pi)];
+    var txt = refDes(c) + ' · ' + pinRole(c.kind, pi) + ' · ' + (node ? '节点 ' + node : '未连接');
+    if (node) txt += ' · ' + (typeof volt === 'number' ? C.fmtV(volt) : '电压未求解');
+    pinTip.textContent = txt;
     pinTip.hidden = false;
     var wr = $('canvas-wrap').getBoundingClientRect();
     var dr = dot.getBoundingClientRect();
@@ -3025,6 +3230,7 @@ html.pin-bridged .pin-left { display: none; }
 
   function render(skipParams) {
     hidePinTip();
+    if (selectedWire && wires.indexOf(selectedWire) < 0) selectedWire = null;
     while (svgRoot.firstChild) svgRoot.removeChild(svgRoot.firstChild);
     scene = svg('g', { id: 'viewport' }, svgRoot);
     $('canvas-hint').hidden = components.length > 0;
@@ -3032,14 +3238,15 @@ html.pin-bridged .pin-left { display: none; }
     wires.forEach(function (w) {
       var a = compAt(w.a.id), b = compAt(w.b.id);
       if (!a || !b) return;
-      var pa = pinPos(a, w.a.pin), pb = pinPos(b, w.b.pin);
-      var line = svg('line', { x1: pa.x, y1: pa.y, x2: pb.x, y2: pb.y, 'class': 'wire' }, scene);
+      var d = cktWirePath(w);
+      if (!d) return;
+      var line = svg('path', { d: d, 'class': 'wire' + (selectedWire === w ? ' selected' : ''),
+        'data-wa': w.a.id + ':' + w.a.pin, 'data-wb': w.b.id + ':' + w.b.pin }, scene);
       (function (wv, ln) {
         ln.addEventListener('click', function (e) {
           e.stopPropagation();
-          pushHistory();
-          wires = wires.filter(function (x) { return x !== wv; });
-          render();
+          if (e.altKey) { deleteWire(wv); return; }
+          selectWire(wv);
         });
       })(w, line);
     });
@@ -3069,12 +3276,50 @@ html.pin-bridged .pin-left { display: none; }
       touched[nodeKey(w.b.id, w.b.pin)] = 1;
     });
     pinNodeState = {};
+    pinNodeVolt = {};
+    activeNets = {};
+    var netVolt = {};
+    if (sol && sol.ok) Object.keys(sol.nodes).forEach(function (nm) { netVolt[nm] = sol.nodes[nm]; });
     components.forEach(function (c) {
       KINDS[c.kind].pins.forEach(function (_, pi) {
         var k = nodeKey(c.id, pi);
         if (touched[k]) pinNodeState[k] = net.nameOf(k);
       });
     });
+    /* 求解器失败时，至少用 GND=0 和理想电源端电压给已知节点补位，不猜浮空节点 */
+    Object.keys(pinNodeState).forEach(function (k) {
+      if (pinNodeState[k] === 'GND') netVolt.GND = 0;
+    });
+    for (var pass = 0; pass < 4; pass++) {
+      var changed = false;
+      components.forEach(function (c) {
+        if (c.kind !== 'source') return;
+        var na = pinNodeState[nodeKey(c.id, 0)], nb = pinNodeState[nodeKey(c.id, 1)];
+        if (!na || !nb) return;
+        if (typeof netVolt[na] !== 'number' && typeof netVolt[nb] === 'number') {
+          netVolt[na] = netVolt[nb] + c.v; changed = true;
+        } else if (typeof netVolt[nb] !== 'number' && typeof netVolt[na] === 'number') {
+          netVolt[nb] = netVolt[na] - c.v; changed = true;
+        }
+      });
+      if (!changed) break;
+    }
+    Object.keys(pinNodeState).forEach(function (k) {
+      var v = netVolt[pinNodeState[k]];
+      if (typeof v === 'number') pinNodeVolt[k] = v;
+    });
+    /* 选中导线时高亮它所在的整条网络 */
+    if (selectedWire) {
+      var an = pinNodeState[nodeKey(selectedWire.a.id, selectedWire.a.pin)];
+      var bn = pinNodeState[nodeKey(selectedWire.b.id, selectedWire.b.pin)];
+      if (an) activeNets[an] = 1;
+      if (bn) activeNets[bn] = 1;
+      Array.prototype.forEach.call(svgRoot.querySelectorAll('path.wire'), function (p) {
+        var na = pinNodeState[p.getAttribute('data-wa')];
+        var nb = pinNodeState[p.getAttribute('data-wb')];
+        if ((na && activeNets[na]) || (nb && activeNets[nb])) p.classList.add('net');
+      });
+    }
     /* 再画元件 */
     components.forEach(function (c) { drawComponent(c, ledCurrents[c.id]); });
     /* 对齐辅助线（拖动时显示） */
@@ -3091,7 +3336,7 @@ html.pin-bridged .pin-left { display: none; }
       energized = Object.keys(ledCurrents).some(function (id) { return ledCurrents[id] > 1e-9; });
     }
     if (energized) {
-      Array.prototype.forEach.call(svgRoot.querySelectorAll('line.wire'), function (l) {
+      Array.prototype.forEach.call(svgRoot.querySelectorAll('path.wire'), function (l) {
         l.classList.add('live');
       });
     }
@@ -3104,24 +3349,30 @@ html.pin-bridged .pin-left { display: none; }
   }
 
   function drawComponent(c, ledCur) {
+    var ang = c.rot || 0;
     var g = svg('g', {
       'class': 'comp' + (selected === c.id ? ' selected' : ''),
-      transform: 'translate(' + c.x + ',' + c.y + ') rotate(' + (c.rot || 0) + ')'
+      transform: 'translate(' + c.x + ',' + c.y + ') rotate(' + ang + ')'
     }, scene);
+    /* 位号/参数/引脚字母跟着元件移动，但文字本身保持水平，旋转后仍然可读 */
+    function upright(t, x, y) {
+      if (ang) t.setAttribute('transform', 'rotate(' + (-ang) + ' ' + x + ' ' + y + ')');
+      return t;
+    }
     function partId(x, y, anchor) {
       var t = svg('text', { x: x, y: y, 'class': 'comp-id', 'text-anchor': anchor || 'middle' }, g);
       t.textContent = refDes(c);
-      return t;
+      return upright(t, x, y);
     }
     function partVal(x, y, str, anchor) {
       var t = svg('text', { x: x, y: y, 'class': 'comp-val', 'text-anchor': anchor || 'middle' }, g);
       t.textContent = str;
-      return t;
+      return upright(t, x, y);
     }
     function pinTag(x, y, str, anchor) {
       var t = svg('text', { x: x, y: y, 'class': 'pin-tag', 'text-anchor': anchor || 'middle' }, g);
       t.textContent = str;
-      return t;
+      return upright(t, x, y);
     }
     function lead(x1, y1, x2, y2) {
       svg('line', { x1: x1, y1: y1, x2: x2, y2: y2, 'class': 'comp-lead' }, g);
@@ -3138,8 +3389,10 @@ html.pin-bridged .pin-left { display: none; }
       svg('circle', { cx: 0, cy: 0, r: 17, 'class': 'comp-body', style: glass }, g);
       lead(0, -26, 0, -17);
       lead(0, 17, 0, 26);
-      svg('text', { x: 0, y: -4, 'class': 'comp-label', 'text-anchor': 'middle', style: 'fill:var(--accent)' }, g).textContent = '+';
-      svg('text', { x: 0, y: 12, 'class': 'comp-label', 'text-anchor': 'middle', style: 'fill:rgba(236,239,245,.52)' }, g).textContent = '−';
+      var plus = svg('text', { x: 0, y: -4, 'class': 'comp-label', 'text-anchor': 'middle', style: 'fill:var(--accent)' }, g);
+      plus.textContent = '+'; upright(plus, 0, -4);
+      var minus = svg('text', { x: 0, y: 12, 'class': 'comp-label', 'text-anchor': 'middle', style: 'fill:rgba(236,239,245,.52)' }, g);
+      minus.textContent = '−'; upright(minus, 0, 12);
       partId(25, -6, 'start');
       partVal(25, 10, fmt(c.v, 1) + ' V', 'start');
     } else if (c.kind === 'led') {
@@ -3208,8 +3461,9 @@ html.pin-bridged .pin-left { display: none; }
     KINDS[c.kind].pins.forEach(function (p, pi) {
       var isPending = pendingPin && pendingPin.id === c.id && pendingPin.pin === pi;
       var isConnected = !!pinNodeState[nodeKey(c.id, pi)];
+      var onNet = !!activeNets[pinNodeState[nodeKey(c.id, pi)]];
       var dot = svg('circle', { cx: p.x, cy: p.y, r: isPending ? 7 : 5,
-        'class': 'node' + (isPending ? ' hot' : '') + (isConnected && !isPending ? ' connected' : '') }, g);
+        'class': 'node' + (isPending ? ' hot' : '') + (isConnected && !isPending ? ' connected' : '') + (onNet && !isPending ? ' net' : '') }, g);
       dot.setAttribute('data-cid', c.id);
       dot.setAttribute('data-pin', pi);
       (function (cid, pin) {
@@ -3227,6 +3481,7 @@ html.pin-bridged .pin-left { display: none; }
       if (e.target.classList && e.target.classList.contains('node')) return;
       e.stopPropagation();
       selected = c.id;
+      selectedWire = null;
       render();
     });
     var dragging = false, dragMoved = false, sx = 0, sy = 0, ox = 0, oy = 0, dragSnap = null;
@@ -3236,6 +3491,7 @@ html.pin-bridged .pin-left { display: none; }
       dragging = true; dragMoved = false;
       dotPaused = true;
       selected = c.id;
+      selectedWire = null;
       sx = e.clientX; sy = e.clientY; ox = c.x; oy = c.y;
       dragSnap = snapshot();
       try { g.setPointerCapture(e.pointerId); } catch (x) {}
@@ -3266,18 +3522,19 @@ html.pin-bridged .pin-left { display: none; }
 
   /* 拖动中只重画导线，避免重建元件打断拖动 */
   function renderWiresOnly() {
-    var lines = svgRoot.querySelectorAll('line.wire');
+    var paths = svgRoot.querySelectorAll('path.wire');
     var idx = 0;
     wires.forEach(function (w) {
       var a = compAt(w.a.id), b = compAt(w.b.id);
       if (!a || !b) return;
-      var pa = pinPos(a, w.a.pin), pb = pinPos(b, w.b.pin);
-      var ln = lines[idx++];
-      if (ln) { ln.setAttribute('x1', pa.x); ln.setAttribute('y1', pa.y); ln.setAttribute('x2', pb.x); ln.setAttribute('y2', pb.y); }
+      var d = cktWirePath(w);
+      var p = paths[idx++];
+      if (p && d) p.setAttribute('d', d);
     });
   }
 
   function handlePin(id, pin) {
+    selectedWire = null;
     if (!pendingPin) {
       pendingPin = { id: id, pin: pin };
       $('ckt-status').textContent = '已选中引脚，再点另一个引脚连线（点空白处取消）';
@@ -3305,11 +3562,47 @@ html.pin-bridged .pin-left { display: none; }
   }
 
   /* ================= 参数面板 ================= */
+  function renderWireParams(w, host) {
+    var a = compAt(w.a.id), b = compAt(w.b.id);
+    if (!a || !b) {
+      el('div', 'empty-note', '这根导线的端点已不存在', host);
+      return;
+    }
+    el('div', '', '导线 · 已选中', host).style.cssText = 'font-size:11px;color:var(--accent);margin-bottom:10px;font-family:var(--mono)';
+    var info = el('div', 'wire-info', null, host);
+    function row(label, value) {
+      var r = el('div', 'wi-row', null, info);
+      el('span', null, label, r);
+      var v = el('b', null, value, r);
+      if (label === '网络') v.className = 'wi-net';
+    }
+    row('起点', refDes(a) + ' · ' + pinRole(a.kind, w.a.pin));
+    row('终点', refDes(b) + ' · ' + pinRole(b.kind, w.b.pin));
+    var na = pinNodeState[nodeKey(w.a.id, w.a.pin)] || '未连接';
+    var nb = pinNodeState[nodeKey(w.b.id, w.b.pin)] || '未连接';
+    row('网络', na === nb ? na : na + ' ↔ ' + nb);
+    var pts = cktWirePoints(pinPos(a, w.a.pin), pinPos(b, w.b.pin), a, w.a.pin, b, w.b.pin);
+    row('路径', Math.round(wireLength(pts)) + ' px · ' + Math.max(1, pts.length - 1) + ' 段');
+    el('div', 'wi-note', '单击其它导线可切换选择；按 Delete 删除这根导线，Alt+单击可直接删除。', info);
+    var actions = el('div', 'comp-actions', null, host);
+    var del = el('button', 'ghost danger', '删除这根导线', actions);
+    del.type = 'button';
+    del.style.gridColumn = '1 / -1';
+    del.onclick = function () { deleteWire(w); };
+  }
+
   function renderParams() {
     var host = $('param-list');
     host.innerHTML = '';
+    var titleEl = $('param-title');
+    if (selectedWire && wires.indexOf(selectedWire) >= 0) {
+      if (titleEl) titleEl.textContent = '导线详情';
+      renderWireParams(selectedWire, host);
+      return;
+    }
+    if (titleEl) titleEl.textContent = '元件参数';
     if (!selected || !compAt(selected)) {
-      el('div', 'empty-note', '选中画布上的元件，这里可以改它的参数', host);
+      el('div', 'empty-note', '选中画布上的元件或导线，这里显示它的详情', host);
       return;
     }
     var c = compAt(selected);
@@ -3365,14 +3658,17 @@ html.pin-bridged .pin-left { display: none; }
       var b = el('button', 'ghost', c.closed ? '按下（闭合）' : '弹起（断开）', host);
       b.onclick = function () { pushHistory(); c.closed = !c.closed; render(); };
     }
-    var del = el('button', 'ghost', '删除这个元件', host);
-    del.style.cssText = 'margin-top:12px;color:var(--danger)';
-    del.onclick = function () {
-      pushHistory();
-      components = components.filter(function (x) { return x !== c; });
-      wires = wires.filter(function (w) { return w.a.id !== c.id && w.b.id !== c.id; });
-      selected = null; render();
-    };
+    var actions = el('div', 'comp-actions', null, host);
+    var rotBtn = el('button', 'ghost', '旋转 90°', actions);
+    rotBtn.type = 'button'; rotBtn.title = '快捷键 R';
+    rotBtn.onclick = rotateSelected;
+    var dupBtn = el('button', 'ghost', '复制', actions);
+    dupBtn.type = 'button'; dupBtn.title = '快捷键 Ctrl+D';
+    dupBtn.onclick = duplicateSelected;
+    var del = el('button', 'ghost danger', '删除这个元件', actions);
+    del.type = 'button'; del.title = '快捷键 Delete / Backspace';
+    del.style.gridColumn = '1 / -1';
+    del.onclick = deleteSelected;
   }
 
   /* ================= 实时计算面板 ================= */
@@ -3518,7 +3814,7 @@ html.pin-bridged .pin-left { display: none; }
   /* ================= 元件库与预置按钮 ================= */
   (function initPalette() {
     var host = $('palette');
-    ['source', 'resistor', 'led', 'diode', 'capacitor', 'ground', 'switch'].forEach(function (kind) {
+    ['source', 'resistor', 'led', 'diode', 'capacitor', 'ground', 'switch', 'transistor'].forEach(function (kind) {
       var b = el('button', 'pal-item', null, host);
       b.type = 'button';
       b.innerHTML = '<svg viewBox="-30 -24 60 48">' +
@@ -3528,14 +3824,19 @@ html.pin-bridged .pin-left { display: none; }
          kind === 'capacitor' ? '<path d="M-24 0h18M-6 -10v20M6 -10v20M6 0h18" stroke="currentColor" stroke-width="2" fill="none"/>' :
          kind === 'diode' ? '<path d="M-12 -9L-12 9L6 0z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 -9v18M-24 0h12M6 0h18" stroke="currentColor" stroke-width="2"/>' :
          kind === 'ground' ? '<path d="M0 -14v10M-10 -4h20M-6 2h12M-2 8h4" stroke="currentColor" stroke-width="2" fill="none"/>' :
+         kind === 'transistor' ? '<circle r="17" fill="none" stroke="currentColor" stroke-width="2"/><path d="M-28 0h16M-12 -11v22M-12 -6L8 -19M-12 6L8 19" stroke="currentColor" stroke-width="2" fill="none"/><path d="M8 19L1 16L4 10z" fill="currentColor"/>' :
          '<path d="M-24 0h14M10 0h14M-10 0L8 -9" stroke="currentColor" stroke-width="2" fill="none"/>') +
         '</svg>' + KINDS[kind].label;
       b.addEventListener('click', function () {
         var def = JSON.parse(JSON.stringify(KINDS[kind].def));
-        var c = Object.assign({ id: nextId(), kind: kind, x: 260 + Math.random() * 120, y: 90 + Math.random() * 120 }, def);
+        var r = svgRoot.getBoundingClientRect();
+        var center = (r.width && r.height) ? scenePoint(r.left + r.width / 2, r.top + r.height / 2) : { x: 320, y: 220 };
+        var pos = findFreeSpot(kind, center.x, center.y, 0);
+        var c = Object.assign({ id: nextId(), kind: kind, x: pos.x, y: pos.y }, def);
         pushHistory();
         components.push(c);
         selected = c.id;
+        selectedWire = null;
         $('ckt-status').textContent = '已放置 ' + KINDS[kind].label + '，点引脚连线';
         render();
       });
@@ -3553,14 +3854,18 @@ html.pin-bridged .pin-left { display: none; }
   svgRoot.addEventListener('click', function () {
     if (suppressCanvasClick) { suppressCanvasClick = false; return; }
     if (pendingPin) { pendingPin = null; $('ckt-status').textContent = '已取消连线'; render(); }
-    else if (selected) { selected = null; render(); }
+    else if (selected || selectedWire) {
+      selected = null; selectedWire = null;
+      $('ckt-status').textContent = '已取消';
+      render();
+    }
   });
   $('btn-reset-ckt').onclick = function () {
     if (PRESETS[currentPreset]) loadPreset(currentPreset);
   };
   $('btn-clear-ckt').onclick = function () {
     if (components.length || wires.length) pushHistory();
-    components = []; wires = []; selected = null; pendingPin = null;
+    components = []; wires = []; selected = null; selectedWire = null; pendingPin = null;
     currentPreset = '';
     $('ckt-title').textContent = '自由搭建'; $('ckt-desc').textContent = '从左边元件库取元件';
     syncPresetButtons();
@@ -3635,6 +3940,30 @@ html.pin-bridged .pin-left { display: none; }
     var tag = (t.tagName || '').toLowerCase();
     return tag === 'input' || tag === 'textarea' || tag === 'select' || t.isContentEditable;
   }
+  function selectWire(w) {
+    if (!w || wires.indexOf(w) < 0) return;
+    if (selectedWire === w) {
+      selectedWire = null;
+      selected = null;
+      $('ckt-status').textContent = '已取消';
+      render();
+      return;
+    }
+    selectedWire = w;
+    selected = null;
+    pendingPin = null;
+    var netName = pinNodeState[nodeKey(w.a.id, w.a.pin)] || pinNodeState[nodeKey(w.b.id, w.b.pin)];
+    $('ckt-status').textContent = '已选中导线' + (netName ? ' · 网络 ' + netName : '') + '，按 Delete 删除（Alt+单击可直接删）';
+    render();
+  }
+  function deleteWire(w) {
+    if (!w || wires.indexOf(w) < 0) return;
+    pushHistory();
+    wires = wires.filter(function (x) { return x !== w; });
+    if (selectedWire === w) selectedWire = null;
+    $('ckt-status').textContent = '已删除导线';
+    render();
+  }
   function deleteSelected() {
     var c = compAt(selected);
     if (!c) return;
@@ -3642,6 +3971,7 @@ html.pin-bridged .pin-left { display: none; }
     components = components.filter(function (x) { return x !== c; });
     wires = wires.filter(function (w) { return w.a.id !== c.id && w.b.id !== c.id; });
     selected = null;
+    selectedWire = null;
     $('ckt-status').textContent = '已删除 ' + KINDS[c.kind].label;
     render();
   }
@@ -3651,9 +3981,11 @@ html.pin-bridged .pin-left { display: none; }
     pushHistory();
     var copy = JSON.parse(JSON.stringify(c));
     copy.id = nextId();
-    copy.x = c.x + 30; copy.y = c.y + 30;
+    var pos = findFreeSpot(c.kind, c.x + 44, c.y + 44, c.rot || 0);
+    copy.x = pos.x; copy.y = pos.y;
     components.push(copy);
     selected = copy.id;
+    selectedWire = null;
     $('ckt-status').textContent = '已复制 ' + KINDS[c.kind].label;
     render();
   }
@@ -3681,15 +4013,18 @@ html.pin-bridged .pin-left { display: none; }
     if (k === 'Escape') {
       if (wireDrag) cancelWireDrag();
       var hadPending = !!pendingPin;
-      if (selected || hadPending) {
-        selected = null; pendingPin = null;
+      if (selected || selectedWire || hadPending) {
+        selected = null; selectedWire = null; pendingPin = null;
         $('ckt-status').textContent = '已取消';
         render();
       }
       return;
     }
+    if (k === 'Delete' || k === 'Backspace') {
+      if (selectedWire) { e.preventDefault(); deleteWire(selectedWire); return; }
+      if (selected) { e.preventDefault(); deleteSelected(); return; }
+    }
     if (!selected) return;
-    if (k === 'Delete' || k === 'Backspace') { e.preventDefault(); deleteSelected(); return; }
     if (mod && (k === 'd' || k === 'D')) { e.preventDefault(); duplicateSelected(); return; }
     if (k === 'r' || k === 'R') { e.preventDefault(); rotateSelected(); return; }
     if (k.indexOf('Arrow') === 0) {

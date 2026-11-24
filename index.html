@@ -1677,6 +1677,8 @@ body.zoomed .appbar { display: none; }
   .watch-panel { height: auto; max-height: 160px; }
   .console-panel { height: 150px; flex: none; }
   .scope-panel { height: auto; }
+  /* scope-body 里只有绝对定位的画布，auto 高度会塌成 0，导致窄屏整页只剩标题栏。 */
+  .scope-body { min-height: min(58vh, 460px); }
   .scope-scroll { height: min(58vh, 460px); }
 }
 
@@ -2000,7 +2002,7 @@ try { if (localStorage.getItem('c51.theme') === 'light') document.documentElemen
   </div>
   <div class="head-right">
     <span class="head-note">例程 01—15 · 离线可用</span>
-    <span class="build-tag" id="build-tag">构建 11-23 23:03</span>
+    <span class="build-tag" id="build-tag">构建 11-24 13:30</span>
     <span id="status" class="status">已停止</span>
   </div>
 </header>
@@ -2009,7 +2011,7 @@ try { if (localStorage.getItem('c51.theme') === 'light') document.documentElemen
   <nav class="capsule" id="capsule" aria-label="页面导航">
     <span class="hover-pill" aria-hidden="true"></span>
     <span class="blob" aria-hidden="true"></span>
-    <button class="nav-item" type="button" data-page="code">写代码</button>
+    <button class="nav-item" type="button" data-page="code" aria-current="page">写代码</button>
     <button class="nav-item" type="button" data-page="board">开发板</button>
     <button class="nav-item" type="button" data-page="scope">时序图</button>
     <button class="nav-item" type="button" data-page="notes">讲义</button>
@@ -2088,8 +2090,8 @@ try { if (localStorage.getItem('c51.theme') === 'light') document.documentElemen
           <button id="btn-format" class="ghost" title="缩进改 4 空格、清行尾空白">整理</button>
           <button id="btn-snap" class="ghost" title="工程快照：把当前工程存到浏览器里，随时可以恢复">快照</button>
           <button id="btn-share" class="ghost" title="复制带工程的分享链接">分享</button>
-          <button id="btn-theme" class="ghost" type="button" title="切换浅色 / 深色主题">◐</button>
-          <button id="btn-keys" class="ghost" title="快捷键一览">?</button>
+          <button id="btn-theme" class="ghost" type="button" title="切换浅色 / 深色主题" aria-label="切换浅色或深色主题">◐</button>
+          <button id="btn-keys" class="ghost" title="快捷键一览" aria-label="查看快捷键">?</button>
         </div>
 
         <div class="findbar" id="findbar" hidden>
@@ -6198,6 +6200,12 @@ void main()
       s.x = r.x; s.w = r.w; s.vx = 0; s.vw = 0;
       draw();
     }
+    function markCurrent(i) {
+      for (var k = 0; k < items.length; k++) {
+        if (k === i) items[k].setAttribute('aria-current', 'page');
+        else items[k].removeAttribute('aria-current');
+      }
+    }
     function placeHover(i) {
       if (i < 0) { hoverPill.style.opacity = '0'; return; }
       var r = itemRect(i);
@@ -6233,6 +6241,7 @@ void main()
         active = i;
         hover = i;
         placeHover(i);
+        markCurrent(i);
         setPage(item.dataset.page);
         wake();
       });
@@ -6248,12 +6257,14 @@ void main()
           active = i;
           hover = -1;
           placeHover(-1);
+          markCurrent(i);
           snap(i);
           return;
         }
       }
     };
 
+    markCurrent(active);
     snap(active);
     requestAnimationFrame(function () { snap(active); });
   })();
@@ -7836,7 +7847,9 @@ void main()
     lines.push('');
     lines.push('## 二、编译与诊断');
     lines.push('```');
-    lines.push($('problems') ? $('problems').innerText.trim() : '没有发现问题。');
+    var diagEl = $('build-problems');
+    var diagText = diagEl && diagEl.innerText ? diagEl.innerText.trim() : '';
+    lines.push(diagText || '没有发现问题。');
     lines.push('```');
     lines.push('');
     lines.push('## 三、运行观察');

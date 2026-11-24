@@ -45,7 +45,7 @@ try { if (localStorage.getItem('c51.theme') === 'light') document.documentElemen
   <nav class="capsule" id="capsule" aria-label="页面导航">
     <span class="hover-pill" aria-hidden="true"></span>
     <span class="blob" aria-hidden="true"></span>
-    <button class="nav-item" type="button" data-page="code">写代码</button>
+    <button class="nav-item" type="button" data-page="code" aria-current="page">写代码</button>
     <button class="nav-item" type="button" data-page="board">开发板</button>
     <button class="nav-item" type="button" data-page="scope">时序图</button>
     <button class="nav-item" type="button" data-page="notes">讲义</button>
@@ -124,8 +124,8 @@ try { if (localStorage.getItem('c51.theme') === 'light') document.documentElemen
           <button id="btn-format" class="ghost" title="缩进改 4 空格、清行尾空白">整理</button>
           <button id="btn-snap" class="ghost" title="工程快照：把当前工程存到浏览器里，随时可以恢复">快照</button>
           <button id="btn-share" class="ghost" title="复制带工程的分享链接">分享</button>
-          <button id="btn-theme" class="ghost" type="button" title="切换浅色 / 深色主题">◐</button>
-          <button id="btn-keys" class="ghost" title="快捷键一览">?</button>
+          <button id="btn-theme" class="ghost" type="button" title="切换浅色 / 深色主题" aria-label="切换浅色或深色主题">◐</button>
+          <button id="btn-keys" class="ghost" title="快捷键一览" aria-label="查看快捷键">?</button>
         </div>
 
         <div class="findbar" id="findbar" hidden>
