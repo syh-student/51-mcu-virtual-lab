@@ -1744,19 +1744,43 @@ body.zoomed .appbar { display: none; }
 .ro-bar span { flex: 1; min-width: 220px; line-height: 1.7; }
 .ro-bar .btn { flex: none; }
 
-/* ===== 浅色主题：同样按“越靠上越白”的表面阶梯，而不是简单反转 ===== */
+/* ===== 本地存储失败提示：固定在底部，不挤编辑区 ===== */
+.storage-notice {
+  position: fixed; left: 50%; bottom: 24px; z-index: 120;
+  transform: translateX(-50%);
+  width: min(620px, calc(100vw - 32px));
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(242, 128, 112, .45); border-radius: 12px;
+  background: var(--panel); color: var(--ink);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .38);
+  font-size: 12px; line-height: 1.7;
+}
+.storage-notice .notice-text { flex: 1; min-width: 0; word-break: break-word; }
+.storage-notice .notice-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; flex: none; }
+html.light .storage-notice {
+  border-color: rgba(194, 65, 12, .4);
+  background: var(--panel);
+  box-shadow: 0 18px 48px rgba(16, 24, 40, .18);
+}
+@media (max-width: 640px) {
+  .storage-notice { flex-direction: column; bottom: 14px; padding: 11px 12px; }
+  .storage-notice .notice-actions { width: 100%; justify-content: flex-start; }
+}
+
+/* ===== 浅色主题：航空调度（雾白 / 银灰表面 + 保留蓝色功能主色） ===== */
 :root.light {
-  --bg: #f1f3f7;
-  --fg-rgb: 24, 30, 42;
-  --inset: #fbfcfe;
-  --ink: #161b26;
-  --muted: rgba(22, 27, 38, .7);
-  --faint: rgba(22, 27, 38, .5);
-  --line: rgba(18, 23, 33, .11);
-  --line-soft: rgba(18, 23, 33, .06);
+  --bg: #f2f7f9;
+  --fg-rgb: 36, 56, 68;
+  --inset: #ffffff;
+  --ink: #142a33;
+  --muted: rgba(36, 56, 68, .68);
+  --faint: rgba(36, 56, 68, .46);
+  --line: rgba(152, 169, 180, .42);
+  --line-soft: rgba(152, 169, 180, .2);
   --panel: #ffffff;
-  --panel-soft: #f7f9fc;
-  --hover: rgba(18, 23, 33, .06);
+  --panel-soft: #f7fafb;
+  --hover: rgba(36, 56, 68, .06);
   --white: #ffffff;
   --accent: #0b72c4;
   --accent-strong: #0b72c4;
@@ -1768,12 +1792,12 @@ body.zoomed .appbar { display: none; }
 }
 html.light body::before {
   background:
-    linear-gradient(rgba(18, 23, 33, .028) 1px, transparent 1px) 0 0 / 64px 64px,
-    linear-gradient(90deg, rgba(18, 23, 33, .028) 1px, transparent 1px) 0 0 / 64px 64px,
-    radial-gradient(120% 90% at 50% 16%, #ffffff 0%, #f1f3f7 46%, #e5e9f0 100%);
+    linear-gradient(rgba(36, 56, 68, .022) 1px, transparent 1px) 0 0 / 64px 64px,
+    linear-gradient(90deg, rgba(36, 56, 68, .022) 1px, transparent 1px) 0 0 / 64px 64px,
+    radial-gradient(120% 90% at 50% 16%, #ffffff 0%, #f2f7f9 46%, #e7eff2 100%);
 }
 html.light .panel { box-shadow: 0 1px 2px rgba(16, 24, 40, .05); }
-html.light .panel:hover { border-color: rgba(18, 23, 33, .18); }
+html.light .panel:hover { border-color: rgba(36, 56, 68, .18); }
 html.light ::selection { background: #0b7fd6; color: #fff; }
 html.light .hl-k { color: #c2410c; }
 html.light .hl-t { color: #0f766e; }
@@ -1783,7 +1807,7 @@ html.light .hl-c { color: #8a8f98; }
 html.light .hl-p { color: #7c3aed; }
 html.light .hl-r { color: #1d4ed8; }
 html.light .hl-f { color: #1c2230; }
-html.light .marks i.cur { background: rgba(20, 25, 35, .06); }
+html.light .marks i.cur { background: rgba(36, 56, 68, .06); }
 html.light .sfr-bit.one { border-color: rgba(11, 127, 214, .45); }
 html.light .bit.one {
   background: rgba(11, 114, 196, .1);
@@ -1794,7 +1818,7 @@ html.light .bit.one {
 
 /* 光标所在行的底色（marks 层，和错误行 / 执行行同一套机制） */
 .marks i.focus { background: rgba(var(--fg-rgb), .04); }
-html.light .marks i.focus { background: rgba(20, 25, 35, .05); }
+html.light .marks i.focus { background: rgba(36, 56, 68, .05); }
 
 /* 工程快照对话框 */
 .snap-save { display: flex; gap: 8px; margin-bottom: 10px; }
@@ -1889,7 +1913,7 @@ html.light .marks i.focus { background: rgba(20, 25, 35, .05); }
 
 /* 页签 / 选中行：表面提亮，而不是整块高饱和色 */
 .tab.on { background: rgba(var(--fg-rgb), .09); color: var(--ink); }
-html.light .tab.on { background: rgba(18, 23, 33, .08); color: var(--ink); }
+html.light .tab.on { background: rgba(36, 56, 68, .08); color: var(--ink); }
 
 /* 打字机光标 / 查找命中：
    保留 accent，但只做细线，不铺色块 */
@@ -1903,8 +1927,8 @@ html.light .build-panel { box-shadow: 0 1px 2px rgba(16, 24, 40, .06); }
 html.light .board-stage {
   background:
     radial-gradient(58% 48% at 50% 46%, rgba(11, 114, 196, .05), rgba(11, 114, 196, 0) 72%),
-    linear-gradient(rgba(18, 23, 33, .012) 1px, transparent 1px) 0 0 / 40px 40px,
-    linear-gradient(90deg, rgba(18, 23, 33, .012) 1px, transparent 1px) 0 0 / 40px 40px;
+    linear-gradient(rgba(36, 56, 68, .012) 1px, transparent 1px) 0 0 / 40px 40px,
+    linear-gradient(90deg, rgba(36, 56, 68, .012) 1px, transparent 1px) 0 0 / 40px 40px;
 }
 html.light #board svg { filter: drop-shadow(0 16px 34px rgba(16, 24, 40, .18)); }
 
@@ -1946,21 +1970,21 @@ html.light #board svg { filter: drop-shadow(0 16px 34px rgba(16, 24, 40, .18)); 
 .board-modes .hint, #board-view-tabs button, .hw-menu-btn { font-size: 10.5px; }
 
 /* ---- 2. 浅色主题：去掉写死的浅色文字和深色浮层 ---- */
-html.light .quickbar { background: rgba(18, 23, 33, .025); }
-html.light .qb-step { color: rgba(24, 30, 42, .78); }
-html.light .qb-tag, html.light .qb-sep, html.light .qb-close { color: rgba(24, 30, 42, .45); }
+html.light .quickbar { background: rgba(36, 56, 68, .025); }
+html.light .qb-step { color: rgba(36, 56, 68, .78); }
+html.light .qb-tag, html.light .qb-sep, html.light .qb-close { color: rgba(36, 56, 68, .45); }
 html.light .qb-go { color: var(--ink); }
-html.light .pin-cap-note { color: rgba(24, 30, 42, .72); background: rgba(162, 98, 7, .06); }
+html.light .pin-cap-note { color: rgba(36, 56, 68, .72); background: rgba(162, 98, 7, .06); }
 html.light .pin-cap-note button { color: #96620f; }
 html.light .hw-menu-pop { background: var(--panel); border-color: var(--line); box-shadow: 0 16px 36px rgba(16, 24, 40, .18); }
 html.light .hw-menu-pop button { color: var(--muted); }
-html.light .hw-menu-pop button:hover { background: rgba(18, 23, 33, .06); color: var(--ink); }
+html.light .hw-menu-pop button:hover { background: rgba(36, 56, 68, .06); color: var(--ink); }
 html.light .ac { background: var(--panel); box-shadow: 0 16px 36px rgba(16, 24, 40, .16); }
 html.light .dlg { background: var(--panel); }
 html.light .sel select option { background: var(--panel); color: var(--ink); }
 html.light .prob-filter, html.light .prob-head { background: var(--panel-soft); }
-html.light .corner { border-color: rgba(24, 30, 42, .72); }
-html.light .reticle-label { color: rgba(24, 30, 42, .9); }
+html.light .corner { border-color: rgba(36, 56, 68, .72); }
+html.light .reticle-label { color: rgba(36, 56, 68, .9); }
 
 /* ---- 3. 开发板说明条：收成卡片底栏，不再像外挂提示框 ---- */
 .board-tip {
@@ -2002,7 +2026,7 @@ try { if (localStorage.getItem('c51.theme') === 'light') document.documentElemen
   </div>
   <div class="head-right">
     <span class="head-note">例程 01—15 · 离线可用</span>
-    <span class="build-tag" id="build-tag">构建 11-24 13:30</span>
+    <span class="build-tag" id="build-tag">构建 11-24 22:50</span>
     <span id="status" class="status">已停止</span>
   </div>
 </header>
@@ -5157,6 +5181,7 @@ void main()
   var ledEls = [], ledHalo = [], segEls = [], dpEls = [], lcdLines = [], keyEls = {}, buzzerEl = null, buzzerText = null;
   var portBits = {}, portHex = {};
   var lastGutterLine = -1;
+  var storageWarned = false, storageRetryAt = 0, storageNotice = null;
 
   /* ---------------- 控制台 ---------------- */
   function log(msg, cls) {
@@ -5166,6 +5191,62 @@ void main()
     consoleEl.appendChild(d);
     consoleEl.scrollTop = consoleEl.scrollHeight;
     while (consoleEl.childNodes.length > 200) consoleEl.removeChild(consoleEl.firstChild);
+  }
+
+  /* 本地自动保存失败：不能只往控制台丢一行字，否则用户会以为代码已经存住了 */
+  function showStorageNotice() {
+    if (storageNotice || !document.body) return;
+    var box = document.createElement('div');
+    box.className = 'notice storage-notice';
+    box.setAttribute('role', 'alert');
+    box.setAttribute('aria-live', 'assertive');
+
+    var text = document.createElement('div');
+    text.className = 'notice-text';
+    text.textContent = '自动保存失败：浏览器本地存储可能已满或被禁用。代码还在编辑器里，但刷新或关闭页面会丢；请先导出工程备份。';
+
+    var actions = document.createElement('div');
+    actions.className = 'notice-actions';
+
+    var exportBtn = document.createElement('button');
+    exportBtn.type = 'button';
+    exportBtn.className = 'play sm';
+    exportBtn.textContent = '导出工程';
+    exportBtn.onclick = function () { exportProjectFile(); };
+
+    var retryBtn = document.createElement('button');
+    retryBtn.type = 'button';
+    retryBtn.className = 'ghost';
+    retryBtn.textContent = '重试';
+    retryBtn.onclick = function () {
+      storageRetryAt = 0;
+      if (!saveProject()) log('仍然无法写入本地存储，请先导出工程。', 'err');
+    };
+
+    var closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'ghost';
+    closeBtn.textContent = '\u00d7';
+    closeBtn.setAttribute('aria-label', '关闭保存失败提示');
+    closeBtn.onclick = function () {
+      if (storageNotice && storageNotice.parentNode) storageNotice.parentNode.removeChild(storageNotice);
+      storageNotice = null;
+    };
+
+    actions.appendChild(exportBtn);
+    actions.appendChild(retryBtn);
+    actions.appendChild(closeBtn);
+    box.appendChild(text);
+    box.appendChild(actions);
+    document.body.appendChild(box);
+    storageNotice = box;
+  }
+
+  function clearStorageNotice() {
+    storageWarned = false;
+    storageRetryAt = 0;
+    if (storageNotice && storageNotice.parentNode) storageNotice.parentNode.removeChild(storageNotice);
+    storageNotice = null;
   }
 
   /* ---------------- 画开发板 ---------------- */
@@ -6377,9 +6458,24 @@ void main()
     if (project.fs) {
       /* 第一次改动时给树上的文件点亮小圆点，之后不再重绘（免得每敲一个字都重排） */
       if (cur && !cur.dirty) { cur.dirty = true; updateFsUi(); renderTree(); }
-      return;                      /* 磁盘是唯一真相，不再往 localStorage 里塞一份 */
+      return true;                 /* 磁盘是唯一真相，不再往 localStorage 里塞一份 */
     }
-    try { window.localStorage.setItem(projStoreKey(), JSON.stringify(project)); } catch (e) {}
+    if (storageWarned && Date.now() < storageRetryAt) return false;
+    try {
+      window.localStorage.setItem(projStoreKey(), JSON.stringify(project));
+      if (storageWarned) {
+        clearStorageNotice();
+        log('本地自动保存已恢复。', 'ok');
+      }
+      return true;
+    } catch (e) {
+      var hadNotice = !!storageNotice;
+      storageWarned = true;
+      storageRetryAt = Date.now() + 5000;
+      showStorageNotice();
+      if (!hadNotice) log('自动保存失败：本地存储写入被拒绝，请导出工程备份。', 'err');
+      return false;
+    }
   }
   function readProject(key) {
     try {
@@ -7900,7 +7996,7 @@ void main()
       localStorage.setItem('c51.theme', light ? 'light' : 'dark');
     } catch (e) { /* 忽略 */ }
     var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', light ? '#f4f6f9' : '#0a0b0e');
+    if (meta) meta.setAttribute('content', light ? '#f2f7f9' : '#0a0b0e');
   }
   if ($('btn-theme')) $('btn-theme').onclick = function () {
     var light = !document.documentElement.classList.contains('light');
@@ -8107,10 +8203,10 @@ void main()
     });
   })();
 
-  /* 离开页面前提醒还没保存的改动 */
+  /* 离开页面前提醒还没保存的改动；本地存储写失败时也必须拦一下 */
   window.addEventListener('beforeunload', function (e) {
     flushSave();
-    if (project.fs && dirtyCount()) {
+    if (storageWarned || (project.fs && dirtyCount())) {
       e.preventDefault();
       e.returnValue = '';
       return '';

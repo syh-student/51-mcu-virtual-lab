@@ -52,6 +52,23 @@ const registry = {};
 ids.forEach(id => { registry[id] = new El('div'); registry[id].id = id; });
 registry.speed.value = '1';
 
+/* 给界面代码一个可用的 localStorage；默认写入成功，方便单独模拟配额失败 */
+const store = {};
+const localStorageStub = {
+  failWrites: false,
+  getItem(k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
+  setItem(k, v) {
+    if (localStorageStub.failWrites) {
+      const err = new Error('QuotaExceededError');
+      err.name = 'QuotaExceededError';
+      throw err;
+    }
+    store[k] = String(v);
+  },
+  removeItem(k) { delete store[k]; },
+  clear() { Object.keys(store).forEach(k => delete store[k]); }
+};
+
 const rafQueue = [];
 const docHandlers = {};
 const sandbox = {
@@ -65,6 +82,7 @@ const sandbox = {
     addEventListener: (t, fn) => { (docHandlers[t] = docHandlers[t] || []).push(fn); }
   },
   requestAnimationFrame: fn => { rafQueue.push(fn); return rafQueue.length; },
+  localStorage: localStorageStub,
   setTimeout: () => 0,
   clearTimeout: () => {},
   addEventListener: () => {},

@@ -9,6 +9,7 @@
   var ledEls = [], ledHalo = [], segEls = [], dpEls = [], lcdLines = [], keyEls = {}, buzzerEl = null, buzzerText = null;
   var portBits = {}, portHex = {};
   var lastGutterLine = -1;
+  var storageWarned = false, storageRetryAt = 0, storageNotice = null;
 
   /* ---------------- 控制台 ---------------- */
   function log(msg, cls) {
@@ -18,6 +19,62 @@
     consoleEl.appendChild(d);
     consoleEl.scrollTop = consoleEl.scrollHeight;
     while (consoleEl.childNodes.length > 200) consoleEl.removeChild(consoleEl.firstChild);
+  }
+
+  /* 本地自动保存失败：不能只往控制台丢一行字，否则用户会以为代码已经存住了 */
+  function showStorageNotice() {
+    if (storageNotice || !document.body) return;
+    var box = document.createElement('div');
+    box.className = 'notice storage-notice';
+    box.setAttribute('role', 'alert');
+    box.setAttribute('aria-live', 'assertive');
+
+    var text = document.createElement('div');
+    text.className = 'notice-text';
+    text.textContent = '自动保存失败：浏览器本地存储可能已满或被禁用。代码还在编辑器里，但刷新或关闭页面会丢；请先导出工程备份。';
+
+    var actions = document.createElement('div');
+    actions.className = 'notice-actions';
+
+    var exportBtn = document.createElement('button');
+    exportBtn.type = 'button';
+    exportBtn.className = 'play sm';
+    exportBtn.textContent = '导出工程';
+    exportBtn.onclick = function () { exportProjectFile(); };
+
+    var retryBtn = document.createElement('button');
+    retryBtn.type = 'button';
+    retryBtn.className = 'ghost';
+    retryBtn.textContent = '重试';
+    retryBtn.onclick = function () {
+      storageRetryAt = 0;
+      if (!saveProject()) log('仍然无法写入本地存储，请先导出工程。', 'err');
+    };
+
+    var closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'ghost';
+    closeBtn.textContent = '\u00d7';
+    closeBtn.setAttribute('aria-label', '关闭保存失败提示');
+    closeBtn.onclick = function () {
+      if (storageNotice && storageNotice.parentNode) storageNotice.parentNode.removeChild(storageNotice);
+      storageNotice = null;
+    };
+
+    actions.appendChild(exportBtn);
+    actions.appendChild(retryBtn);
+    actions.appendChild(closeBtn);
+    box.appendChild(text);
+    box.appendChild(actions);
+    document.body.appendChild(box);
+    storageNotice = box;
+  }
+
+  function clearStorageNotice() {
+    storageWarned = false;
+    storageRetryAt = 0;
+    if (storageNotice && storageNotice.parentNode) storageNotice.parentNode.removeChild(storageNotice);
+    storageNotice = null;
   }
 
   /* ---------------- 画开发板 ---------------- */
@@ -1229,9 +1286,24 @@
     if (project.fs) {
       /* 第一次改动时给树上的文件点亮小圆点，之后不再重绘（免得每敲一个字都重排） */
       if (cur && !cur.dirty) { cur.dirty = true; updateFsUi(); renderTree(); }
-      return;                      /* 磁盘是唯一真相，不再往 localStorage 里塞一份 */
+      return true;                 /* 磁盘是唯一真相，不再往 localStorage 里塞一份 */
     }
-    try { window.localStorage.setItem(projStoreKey(), JSON.stringify(project)); } catch (e) {}
+    if (storageWarned && Date.now() < storageRetryAt) return false;
+    try {
+      window.localStorage.setItem(projStoreKey(), JSON.stringify(project));
+      if (storageWarned) {
+        clearStorageNotice();
+        log('本地自动保存已恢复。', 'ok');
+      }
+      return true;
+    } catch (e) {
+      var hadNotice = !!storageNotice;
+      storageWarned = true;
+      storageRetryAt = Date.now() + 5000;
+      showStorageNotice();
+      if (!hadNotice) log('自动保存失败：本地存储写入被拒绝，请导出工程备份。', 'err');
+      return false;
+    }
   }
   function readProject(key) {
     try {
@@ -2752,7 +2824,7 @@
       localStorage.setItem('c51.theme', light ? 'light' : 'dark');
     } catch (e) { /* 忽略 */ }
     var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', light ? '#f4f6f9' : '#0a0b0e');
+    if (meta) meta.setAttribute('content', light ? '#f2f7f9' : '#0a0b0e');
   }
   if ($('btn-theme')) $('btn-theme').onclick = function () {
     var light = !document.documentElement.classList.contains('light');
@@ -2959,10 +3031,10 @@
     });
   })();
 
-  /* 离开页面前提醒还没保存的改动 */
+  /* 离开页面前提醒还没保存的改动；本地存储写失败时也必须拦一下 */
   window.addEventListener('beforeunload', function (e) {
     flushSave();
-    if (project.fs && dirtyCount()) {
+    if (storageWarned || (project.fs && dirtyCount())) {
       e.preventDefault();
       e.returnValue = '';
       return '';
