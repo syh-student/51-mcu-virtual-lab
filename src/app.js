@@ -5431,6 +5431,34 @@ void keys_scan()
     }
   }
 
+  /* 保存并应用：把编辑器里的代码落盘/存档，然后重新 build，等于换一块刚上电的板 */
+  function saveAndApply() {
+    flushSave();
+    var saved = saveProject();
+    if (project.fs) saveAll();
+    state = 'stopped';
+    pausedAtBp = false;
+    var ok = build();
+    if (!ok) {
+      log('代码已保存，但编译未通过，开发板没有应用新代码。', 'err');
+      updateButtons();
+      return;
+    }
+    state = 'stopped';
+    setStatus('stopped', saved ? '已保存 · 开发板已复位' : '已应用 · 存档失败');
+    if (curPage === 'board' && boardView === 'pin') {
+      sendPinCode();
+      postHw({ type: 'hw:reset' });
+    }
+    log(saved
+      ? '已保存并应用：代码已重新编译，开发板已回到初始状态。'
+      : '代码已重新应用，但浏览器存档失败；开发板已回到初始状态，请用「存工程」导出备份。',
+      saved ? 'ok' : 'warn');
+    forceRender = true;
+    updateButtons();
+    renderDebug();
+  }
+
   function setStatus(cls, text) {
     var s = $('status');
     s.className = 'status' + (cls === 'running' ? ' running' : cls === 'error' ? ' error' : '');
@@ -5468,6 +5496,7 @@ void keys_scan()
   }
 
   $('btn-run').onclick = function () { startRun(); updateButtons(); };
+  $('btn-save-apply').onclick = function () { saveAndApply(); };
   $('btn-pause').onclick = function () {
     if (state === 'running') {
       state = 'paused';

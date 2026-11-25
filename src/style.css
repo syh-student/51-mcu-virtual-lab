@@ -239,6 +239,29 @@ html.light .nav-item.on { color: #ffffff; }
 .play:hover { transform: translateY(-1px); filter: brightness(1.08); box-shadow: 0 12px 28px rgba(63, 154, 214, .3), inset 0 1px 0 rgba(255, 255, 255, .2); }
 .play:active { transform: translateY(0); filter: brightness(.96); }
 .play svg { width: 12px; height: 12px; }
+.savebtn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 11px;
+  border: 1px solid var(--line);
+  background: rgba(var(--fg-rgb), .06);
+  color: rgba(var(--fg-rgb), .82);
+  font-family: var(--sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: .03em;
+  cursor: pointer;
+  transition: background .25s var(--ease), transform .2s var(--ease), border-color .25s, color .25s;
+  -webkit-tap-highlight-color: transparent;
+}
+.savebtn:hover { background: rgba(var(--fg-rgb), .11); border-color: rgba(var(--fg-rgb), .16); transform: translateY(-1px); color: var(--ink); }
+.savebtn:active { transform: translateY(0); background: rgba(var(--fg-rgb), .08); }
+.savebtn svg { width: 13px; height: 13px; }
+.savebtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .circle {
   appearance: none;
   width: 36px;
@@ -1625,6 +1648,7 @@ body.zoomed .appbar { display: none; }
 @media (max-width: 1240px) {
   .nav-item { padding: 6px 13px; font-size: 11px; }
   .play { height: 34px; padding: 0 15px; font-size: 12.5px; }
+  .savebtn { height: 34px; padding: 0 11px; font-size: 12px; }
   .circle { width: 34px; height: 34px; }
   .circle svg { width: 14px; height: 14px; }
   .speed input { width: 44px; }
@@ -1816,7 +1840,7 @@ html.light .marks i.focus { background: rgba(36, 56, 68, .05); }
 .snap-empty { color: var(--faint); font-size: 11px; padding: 10px 2px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .reticle, .board-tip, .circle, .play, .ex-btn,
+  .reticle, .board-tip, .circle, .play, .savebtn, .ex-btn,
   .ghost, .status::before, .seg button { transition-duration: .001ms !important; }
   .status.running::before { animation: none; }
 }

@@ -260,6 +260,29 @@ html.light .nav-item.on { color: #ffffff; }
 .play:hover { transform: translateY(-1px); filter: brightness(1.08); box-shadow: 0 12px 28px rgba(63, 154, 214, .3), inset 0 1px 0 rgba(255, 255, 255, .2); }
 .play:active { transform: translateY(0); filter: brightness(.96); }
 .play svg { width: 12px; height: 12px; }
+.savebtn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 11px;
+  border: 1px solid var(--line);
+  background: rgba(var(--fg-rgb), .06);
+  color: rgba(var(--fg-rgb), .82);
+  font-family: var(--sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: .03em;
+  cursor: pointer;
+  transition: background .25s var(--ease), transform .2s var(--ease), border-color .25s, color .25s;
+  -webkit-tap-highlight-color: transparent;
+}
+.savebtn:hover { background: rgba(var(--fg-rgb), .11); border-color: rgba(var(--fg-rgb), .16); transform: translateY(-1px); color: var(--ink); }
+.savebtn:active { transform: translateY(0); background: rgba(var(--fg-rgb), .08); }
+.savebtn svg { width: 13px; height: 13px; }
+.savebtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .circle {
   appearance: none;
   width: 36px;
@@ -1646,6 +1669,7 @@ body.zoomed .appbar { display: none; }
 @media (max-width: 1240px) {
   .nav-item { padding: 6px 13px; font-size: 11px; }
   .play { height: 34px; padding: 0 15px; font-size: 12.5px; }
+  .savebtn { height: 34px; padding: 0 11px; font-size: 12px; }
   .circle { width: 34px; height: 34px; }
   .circle svg { width: 14px; height: 14px; }
   .speed input { width: 44px; }
@@ -1837,7 +1861,7 @@ html.light .marks i.focus { background: rgba(36, 56, 68, .05); }
 .snap-empty { color: var(--faint); font-size: 11px; padding: 10px 2px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .reticle, .board-tip, .circle, .play, .ex-btn,
+  .reticle, .board-tip, .circle, .play, .savebtn, .ex-btn,
   .ghost, .status::before, .seg button { transition-duration: .001ms !important; }
   .status.running::before { animation: none; }
 }
@@ -2027,7 +2051,7 @@ try { if (localStorage.getItem('c51.theme') === 'light') document.documentElemen
   </div>
   <div class="head-right">
     <span class="head-note">例程 01—15 · 离线可用</span>
-    <span class="build-tag" id="build-tag">构建 11-25 22:43</span>
+    <span class="build-tag" id="build-tag">构建 11-25 22:53</span>
     <span id="status" class="status">已停止</span>
   </div>
 </header>
@@ -2048,6 +2072,12 @@ try { if (localStorage.getItem('c51.theme') === 'light') document.documentElemen
         <path d="M5 3.4v9.2l7.6-4.6-7.6-4.6z"/>
       </svg>
       <span id="btn-run-label">运行</span>
+    </button>
+    <button class="savebtn" id="btn-save-apply" type="button" title="保存当前代码并重新应用；开发板回到初始状态">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3.2 2.8h8.1l2.7 2.7v7.7H3.2z"/><path d="M5.4 2.8v4h5.2V2.8"/><path d="M5.2 13.2v-3.6h5.6v3.6"/>
+      </svg>
+      <span>保存</span>
     </button>
     <button class="circle" id="btn-pause" type="button" title="暂停" aria-label="暂停">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
@@ -10621,6 +10651,34 @@ void keys_scan()
     }
   }
 
+  /* 保存并应用：把编辑器里的代码落盘/存档，然后重新 build，等于换一块刚上电的板 */
+  function saveAndApply() {
+    flushSave();
+    var saved = saveProject();
+    if (project.fs) saveAll();
+    state = 'stopped';
+    pausedAtBp = false;
+    var ok = build();
+    if (!ok) {
+      log('代码已保存，但编译未通过，开发板没有应用新代码。', 'err');
+      updateButtons();
+      return;
+    }
+    state = 'stopped';
+    setStatus('stopped', saved ? '已保存 · 开发板已复位' : '已应用 · 存档失败');
+    if (curPage === 'board' && boardView === 'pin') {
+      sendPinCode();
+      postHw({ type: 'hw:reset' });
+    }
+    log(saved
+      ? '已保存并应用：代码已重新编译，开发板已回到初始状态。'
+      : '代码已重新应用，但浏览器存档失败；开发板已回到初始状态，请用「存工程」导出备份。',
+      saved ? 'ok' : 'warn');
+    forceRender = true;
+    updateButtons();
+    renderDebug();
+  }
+
   function setStatus(cls, text) {
     var s = $('status');
     s.className = 'status' + (cls === 'running' ? ' running' : cls === 'error' ? ' error' : '');
@@ -10658,6 +10716,7 @@ void keys_scan()
   }
 
   $('btn-run').onclick = function () { startRun(); updateButtons(); };
+  $('btn-save-apply').onclick = function () { saveAndApply(); };
   $('btn-pause').onclick = function () {
     if (state === 'running') {
       state = 'paused';

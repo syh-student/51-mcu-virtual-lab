@@ -45,7 +45,7 @@ class El {
   set selectionEnd(v) { this._selE = v; }
 }
 
-const ids = ['status', 'btn-run', 'btn-run-label', 'btn-pause', 'btn-step', 'btn-reset', 'speed', 'speed-val',
+const ids = ['status', 'btn-run', 'btn-run-label', 'btn-save-apply', 'btn-pause', 'btn-step', 'btn-reset', 'speed', 'speed-val',
   'ex-list', 'gutter', 'code', 'cur-line', 'vtime', 'steps', 'ex-chapter', 'ex-goal',
   'ex-points', 'ex-quiz', 'quiz-wrap', 'board', 'btn-sound', 'ports', 'console', 'btn-clear'];
 const registry = {};
@@ -172,6 +172,25 @@ try {
     t += 16; cbs.forEach(fn => fn(t));
   }
   console.log('单步与复位无异常');
+
+  /* 保存并应用：代码改动先保存，build 后开发板回到初始状态 */
+  const saveCode = registry['code'];
+  saveCode.value += '\n// 保存测试';
+  saveCode.selectionStart = saveCode.value.length;
+  saveCode.selectionEnd = saveCode.value.length;
+  saveCode.handlers.input[0].call(saveCode);
+  registry['btn-save-apply'].onclick();
+  for (let i = 0; i < 5; i++) {
+    const cbs = rafQueue.splice(0, rafQueue.length);
+    t += 16; cbs.forEach(fn => fn(t));
+  }
+  if (!/已保存/.test(registry.status.textContent)) {
+    console.log('FAIL 保存按钮没有生效：' + registry.status.textContent); process.exit(1);
+  }
+  if (registry['vtime'].textContent !== '0 ms') {
+    console.log('FAIL 保存后开发板没有复位：vtime=' + registry['vtime'].textContent); process.exit(1);
+  }
+  console.log('保存并应用 → 状态=' + registry.status.textContent + '，虚拟时间=' + registry['vtime'].textContent);
 
   /* 放大看板：第一下跳页，第二下全屏，第三下退出 */
   const card = registry['board-card'], zoom = registry['btn-zoom'];
