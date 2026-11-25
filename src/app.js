@@ -2974,10 +2974,11 @@ void keys_scan()
       chain = chain.then(function () {
         var parts = p.split('/');
         var dirP = Promise.resolve(root);
-        for (var i = 0; i < parts.length - 1; i++) {
-          var seg = parts[i];
+        /* 用回调参数而不是 for 里的 var：否则 Promise 链异步执行时，
+           所有闭包都会拿到循环结束后的同一个 seg，深层目录会读错。 */
+        parts.slice(0, -1).forEach(function (seg) {
           dirP = dirP.then(function (dir) { return dir.getDirectoryHandle(seg); });
-        }
+        });
         return dirP.then(function (dir) {
           return dir.getFileHandle(parts[parts.length - 1]);
         }).then(function (h) {
@@ -4510,6 +4511,7 @@ void keys_scan()
     st.t = now;
   }
   function applyHist(v) {
+    acClose();
     codeEl.value = v;
     var f = fileOf(project.active);
     if (f) f.content = v;
@@ -5797,6 +5799,7 @@ void keys_scan()
     if (!acEl) acEl = $('ac');
     if (!acEl) return;
     acEl.innerHTML = '';
+    acEl.scrollTop = 0;
     hits.forEach(function (it, i) {
       var row = document.createElement('div');
       row.className = 'ac-item' + (i === 0 ? ' on' : '');
@@ -5833,6 +5836,10 @@ void keys_scan()
     Array.prototype.forEach.call(acEl.children, function (el, i) {
       el.className = 'ac-item' + (i === acIndex ? ' on' : '');
     });
+    var row = acEl.children[acIndex];
+    if (row && typeof row.scrollIntoView === 'function') {
+      row.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
   }
 
   function acAccept() {
@@ -5846,6 +5853,7 @@ void keys_scan()
   }
 
   function applyEdit(v, s, e) {
+    acClose();
     codeEl.value = v;
     codeEl.selectionStart = s;
     codeEl.selectionEnd = (e == null ? s : e);

@@ -458,6 +458,10 @@ try {
       kd.call(code, { key: 'Escape', preventDefault() {} });
       expect('Esc 后补全下拉收起', ac.hidden === true && ac.children.length === 0, true);
 
+      code.handlers.input[0].call(code);
+      key('/', { ctrlKey: true });
+      expect('撤销/整行注释等程序化编辑后补全下拉收起', ac.hidden === true && ac.children.length === 0, true);
+
       console.log('\n界面冒烟测试通过');
       if (fail) process.exit(1);
     });
