@@ -1971,9 +1971,12 @@
   }
 
   function createDemo() {
+    flushSave();
+    curExample = null;                 /* 多文件示例是自定义工程，不能沿用上一条例程的存档键 */
     project = {
       name: '多文件示例',
       folders: [],
+      folderGroup: {},
       open: ['main.c', 'led.h', 'led.c'],
       active: 'main.c',
       fs: false,
@@ -2563,6 +2566,9 @@
       files: project.files.map(function (f) {
         return { path: f.path, content: String(f.content == null ? '' : f.content) };
       }),
+      folders: (project.folders || []).slice(),
+      folderGroup: (project.folderGroup && typeof project.folderGroup === 'object'
+        && !Array.isArray(project.folderGroup)) ? project.folderGroup : {},
       groups: project.groups.map(function (g) { return { name: g.name, files: g.files.slice() }; }),
       open: project.open.slice(),
       active: project.active
@@ -2616,21 +2622,50 @@
 
   /* 把工程 JSON 应用到当前工作区：开工程文件、恢复快照共用 */
   function applyProjectData(data) {
+    if (!data || typeof data !== 'object') {
+      log('工程数据不是有效对象。', 'err');
+      return false;
+    }
+    var inputFiles = Array.isArray(data.files) ? data.files : [];
+    var files = inputFiles.filter(function (f) { return f && f.path; }).map(function (f) {
+      return {
+        path: normPath(f.path),
+        content: String(f.content == null ? '' : f.content),
+        handle: null, dirty: false
+      };
+    });
+    if (!files.length) {
+      log('工程里没有可用的文件。', 'err');
+      return false;
+    }
+    var folders = [];
+    if (Array.isArray(data.folders)) {
+      data.folders.forEach(function (fd) {
+        var p = normPath(fd);
+        if (p && folders.indexOf(p) < 0) folders.push(p);
+      });
+    }
+    var folderGroup = {};
+    if (data.folderGroup && typeof data.folderGroup === 'object'
+        && !Array.isArray(data.folderGroup)) {
+      Object.keys(data.folderGroup).forEach(function (k) {
+        var p = normPath(k);
+        if (p) folderGroup[p] = String(data.folderGroup[k]);
+      });
+    }
+    /* 替换工程前先把待写的内容落盘，避免 300ms 的存档定时器把新工程写到旧键 */
+    flushSave();
     project = {
       name: data.name || '导入的工程',
-      files: data.files.filter(function (f) { return f && f.path; }).map(function (f) {
-        return {
-          path: normPath(f.path),
-          content: String(f.content == null ? '' : f.content),
-          handle: null, dirty: false
-        };
-      }),
-      folders: [],
+      files: files,
+      folders: folders,
+      folderGroup: folderGroup,
       groups: Array.isArray(data.groups) ? data.groups : [],
       open: [], active: '', fs: false
     };
     ensureGroups(project);
-    project.open = (data.open || []).filter(function (p) { return !!fileOf(p); });
+    var open = Array.isArray(data.open) ? data.open : [];
+    project.open = open.filter(function (p) { return !!fileOf(p); });
     if (!project.open.length) project.open = [project.files[0].path];
     project.active = fileOf(data.active) ? data.active : project.open[0];
     curExample = null;
@@ -2647,6 +2682,7 @@
     build();
     log('已打开工程「' + project.name + '」，' + project.files.length
       + ' 个文件，' + project.groups.length + ' 个分组', 'ok');
+    return true;
   }
 
   /* ---------------- 工程快照：存到 localStorage，随时恢复 ---------------- */
@@ -3050,6 +3086,8 @@
       if (sel0) sel0.value = curExample ? curExample.id : id;
       return;
     }
+    /* 切换例程前先把待写的改动落到当前工程的键，避免定时器把旧内容写进新例程 */
+    flushSave();
     curExample = ex;
     state = 'stopped';
     var saved = readProject(id);
@@ -3124,7 +3162,7 @@
     if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; saveProject(); }
   }
   function saveCode() {
-    if (!curExample) return;
+    /* 自定义工程（curExample 为空）也要按 free 键自动保存；磁盘模式由 saveProjectSoon 分流 */
     saveProjectSoon();
   }
 
@@ -3610,8 +3648,9 @@
         ta.value = t;
         document.body.appendChild(ta);
         ta.select();
-        document.execCommand('copy');
+        var ok = document.execCommand('copy');
         document.body.removeChild(ta);
+        if (!ok) throw new Error('copy command rejected');
         res();
       } catch (e) { rej(e); }
     });
@@ -5720,7 +5759,13 @@
   setPage('code');
   var hash = (typeof location !== 'undefined' && location.hash) || '';
   var m = /ex=([\w-]+)/.exec(hash);
-  loadExample(m ? m[1] : 'led-on');
+  var hasSharedProject = /[#&]p=[A-Za-z0-9_-]+/.test(hash);
+  var hasSharedCode = /[#&]c=[A-Za-z0-9_-]+/.test(hash);
+  /* 没有显式例程/分享参数时，优先恢复浏览器里的 free 工程；否则才载入默认例程 */
+  var freeSaved = (!m && !hasSharedProject && !hasSharedCode) ? readProject('free') : null;
+  if (!freeSaved || !applyProjectData(freeSaved)) {
+    loadExample(m ? m[1] : 'led-on');
+  }
   paintCode();
   updateCursor();
   renderWatch();
@@ -5737,13 +5782,16 @@
           name: shared.name || '分享的工程',
           files: shared.files.filter(function (f) { return f && f.path; })
             .map(function (f) { return { path: f.path, content: String(f.content == null ? '' : f.content) }; }),
-          folders: shared.folders || [],
-          groups: shared.groups || [],
-          open: (shared.open || []).filter(function (x) {
+          folders: Array.isArray(shared.folders) ? shared.folders : [],
+          folderGroup: (shared.folderGroup && typeof shared.folderGroup === 'object'
+            && !Array.isArray(shared.folderGroup)) ? shared.folderGroup : {},
+          groups: Array.isArray(shared.groups) ? shared.groups : [],
+          open: (Array.isArray(shared.open) ? shared.open : []).filter(function (x) {
             return shared.files.some(function (f) { return f.path === x; });
           }),
           active: shared.active || shared.files[0].path
         };
+        curExample = null;
         ensureGroups(project);
         if (!project.open.length) project.open = [project.files[0].path];
         if (!fileOf(project.active)) project.active = project.files[0].path;
@@ -5769,6 +5817,7 @@
       refreshGutter();
       paintCode();
       build();
+      curExample = null;               /* 分享代码是自定义内容，不能写回例程存档 */
       log('已从分享链接还原代码（' + codeEl.value.length + ' 个字符）。', 'ok');
     } catch (e) {
       log('分享链接里的代码解析失败，已退回例程原版。', 'err');
@@ -5796,6 +5845,7 @@
       codeEl.readOnly = false;
       roSetLock(false);
       roBar.remove();
+      curExample = null;               /* 副本归到 free 工程，别覆盖被分享例程的存档 */
       project.name += '（副本）';
       saveProject();
       log('已复制为可编辑工程「' + project.name + '」，随便改。', 'ok');
