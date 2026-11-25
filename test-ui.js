@@ -45,7 +45,7 @@ class El {
   set selectionEnd(v) { this._selE = v; }
 }
 
-const ids = ['status', 'btn-run', 'btn-step', 'btn-reset', 'speed', 'speed-val',
+const ids = ['status', 'btn-run', 'btn-run-label', 'btn-pause', 'btn-step', 'btn-reset', 'speed', 'speed-val',
   'ex-list', 'gutter', 'code', 'cur-line', 'vtime', 'steps', 'ex-chapter', 'ex-goal',
   'ex-points', 'ex-quiz', 'quiz-wrap', 'board', 'btn-sound', 'ports', 'console', 'btn-clear'];
 const registry = {};
@@ -128,6 +128,31 @@ try {
   console.log('控制台条数=' + registry.console.children.length);
   const errs = registry.console.children.filter(c => c.className === 'err');
   if (errs.length) { console.log('FAIL 控制台有错误: ' + errs.map(e => e.textContent).join(' | ')); process.exit(1); }
+
+  /* 运行中改代码：提示仍是旧程序；暂停后按钮要变“重新运行”，不能悄悄续跑旧 VM */
+  const codeEl = registry['code'];
+  codeEl.value += '\n// 运行中追加的注释';
+  codeEl.selectionStart = codeEl.value.length;
+  codeEl.selectionEnd = codeEl.value.length;
+  codeEl.handlers.input[0].call(codeEl);
+  if (!/代码已修改/.test(registry.status.textContent)) {
+    console.log('FAIL 运行中改代码没有提示旧程序：' + registry.status.textContent); process.exit(1);
+  }
+  console.log('运行中改代码 → 状态=' + registry.status.textContent + '，按钮=' + registry['btn-run-label'].textContent);
+  registry['btn-pause'].onclick();
+  if (registry['btn-run-label'].textContent !== '重新运行') {
+    console.log('FAIL 暂停后改代码按钮仍是：' + registry['btn-run-label'].textContent); process.exit(1);
+  }
+  registry['btn-run'].onclick();
+  for (let i = 0; i < 20; i++) {
+    const cbs = rafQueue.splice(0, rafQueue.length);
+    t += 16; cbs.forEach(fn => fn(t));
+  }
+  const resumeLog = registry.console.children.map(c => c.textContent).join('|');
+  if (resumeLog.indexOf('不会从暂停点继续') < 0) {
+    console.log('FAIL 暂停后改代码仍续跑旧程序：' + resumeLog); process.exit(1);
+  }
+  console.log('暂停改代码后继续 → 已重新编译，状态=' + registry.status.textContent);
 
   /* 串口发送：运行中往板子发两个字节 */
   registry['serial-tx'].value = 'AB';

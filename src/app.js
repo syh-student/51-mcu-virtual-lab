@@ -6,6 +6,8 @@
 
   var codeEl = $('code'), gutter = $('gutter'), consoleEl = $('console');
   var vm = null, hw = null, state = 'stopped', speed = 1, curExample = null;
+  /* 代码在上次 build 之后又改过：旧 VM 不会自动重编译，继续跑的是旧程序 */
+  var codeStale = false;
   var ledEls = [], ledHalo = [], segEls = [], dpEls = [], lcdLines = [], keyEls = {}, buzzerEl = null, buzzerText = null;
   var portBits = {}, portHex = {};
   var lastGutterLine = -1;
@@ -4519,6 +4521,7 @@ void keys_scan()
     paintCode();
     updateCursor();
     saveCode();
+    markCodeChanged();
   }
   function histUndo() {
     var st = histSt();
@@ -5322,6 +5325,7 @@ void keys_scan()
       hw = C51HW.createHardware();
       hw.bounce.on = bounceOn;
       vm = new C51.VM('', hw, unit.ast);
+      codeStale = false;
       rebuildBpKeys();
       hw.syncAll(vm);
       resetRenderCache();
@@ -5435,14 +5439,26 @@ void keys_scan()
 
   function updateButtons() {
     var label = $('btn-run-label') || $('btn-run');
-    if (label) label.textContent = state === 'paused' ? '继续' : '运行';
+    if (label) {
+      if (state === 'paused') label.textContent = codeStale ? '重新运行' : '继续';
+      else if (state === 'running' && codeStale) label.textContent = '重新运行';
+      else label.textContent = '运行';
+      label.title = state === 'paused' && codeStale
+        ? '代码已修改：会重新编译并从 main 重新运行，不会从暂停点继续'
+        : (state === 'running' && codeStale ? '代码已修改：点击会重新编译并从头运行' : '');
+    }
     var p = $('btn-pause');
     if (p) p.disabled = state !== 'running';
   }
 
   function startRun() {
+    /* 暂停后改过代码：继续旧 VM 会跑旧程序，必须重新编译、从 main 重新开始 */
+    if (state === 'paused' && vm && !vm.done && codeStale) {
+      log('代码已修改：不会从暂停点继续，已重新编译并从 main 重新运行。', 'warn');
+      if (!build()) return;
+    }
     /* 只有"暂停后继续"才沿用旧实例；其余情况都按当前代码重新构建 */
-    if (state !== 'paused' || !vm || vm.done) { if (!build()) return; }
+    else if (state !== 'paused' || !vm || vm.done) { if (!build()) return; }
     if (!vm) return;
     state = 'running';
     pausedAtBp = false;
@@ -5453,7 +5469,10 @@ void keys_scan()
 
   $('btn-run').onclick = function () { startRun(); updateButtons(); };
   $('btn-pause').onclick = function () {
-    if (state === 'running') { state = 'paused'; setStatus('paused', '已暂停'); }
+    if (state === 'running') {
+      state = 'paused';
+      setStatus('paused', codeStale ? '已暂停 · 代码已修改' : '已暂停');
+    }
     forceRender = true;
     updateButtons();
     renderDebug();
@@ -5604,11 +5623,23 @@ void keys_scan()
     gutter.scrollTop = codeEl.scrollTop;
     lastGutterLine = -1;
   }
+  /* 代码变了但没重新 build：正在跑的 VM 还是旧 AST，必须明确告诉用户 */
+  function markCodeChanged() {
+    codeStale = true;
+    if (state === 'running') {
+      setStatus('running', '运行中 · 代码已修改（当前仍是旧程序）');
+    } else if (state === 'paused') {
+      setStatus('paused', '已暂停 · 代码已修改');
+    }
+    updateButtons();
+  }
+
   codeEl.addEventListener('input', function () {
     var f = fileOf(project.active);
     if (f) f.content = codeEl.value;
     histRecord();
     refreshGutter(); paintCode(); saveCode(); updateCursor();
+    markCodeChanged();
     /* 暂停时改代码会把当前行标记一起重建掉，补回来（运行中下一帧也会自己补） */
     if (state === 'running' || state === 'paused') markLine(vmLocalLine());
     acShow();
@@ -5885,6 +5916,7 @@ void keys_scan()
     if (f) f.content = v;
     histRecord();
     refreshGutter(); paintCode(); saveCode(); updateCursor();
+    markCodeChanged();
   }
   codeEl.addEventListener('keydown', function (e) {
     if (e.isComposing || e.keyCode === 229) return;
