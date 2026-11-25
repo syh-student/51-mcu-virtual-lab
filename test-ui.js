@@ -462,6 +462,18 @@ try {
       key('/', { ctrlKey: true });
       expect('撤销/整行注释等程序化编辑后补全下拉收起', ac.hidden === true && ac.children.length === 0, true);
 
+      code.value = '/*\nDelay';
+      code.selectionStart = 8;
+      code.selectionEnd = 8;
+      code.handlers.input[0].call(code);
+      expect('多行块注释里不弹补全', ac.hidden === true && ac.children.length === 0, true);
+
+      code.value = 'char *s = "Delay";';
+      code.selectionStart = 14;
+      code.selectionEnd = 14;
+      code.handlers.input[0].call(code);
+      expect('字符串里不弹补全', ac.hidden === true && ac.children.length === 0, true);
+
       console.log('\n界面冒烟测试通过');
       if (fail) process.exit(1);
     });

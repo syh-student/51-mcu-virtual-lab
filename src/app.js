@@ -5770,6 +5770,32 @@ void keys_scan()
     if (codeEl.selectionStart !== acWord.end || codeEl.selectionEnd !== acWord.end) acClose();
   }
 
+  /* 光标位置是否在注释或字符串里：0=代码，1=行注释，2=块注释，3=字符串，4=字符 */
+  function acContextAt(src, pos) {
+    var state = 0, c, d;
+    for (var i = 0; i < pos; i++) {
+      c = src.charAt(i);
+      d = src.charAt(i + 1);
+      if (state === 0) {
+        if (c === '/' && d === '/') { state = 1; i++; }
+        else if (c === '/' && d === '*') { state = 2; i++; }
+        else if (c === '"') state = 3;
+        else if (c === "'") state = 4;
+      } else if (state === 1) {
+        if (c === '\n') state = 0;
+      } else if (state === 2) {
+        if (c === '*' && d === '/') { state = 0; i++; }
+      } else if (state === 3) {
+        if (c === '\\') i++;
+        else if (c === '"') state = 0;
+      } else if (state === 4) {
+        if (c === '\\') i++;
+        else if (c === "'") state = 0;
+      }
+    }
+    return state;
+  }
+
   function acCurrentWord() {
     var v = codeEl.value, s = codeEl.selectionStart, e = codeEl.selectionEnd;
     if (s !== e) return null;
@@ -5777,10 +5803,8 @@ void keys_scan()
     while (start > 0 && /[A-Za-z0-9_]/.test(v.charAt(start - 1))) start--;
     var word = v.slice(start, s);
     if (!word || !/^[A-Za-z_]/.test(word)) return null;
-    var lineStart = v.lastIndexOf('\n', start - 1) + 1;
-    var lineHead = v.slice(lineStart, start);
-    if (lineHead.indexOf('//') >= 0 || /\/\*/.test(lineHead)) return null;
-    return { start: start, end: s, word: word };
+    /* 不只看当前行：跨行块注释、字符串里的单词也不该弹补全 */
+    return acContextAt(v, start) === 0 ? { start: start, end: s, word: word } : null;
   }
 
   function acShow() {
