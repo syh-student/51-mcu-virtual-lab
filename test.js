@@ -433,15 +433,15 @@ function makeProjVM(files) {
   check('链接：错误里指出两处文件', /main\.c/.test(msg) && /b\.c/.test(msg), msg);
 }
 
-/* 22. 只有声明没有定义 → 警告 */
+/* 22. 调用没有定义的函数 → 硬错误（对齐 Keil 链接失败） */
 {
   const unit = C51.compileProject([
     { path: 'main.c', content: '#include <REGX52.H>\nvoid Missing(void);\nvoid main(){ Missing(); while(1){} }\n' }
   ]);
-  check('链接：未定义引用给警告', unit.warnings.length === 1 && /Missing/.test(unit.warnings[0].msg),
-    JSON.stringify(unit.warnings));
-  check('链接：未定义引用不算错误', unit.errors.length === 0,
+  check('链接：未定义引用算错误', unit.errors.length === 1 && /Missing/.test(unit.errors[0].msg),
     JSON.stringify(unit.errors));
+  check('链接：未定义引用不让构建通过', unit.warnings.length === 0,
+    JSON.stringify(unit.warnings));
 }
 
 /* 23. 同一头文件被重复 include 只展开一次 */
@@ -556,13 +556,19 @@ void main()
   check('#if 0：被屏蔽的分支不执行', vm2.ports.P2 === 0x22, 'P2=0x' + vm2.ports.P2.toString(16));
 }
 
-/* 32. 引号头文件找不到 → 报错 */
+/* 32. 引号头 / 尖括号自定义头找不到 → 都报错 */
 {
   const unit = C51.compileProject([
     { path: 'main.c', content: '#include "nope.h"\nvoid main(){ while(1){} }\n' }
   ]);
   check('include：缺头文件报错', unit.errors.some(e => /找不到头文件/.test(e.msg)),
     JSON.stringify(unit.errors));
+
+  const angle = C51.compileProject([
+    { path: 'main.c', content: '#include <foo.h>\nvoid main(){ while(1){} }\n' }
+  ]);
+  check('include：尖括号自定义头缺失也报错', angle.errors.some(e => /找不到头文件/.test(e.msg)),
+    JSON.stringify(angle.errors));
 }
 
 /* 33. typedef 基本类型别名 */
@@ -572,6 +578,13 @@ void main()
   ]);
   run(vm, 8);
   check('typedef：别名声明与赋值', vm.ports.P2 === 5, 'P2=' + vm.ports.P2);
+
+  const shortUnit = C51.compileProject([
+    { path: 'main.c', content: 'typedef unsigned short int u16;\ntypedef signed short int s16;\n'
+      + 'u16 a = 0x1234; s16 b = -1;\nvoid main(){ P2 = a; while(1){} }\n' }
+  ]);
+  check('typedef：unsigned short int / signed short int 能识别',
+    shortUnit.errors.length === 0, JSON.stringify(shortUnit.errors));
 }
 
 /* 34. struct 成员读写 */

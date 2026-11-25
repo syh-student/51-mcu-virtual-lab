@@ -177,11 +177,12 @@ try { if (localStorage.getItem('c51.theme') === 'light') document.documentElemen
             <div class="proj-f">
               <button id="btn-save" type="button" title="把所有改动写回磁盘（Ctrl + S）" hidden>保存</button>
               <button id="btn-save-proj" type="button" title="把整个工程（文件、分组、标签）存成一个 .json 文件">存工程</button>
-              <button id="btn-load-proj" type="button" title="打开之前存的工程文件">开工程</button>
-              <button id="btn-export" type="button" title="把整个工程打包成 zip（Keil 能直接用）">导出 zip</button>
+              <button id="btn-load-proj" type="button" title="打开工程文件：支持 c51proj.json；也支持先选 Keil .uvproj，再选源码目录">开工程</button>
+              <button id="btn-keil-demo" type="button" title="载入江协库风格多文件示例：disled / display / keyscan">江协库</button>
+              <button id="btn-export" type="button" title="把整个工程打包成 zip（只有源码，Keil 需新建工程后加入）">导出</button>
               <button id="btn-report" type="button" title="导出实验报告：代码 + 诊断 + 运行状态（Markdown）">报告</button>
             </div>
-            <input id="proj-input" type="file" accept=".json,application/json" hidden>
+            <input id="proj-input" type="file" accept=".json,.uvproj,.uvprojx,application/json,text/xml" hidden>
           </aside>
 
           <div class="editor-wrap">

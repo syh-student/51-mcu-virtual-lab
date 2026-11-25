@@ -236,7 +236,7 @@
   }
 
   /* ---------------- 语法分析 ---------------- */
-  var TYPE_WORD = /^(unsigned|signed|static|const|volatile|extern|code|data|idata|xdata|pdata)$/;
+  var TYPE_WORD = /^(unsigned|signed|static|const|volatile|extern|code|data|idata|xdata|pdata|short)$/;
   var BASE_WORD = /^(char|int|void|long|float|bit|sfr|sbit)$/;
 
   function Parser(toks) {
@@ -637,6 +637,19 @@
     return o;
   }
   function newFrame(name, line) { return { vars: {}, types: {}, fn: name || '', callLine: line || 0 }; }
+
+  /* ---------------- 头文件 ----------------
+     尖括号头不一定都在工程里；只有这些内置系统头允许缺失，其余自定义头缺失按错误处理。 */
+  var SYSTEM_HEADERS = {
+    'reg52.h': 1, 'regx52.h': 1, 'reg51.h': 1, 'intrins.h': 1,
+    'stdio.h': 1, 'string.h': 1, 'stdlib.h': 1, 'math.h': 1,
+    'ctype.h': 1, 'absacc.h': 1, 'stddef.h': 1, 'stdarg.h': 1,
+    'float.h': 1, 'limits.h': 1, 'stc89c52.h': 1, 'stc89c52rc.h': 1
+  };
+
+  function isSystemHeader(name) {
+    return !!SYSTEM_HEADERS[String(name || '').replace(/\\/g, '/').split('/').pop().toLowerCase()];
+  }
 
   /* ---------------- 8051 特殊功能寄存器 ----------------
      这些名字在 REGX52.H 里，源码没有 #include 也能直接用，避免"变量没有定义"的误导报错。
@@ -1386,8 +1399,11 @@
         var hit = byPath[m[2]] || byBase[baseName(m[2]).toLowerCase()];
         if (!hit) {
           pushLine('', f.path, i + 1);
-          /* 尖括号当系统头（寄存器名解释器内置），引号头找不到就是真错误 */
-          if (m[1] === '"') missing.push({ file: f.path, line: i + 1, name: m[2] });
+          /* 引号头找不到是错误；尖括号头只有内置系统头可以放行，
+             自定义头（headfile.h、led.h 等）找不到也必须报错。 */
+          if (m[1] === '"' || !isSystemHeader(m[2])) {
+            missing.push({ file: f.path, line: i + 1, name: m[2] });
+          }
           return;
         }
         if (seen[hit.path]) { pushLine('', f.path, i + 1); return; }
@@ -1401,7 +1417,7 @@
   }
 
   /* files: [{path, content}] → 可执行的合并 AST。
-     static 符号按文件改名隔离；重名定义报错；只有声明没有定义的函数给警告。 */
+     static 符号按文件改名隔离；重名定义报错；调用没有定义的函数按硬错误处理。 */
   function compileProject(files) {
     var srcs = (files || []).filter(function (f) { return /\.(c|inc)$/i.test(f.path); });
     srcs.sort(function (a, b) { return rankOf(a.path) - rankOf(b.path) || cmpName(a.path, b.path); });
@@ -1530,9 +1546,9 @@
         if (defined[n.name] || builtin[n.name] || warned[n.name]) return;
         warned[n.name] = 1;
         var w = where(n.line);
-        warnings.push({
+        errors.push({
           file: w.file, line: w.line,
-          msg: '函数「' + n.name + '」只有声明没有定义，运行到这一句会出错'
+          msg: '函数「' + n.name + '」没有定义；Keil 链接会失败，运行到这一句也会出错'
         });
       });
     });

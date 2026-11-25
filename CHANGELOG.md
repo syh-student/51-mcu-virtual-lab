@@ -2,8 +2,16 @@
 
 ## 未发布
 
+### 修复
+
+- 编译检查向 Keil 对齐：缺失的自定义尖括号头（如 `<headfile.h>`）、调用没有定义的函数（如 `disled`）现在按硬错误处理，不再以 `0 Error(s), 1 Warning(s)` 放行。
+- 导出 zip 的提示不再说“Keil 能直接用”：明确只导出源码，Keil 里需要先新建工程再加文件；README 同步补上“不生成 hex / 不含 STC-ISP”的边界。
+- 类型解析支持 `short`：`typedef unsigned short int uint16` / `signed short int int16` 这类江协库 `headfile.h` 写法可以直接编译，不再报 15 个语法错误。
+
 ### 新增
 
+- 工程树底部新增「江协库」按钮：一键载入 `user/main.c` + `library/led/display/delay/key` 的多文件示例，`disled` / `display` / `keyscan` 都能编译运行。
+- 「开工程」支持 Keil `.uvproj / .uvprojx`：选中工程文件后，再选 `project.uvproj` 所在目录，按工程里的路径把源码读进来；导入的是浏览器内快照，要写回磁盘仍用「打开文件夹」。
 - 工程树支持多级文件夹：按文件路径自动分层（`src/led.c` 会缩进到 `src/` 里），并接上了原本没入口的「＋文件夹」「重命名文件夹」「删除文件夹」。
 - 新建文件夹时记住所属分组，改名 / 删除会同步更新折叠状态与分组映射。
 - 分享链接带上文件夹归属，别人打开时树形一致。

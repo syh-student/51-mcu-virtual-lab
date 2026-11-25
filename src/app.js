@@ -2025,6 +2025,323 @@
     log('已生成多文件示例：main.c 调 led.c / delay.c，函数声明放在 .h 里。', 'ok');
   }
 
+  /* 江协库风格的多文件示例：disled / display / keyscan。
+     为了方便虚拟实验室解析，headfile.h 里的 uint16/uint32 用 unsigned int 表示；
+     8051 上 int 本来就是 16 位，位宽不变。 */
+  function createLibraryDemo() {
+    flushSave();
+    curExample = null;
+    project = {
+      name: '江协库·库函数示例',
+      folders: ['user', 'library'],
+      folderGroup: { user: 'User', library: 'Library' },
+      open: ['user/main.c', 'library/led.c', 'library/display.c', 'library/key.c'],
+      active: 'user/main.c',
+      fs: false,
+      groups: [
+        { name: 'User', files: ['user/headfile.h', 'user/main.c'] },
+        { name: 'Library', files: [
+          'library/led.h', 'library/led.c',
+          'library/display.h', 'library/display.c',
+          'library/delay.h', 'library/delay.c',
+          'library/key.h', 'library/key.c'
+        ] }
+      ],
+      files: [
+        {
+          path: 'user/headfile.h',
+          content: `#ifndef _headfile_h_
+#define _headfile_h_
+#include <reg52.h>
+
+/* 8051 的 int 是 16 位；这里统一用 unsigned int / signed int，
+   避免虚拟实验室解析器不认识 short。 */
+typedef unsigned char uint8;
+typedef unsigned int  uint16;
+typedef unsigned int  uint32;
+typedef unsigned long uint64;
+
+typedef signed char int8;
+typedef signed int  int16;
+typedef signed int  int32;
+typedef signed long int64;
+
+typedef volatile uint8  vuint8;
+typedef volatile uint16 vuint16;
+typedef volatile uint32 vuint32;
+typedef volatile uint64 vuint64;
+
+typedef volatile int8  vint8;
+typedef volatile int16 vint16;
+typedef volatile int32 vint32;
+typedef volatile int64 vint64;
+
+#endif
+`
+        },
+        {
+          path: 'user/main.c',
+          content: `#include <headfile.h>
+#include <led.h>
+#include <display.h>
+#include <key.h>
+
+void main()
+{
+    uint8 i;
+    uint8 n = 0;
+
+    while(1)
+    {
+        disled(1, 1);       /* 第 1 个 LED 亮 */
+        keyscan();          /* 扫描 K1~K4，键值放在 kv */
+        if(kv)
+        {
+            n = kv;
+            kv = 0;
+        }
+
+        for(i = 1; i <= 8; i++)
+        {
+            display(i, n);  /* 8 位数码管轮流显示当前键值 */
+        }
+
+        disled(2, 0);       /* 第 2 个 LED 不亮 */
+    }
+}
+`
+        },
+        {
+          path: 'library/led.h',
+          content: `#ifndef _led_h_
+#define _led_h_
+#include <headfile.h>
+
+sbit LED1=P2^0;
+sbit LED2=P2^1;
+sbit LED3=P2^2;
+sbit LED4=P2^3;
+sbit LED5=P2^4;
+sbit LED6=P2^5;
+sbit LED7=P2^6;
+sbit LED8=P2^7;
+
+void disled(uint8 location,uint8 light);
+
+#endif
+`
+        },
+        {
+          path: 'library/led.c',
+          content: `#include <led.h>
+
+void disled(uint8 location,uint8 light)
+{
+    P2=0xff;
+    if(!light)
+        P2=0xff;
+    else
+        switch(location)
+        {
+            case 1: LED1=0; break;
+            case 2: LED2=0; break;
+            case 3: LED3=0; break;
+            case 4: LED4=0; break;
+            case 5: LED5=0; break;
+            case 6: LED6=0; break;
+            case 7: LED7=0; break;
+            case 8: LED8=0; break;
+        }
+}
+`
+        },
+        {
+          path: 'library/display.h',
+          content: `#ifndef _display_h_
+#define _display_h_
+#include <headfile.h>
+
+void display(unsigned char Location,Number);
+
+#endif
+`
+        },
+        {
+          path: 'library/display.c',
+          content: `#include <display.h>
+#include <delay.h>
+
+unsigned char NixieTable[]={
+0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F,
+0x6F, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71, 0x76, 0x38,
+0x37, 0x3E, 0x40, 0x00 };
+
+sbit dis1=P2^2;
+sbit dis2=P2^3;
+sbit dis3=P2^4;
+
+void display(unsigned char Location,Number)
+{
+    switch(Location)
+    {
+        case 1: dis3=1; dis2=1; dis1=1; break;
+        case 2: dis3=1; dis2=1; dis1=0; break;
+        case 3: dis3=1; dis2=0; dis1=1; break;
+        case 4: dis3=1; dis2=0; dis1=0; break;
+        case 5: dis3=0; dis2=1; dis1=1; break;
+        case 6: dis3=0; dis2=1; dis1=0; break;
+        case 7: dis3=0; dis2=0; dis1=1; break;
+        case 8: dis3=0; dis2=0; dis1=0; break;
+    }
+    P0=NixieTable[Number];
+    Delay(1);
+    P0=0x00;
+}
+`
+        },
+        {
+          path: 'library/delay.h',
+          content: `#ifndef _delay_h_
+#define _delay_h_
+#include <headfile.h>
+
+void Delay(unsigned int xms);
+#endif
+`
+        },
+        {
+          path: 'library/delay.c',
+          content: `#include <delay.h>
+
+void Delay(unsigned int xms)
+{
+    unsigned char i, j;
+    while(xms--)
+    {
+        i = 2;
+        j = 239;
+        do
+        {
+            while (--j);
+        } while (--i);
+    }
+}
+`
+        },
+        {
+          path: 'library/key.h',
+          content: `#ifndef _key_h_
+#define _key_h_
+#include <headfile.h>
+
+sbit key1=P3^1;
+sbit key2=P3^0;
+sbit key3=P3^2;
+sbit key4=P3^3;
+
+sbit keys1=P1^0;
+sbit keys2=P1^1;
+sbit keys3=P1^2;
+sbit keys4=P1^3;
+sbit keys5=P1^4;
+sbit keys6=P1^5;
+sbit keys7=P1^6;
+sbit keys8=P1^7;
+
+extern uint8 kv;
+extern uint16 key_press_time,key_press_flag;
+
+void keyscan();
+void keys_scan();
+#endif
+`
+        },
+        {
+          path: 'library/key.c',
+          content: `#include <key.h>
+#include <delay.h>
+
+uint8 kv = 0;
+uint16 key_press_time = 0,key_press_flag = 0;
+
+void keyscan()
+{
+    static uint8 flag=0,time=0;
+    if(!key1 || !key2 || !key3 || !key4)
+    {
+        key_press_flag = 1;
+        if(flag==0 && ++time>20)
+        {
+            key_press_time = 0;
+            flag=1;
+            if(!key1) kv = 1;
+            if(!key2) kv = 2;
+            if(!key3) kv = 3;
+            if(!key4) kv = 4;
+        }
+        else
+        {
+            if(key_press_time++>60000) key_press_time=60000;
+        }
+    }
+    else
+    {
+        if(key_press_time>100)
+            kv=17;
+        flag=0;
+        time=0;
+        key_press_flag = 0;
+    }
+}
+
+void keys_scan()
+{
+    P1=0xFF;
+    keys4=0;
+    if(keys8==0){Delay(20);while(keys8==0);Delay(20);kv=1;}
+    if(keys7==0){Delay(20);while(keys7==0);Delay(20);kv=5;}
+    if(keys6==0){Delay(20);while(keys6==0);Delay(20);kv=9;}
+    if(keys5==0){Delay(20);while(keys5==0);Delay(20);kv=13;}
+
+    P1=0xFF;
+    keys3=0;
+    if(keys8==0){Delay(20);while(keys8==0);Delay(20);kv=2;}
+    if(keys7==0){Delay(20);while(keys7==0);Delay(20);kv=6;}
+    if(keys6==0){Delay(20);while(keys6==0);Delay(20);kv=10;}
+    if(keys5==0){Delay(20);while(keys5==0);Delay(20);kv=14;}
+
+    P1=0xFF;
+    keys2=0;
+    if(keys8==0){Delay(20);while(keys8==0);Delay(20);kv=3;}
+    if(keys7==0){Delay(20);while(keys7==0);Delay(20);kv=7;}
+    if(keys6==0){Delay(20);while(keys6==0);Delay(20);kv=11;}
+    if(keys5==0){Delay(20);while(keys5==0);Delay(20);kv=15;}
+
+    P1=0xFF;
+    keys1=0;
+    if(keys8==0){Delay(20);while(keys8==0);Delay(20);kv=4;}
+    if(keys7==0){Delay(20);while(keys7==0);Delay(20);kv=8;}
+    if(keys6==0){Delay(20);while(keys6==0);Delay(20);kv=12;}
+    if(keys5==0){Delay(20);while(keys5==0);Delay(20);kv=16;}
+}
+`
+        }
+      ]
+    };
+    ensureGroups(project);
+    codeEl.value = fileOf('user/main.c').content;
+    histMap = {};
+    histReset('user/main.c', codeEl.value);
+    renderTabs();
+    renderTree();
+    refreshGutter();
+    paintCode();
+    saveProject();
+    build();
+    updateFsUi();
+    log('已生成江协库风格示例：user/main.c 调用 library 里的 disled / display / keyscan。', 'ok');
+  }
+
   /* ---------------- 增删改：磁盘模式会同步到磁盘 ---------------- */
   function addFolders(path) {
     var parts = String(path).split('/');
@@ -2548,7 +2865,7 @@
       a.click();
       if (document.body && a.parentNode) document.body.removeChild(a);
       setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) {} }, 5000);
-      log('已导出 ' + entries.length + ' 个文件（zip，可直接解压后用 Keil 打开）。', 'ok');
+      log('已导出 ' + entries.length + ' 个源码文件（zip，不含 Keil 工程文件；需在 Keil 新建工程后把这些文件加入）。', 'ok');
     } catch (e) {
       log('导出失败：' + (e && e.message ? e.message : e), 'err');
     }
@@ -2593,8 +2910,165 @@
     }
   }
 
+  /* ---------------- Keil .uvproj / .uvprojx 导入 ----------------
+     Keil 工程文件只是“路径索引”，不含源码正文。用户选中 .uvproj 后，
+     再选一次它所在的目录，按索引里的路径把 .c/.h 读进来，生成浏览器内工程。 */
+  function decodeXmlText(s) {
+    return String(s || '')
+      .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+  }
+
+  function normKeilPath(s) {
+    return decodeXmlText(s).trim().replace(/\\/g, '/')
+      .replace(/^\.\/+/, '').replace(/\/+/g, '/');
+  }
+
+  function parseKeilProject(xml) {
+    var groups = [], all = [];
+    var groupRe = /<Group>([\s\S]*?)<\/Group>/g;
+    var gm;
+    while ((gm = groupRe.exec(String(xml || '')))) {
+      var body = gm[1];
+      var name = (body.match(/<GroupName>([\s\S]*?)<\/GroupName>/) || [])[1] || '';
+      var paths = [];
+      var fileRe = /<FilePath>([\s\S]*?)<\/FilePath>/g;
+      var fm;
+      while ((fm = fileRe.exec(body))) {
+        var p = normKeilPath(fm[1]);
+        if (/\.(c|h|inc)$/i.test(p) && paths.indexOf(p) < 0) paths.push(p);
+      }
+      if (paths.length) {
+        groups.push({ name: decodeXmlText(name).trim() || 'Keil Group', files: paths });
+        paths.forEach(function (p) { if (all.indexOf(p) < 0) all.push(p); });
+      }
+    }
+    /* 少数工程把文件路径放在 Group 外；兜底扫一遍全文件。 */
+    if (!all.length) {
+      var re = /<FilePath>([\s\S]*?)<\/FilePath>/g, m;
+      while ((m = re.exec(String(xml || '')))) {
+        var q = normKeilPath(m[1]);
+        if (/\.(c|h|inc)$/i.test(q) && all.indexOf(q) < 0) all.push(q);
+      }
+      if (all.length) groups = [{ name: 'Keil 导入', files: all.slice() }];
+    }
+    return { files: all, groups: groups };
+  }
+
+  function keilFolders(paths) {
+    var out = [];
+    (paths || []).forEach(function (p) {
+      var parts = p.split('/');
+      for (var i = 1; i < parts.length; i++) {
+        var fd = parts.slice(0, i).join('/');
+        if (fd && out.indexOf(fd) < 0) out.push(fd);
+      }
+    });
+    return out;
+  }
+
+  function readKeilFiles(root, paths) {
+    var files = [], missing = [];
+    var chain = Promise.resolve();
+    (paths || []).forEach(function (p) {
+      chain = chain.then(function () {
+        var parts = p.split('/');
+        var dirP = Promise.resolve(root);
+        for (var i = 0; i < parts.length - 1; i++) {
+          var seg = parts[i];
+          dirP = dirP.then(function (dir) { return dir.getDirectoryHandle(seg); });
+        }
+        return dirP.then(function (dir) {
+          return dir.getFileHandle(parts[parts.length - 1]);
+        }).then(function (h) {
+          return h.getFile();
+        }).then(function (f) {
+          return f.text().then(function (text) {
+            files.push({
+              path: p, content: text, handle: null, dirty: false, size: f.size
+            });
+          });
+        }).catch(function () { missing.push(p); });
+      });
+    });
+    return chain.then(function () { return { files: files, missing: missing }; });
+  }
+
+  function importKeilProject(file) {
+    if (!FS.supported) {
+      log('Keil 工程导入需要 Edge / Chrome，并且不要在预览面板的 iframe 里运行。', 'err');
+      return;
+    }
+    var read = file.text ? file.text() : new Promise(function (res, rej) {
+      var fr = new FileReader();
+      fr.onload = function () { res(String(fr.result == null ? '' : fr.result)); };
+      fr.onerror = function () { rej(fr.error); };
+      fr.readAsText(file, 'utf-8');
+    });
+    read.then(function (text) {
+      var parsed = parseKeilProject(text);
+      if (!parsed.files.length) {
+        log('这个 Keil 工程里没有找到 .c / .h / .inc 文件。', 'err');
+        return;
+      }
+      log('检测到 Keil 工程：' + parsed.files.length + ' 个源码文件。接下来选择它所在的文件夹（例如 D:\\江协库）。', 'dim');
+      return askModal('选择 Keil 工程目录', {
+        msg: 'Keil 工程只记录文件路径，源码还在磁盘上。请选择 project.uvproj 所在的工程根目录（例如 D:\\江协库）。',
+        input: false, ok: '选择文件夹'
+      }).then(function (yes) {
+        if (!yes) return null;
+        return window.showDirectoryPicker({ id: 'c51lab-keil', mode: 'readwrite', startIn: 'documents' });
+      }).then(function (dir) {
+        if (!dir) return null;
+        return readKeilFiles(dir, parsed.files);
+      }).then(function (r) {
+          if (!r) return null;
+          if (!r.files.length) {
+            log('没有读到源码。请确认选的是包含 user / library 的工程根目录。', 'err');
+            return;
+          }
+          var data = {
+            format: 'c51lab-project',
+            name: String(file.name || 'Keil 工程').replace(/\.uvprojx?$/i, ''),
+            files: r.files.map(function (f) { return { path: f.path, content: f.content }; }),
+            folders: keilFolders(parsed.files),
+            folderGroup: {},
+            groups: parsed.groups,
+            open: [],
+            active: ''
+          };
+          /* 把 user/、library/ 这类顶层目录挂到对应 Keil Group，工程树分组更接近原工程。 */
+          parsed.groups.forEach(function (g) {
+            (g.files || []).forEach(function (p) {
+              var top = p.split('/')[0];
+              if (top && p.indexOf('/') >= 0 && !data.folderGroup[top]) data.folderGroup[top] = g.name;
+            });
+          });
+          /* main.c 优先打开；其次第一个 .c；再退回第一个文件。 */
+          var main = r.files.filter(function (f) { return /(^|\/)main\.c$/i.test(f.path); })[0];
+          var firstC = r.files.filter(function (f) { return /\.c$/i.test(f.path); })[0];
+          var current = main || firstC || r.files[0];
+          data.active = current.path;
+          data.open = [current.path].concat(r.files.filter(function (f) {
+            return f.path !== current.path;
+          }).slice(0, 3).map(function (f) { return f.path; }));
+          var msg = '会替换当前工程（现在有 ' + project.files.length + ' 个文件），没存过的改动会丢。继续？';
+          if (r.missing.length) msg += '\n另外这些文件没读到：' + r.missing.slice(0, 6).join('、');
+          return askModal('导入 Keil 工程', { msg: msg, input: false, ok: '导入' }).then(function (yes) {
+            if (!yes) return;
+            applyProjectData(data);
+            log('已导入 Keil 工程「' + data.name + '」：' + r.files.length + ' 个文件。导入的是快照，改完不会写回 Keil 文件；要写回请用「打开文件夹」。', 'ok');
+          });
+        });
+    }).catch(function (e) {
+      if (e && e.name === 'AbortError') return;
+      log('导入 Keil 工程失败：' + (e && e.message ? e.message : e), 'err');
+    });
+  }
+
   function importProjectFile(file) {
     if (!file) return;
+    if (/\.uvprojx?$/i.test(file.name || '')) { importKeilProject(file); return; }
     var rd = new FileReader();
     rd.onload = function () {
       var data;
@@ -3038,6 +3512,7 @@
   };
   if ($('btn-export')) $('btn-export').onclick = function () { exportZip(); };
   if ($('btn-save-proj')) $('btn-save-proj').onclick = function () { exportProjectFile(); };
+  if ($('btn-keil-demo')) $('btn-keil-demo').onclick = function () { createLibraryDemo(); };
   if ($('btn-load-proj')) $('btn-load-proj').onclick = function () {
     var inp = $('proj-input');
     if (inp) inp.click();
