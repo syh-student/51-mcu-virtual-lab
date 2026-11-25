@@ -275,6 +275,7 @@ html.light .nav-item.on { color: #ffffff; }
   font-size: 12.5px;
   font-weight: 600;
   letter-spacing: .03em;
+  white-space: nowrap;
   cursor: pointer;
   transition: background .25s var(--ease), transform .2s var(--ease), border-color .25s, color .25s;
   -webkit-tap-highlight-color: transparent;
@@ -2051,7 +2052,7 @@ try { if (localStorage.getItem('c51.theme') === 'light') document.documentElemen
   </div>
   <div class="head-right">
     <span class="head-note">例程 01—15 · 离线可用</span>
-    <span class="build-tag" id="build-tag">构建 11-25 22:53</span>
+    <span class="build-tag" id="build-tag">构建 11-25 23:00</span>
     <span id="status" class="status">已停止</span>
   </div>
 </header>
@@ -2073,11 +2074,11 @@ try { if (localStorage.getItem('c51.theme') === 'light') document.documentElemen
       </svg>
       <span id="btn-run-label">运行</span>
     </button>
-    <button class="savebtn" id="btn-save-apply" type="button" title="保存当前代码并重新应用；开发板回到初始状态">
+    <button class="savebtn" id="btn-save-apply" type="button" title="更新代码：保存当前代码并重新编译；开发板回到初始状态">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M3.2 2.8h8.1l2.7 2.7v7.7H3.2z"/><path d="M5.4 2.8v4h5.2V2.8"/><path d="M5.2 13.2v-3.6h5.6v3.6"/>
       </svg>
-      <span>保存</span>
+      <span>更新代码</span>
     </button>
     <button class="circle" id="btn-pause" type="button" title="暂停" aria-label="暂停">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
@@ -10651,7 +10652,7 @@ void keys_scan()
     }
   }
 
-  /* 保存并应用：把编辑器里的代码落盘/存档，然后重新 build，等于换一块刚上电的板 */
+  /* 更新代码：把编辑器里的代码落盘/存档，然后重新 build，等于换一块刚上电的板 */
   function saveAndApply() {
     flushSave();
     var saved = saveProject();
@@ -10660,19 +10661,19 @@ void keys_scan()
     pausedAtBp = false;
     var ok = build();
     if (!ok) {
-      log('代码已保存，但编译未通过，开发板没有应用新代码。', 'err');
+      log('代码已更新，但编译未通过，开发板没有应用新代码。', 'err');
       updateButtons();
       return;
     }
     state = 'stopped';
-    setStatus('stopped', saved ? '已保存 · 开发板已复位' : '已应用 · 存档失败');
+    setStatus('stopped', saved ? '已更新 · 开发板已复位' : '已更新 · 存档失败');
     if (curPage === 'board' && boardView === 'pin') {
       sendPinCode();
       postHw({ type: 'hw:reset' });
     }
     log(saved
-      ? '已保存并应用：代码已重新编译，开发板已回到初始状态。'
-      : '代码已重新应用，但浏览器存档失败；开发板已回到初始状态，请用「存工程」导出备份。',
+      ? '已更新代码：重新编译完成，开发板已回到初始状态。'
+      : '代码已更新并应用，但浏览器存档失败；开发板已回到初始状态，请用「存工程」导出备份。',
       saved ? 'ok' : 'warn');
     forceRender = true;
     updateButtons();

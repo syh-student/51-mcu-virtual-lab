@@ -173,9 +173,9 @@ try {
   }
   console.log('单步与复位无异常');
 
-  /* 保存并应用：代码改动先保存，build 后开发板回到初始状态 */
+  /* 更新代码：代码改动先保存，build 后开发板回到初始状态 */
   const saveCode = registry['code'];
-  saveCode.value += '\n// 保存测试';
+  saveCode.value += '\n// 更新代码测试';
   saveCode.selectionStart = saveCode.value.length;
   saveCode.selectionEnd = saveCode.value.length;
   saveCode.handlers.input[0].call(saveCode);
@@ -184,13 +184,13 @@ try {
     const cbs = rafQueue.splice(0, rafQueue.length);
     t += 16; cbs.forEach(fn => fn(t));
   }
-  if (!/已保存/.test(registry.status.textContent)) {
-    console.log('FAIL 保存按钮没有生效：' + registry.status.textContent); process.exit(1);
+  if (!/已更新/.test(registry.status.textContent)) {
+    console.log('FAIL 更新代码按钮没有生效：' + registry.status.textContent); process.exit(1);
   }
   if (registry['vtime'].textContent !== '0 ms') {
-    console.log('FAIL 保存后开发板没有复位：vtime=' + registry['vtime'].textContent); process.exit(1);
+    console.log('FAIL 更新代码后开发板没有复位：vtime=' + registry['vtime'].textContent); process.exit(1);
   }
-  console.log('保存并应用 → 状态=' + registry.status.textContent + '，虚拟时间=' + registry['vtime'].textContent);
+  console.log('更新代码 → 状态=' + registry.status.textContent + '，虚拟时间=' + registry['vtime'].textContent);
 
   /* 放大看板：第一下跳页，第二下全屏，第三下退出 */
   const card = registry['board-card'], zoom = registry['btn-zoom'];
