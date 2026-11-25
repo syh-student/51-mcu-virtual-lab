@@ -7,6 +7,7 @@
 - 编译检查向 Keil 对齐：缺失的自定义尖括号头（如 `<headfile.h>`）、调用没有定义的函数（如 `disled`）现在按硬错误处理，不再以 `0 Error(s), 1 Warning(s)` 放行。
 - 导出 zip 的提示不再说“Keil 能直接用”：明确只导出源码，Keil 里需要先新建工程再加文件；README 同步补上“不生成 hex / 不含 STC-ISP”的边界。
 - 类型解析支持 `short`：`typedef unsigned short int uint16` / `signed short int int16` 这类江协库 `headfile.h` 写法可以直接编译，不再报 15 个语法错误。
+- 自动补全下拉在以下情况都会立即收起：在编辑器内点另一行、移动光标、点击编辑器外部、按 `Esc`。之前只监听失焦和滚动，点回同一个 `textarea` 不会触发 `blur`，下拉会一直挂在屏幕上。
 
 ### 新增
 

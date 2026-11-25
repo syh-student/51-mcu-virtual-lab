@@ -5617,6 +5617,18 @@ void keys_scan()
     acClose();
   });
   codeEl.addEventListener('blur', acClose);
+  /* 点回编辑器不会触发 blur；旧下拉必须跟着光标一起收起 */
+  codeEl.addEventListener('pointerdown', acClose);
+  codeEl.addEventListener('mousedown', acClose);
+  codeEl.addEventListener('select', acClose);
+  document.addEventListener('pointerdown', function (ev) {
+    if (!acEl || acEl.hidden) return;
+    var t = ev && ev.target;
+    if (t === codeEl || (acEl.contains && acEl.contains(t))) return;
+    acClose();
+  }, true);
+  document.addEventListener('selectionchange', acCaretMoved);
+  window.addEventListener('resize', acClose);
   ['click', 'keyup', 'select'].forEach(function (ev) {
     codeEl.addEventListener(ev, updateCursor);
   });
@@ -5743,7 +5755,17 @@ void keys_scan()
   function acClose() {
     acItems = [];
     acIndex = 0;
-    if (acEl) { acEl.hidden = true; acEl.innerHTML = ''; }
+    acWord = { start: 0, end: 0 };
+    if (acEl) {
+      acEl.hidden = true;
+      acEl.setAttribute('aria-hidden', 'true');
+      acEl.innerHTML = '';
+    }
+  }
+
+  function acCaretMoved() {
+    if (!acItems.length || !acEl || acEl.hidden) return;
+    if (codeEl.selectionStart !== acWord.end || codeEl.selectionEnd !== acWord.end) acClose();
   }
 
   function acCurrentWord() {
@@ -5800,6 +5822,7 @@ void keys_scan()
     });
     var pos = acCaretPos();
     acEl.hidden = false;
+    acEl.setAttribute('aria-hidden', 'false');
     acEl.style.left = Math.max(4, Math.min(pos.left, (codeEl.clientWidth || 400) - 210)) + 'px';
     acEl.style.top = Math.min(pos.top, (codeEl.clientHeight || 300) - 214) + 'px';
   }
@@ -5833,11 +5856,20 @@ void keys_scan()
   }
   codeEl.addEventListener('keydown', function (e) {
     if (e.isComposing || e.keyCode === 229) return;
+    if (e.key === 'Escape' && acEl && !acEl.hidden) {
+      e.preventDefault();
+      acClose();
+      return;
+    }
     if (acItems.length) {
       if (e.key === 'ArrowDown') { e.preventDefault(); acMove(1); return; }
       if (e.key === 'ArrowUp') { e.preventDefault(); acMove(-1); return; }
       if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); acAccept(); return; }
-      if (e.key === 'Escape') { e.preventDefault(); acClose(); return; }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight'
+        || e.key === 'Home' || e.key === 'End'
+        || e.key === 'PageUp' || e.key === 'PageDown') {
+        acClose();
+      }
     }
     var v = this.value, s = this.selectionStart, en = this.selectionEnd;
 

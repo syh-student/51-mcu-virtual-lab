@@ -439,6 +439,25 @@ try {
       expect('江协库示例运行无错误', demoRunErrors.length, 0);
       expect('江协库示例虚拟时间在走', registry['vtime'].textContent !== '0 ms', true);
 
+      /* 自动补全：点回编辑器 / 点编辑器外部 / Esc 都要能收起 */
+      code.value = 'Delay';
+      code.selectionStart = 5;
+      code.selectionEnd = 5;
+      code.handlers.input[0].call(code);
+      const ac = registry['ac'];
+      expect('补全下拉已显示', ac.hidden === false && ac.children.length > 0, true);
+
+      code.handlers.pointerdown[0]({ target: code });
+      expect('点击编辑器后补全下拉收起', ac.hidden === true && ac.children.length === 0, true);
+
+      code.handlers.input[0].call(code);
+      docHandlers.pointerdown[0]({ target: registry['btn-run'] });
+      expect('点击编辑器外部后补全下拉收起', ac.hidden === true && ac.children.length === 0, true);
+
+      code.handlers.input[0].call(code);
+      kd.call(code, { key: 'Escape', preventDefault() {} });
+      expect('Esc 后补全下拉收起', ac.hidden === true && ac.children.length === 0, true);
+
       console.log('\n界面冒烟测试通过');
       if (fail) process.exit(1);
     });
