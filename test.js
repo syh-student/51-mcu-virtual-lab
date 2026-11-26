@@ -259,6 +259,25 @@ void main(){ Timer0_Init(); while(1){} }
   check('中断里 static 计数跨调用保留', !!vm.statics['T0_ISR#c'], Object.keys(vm.statics).join(','));
 }
 
+/* 11b. IP 位别名：原始江协库 Timer.c / Int0.c 会写 PT0、PX0 */
+{
+  const { vm } = makeVM(`
+void main(){
+  IP = 0x00;
+  PX0 = 1;
+  PX0 = 0;
+  PT0 = 1;
+  PT1 = 1;
+  PS = 1;
+  P2 = IP;
+  while(1){}
+}
+`);
+  run(vm, 5);
+  check('IP 位别名 PT0/PX0/PT1/PS 可用', vm.ports.P2 === 0x1A,
+    'P2=0x' + vm.ports.P2.toString(16) + ' err=' + vm.error);
+}
+
 /* 12. 串口发送：写 SBUF 立刻完成，TI 自动置位 */
 {
   const { vm } = makeVM(`

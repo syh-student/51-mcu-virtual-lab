@@ -39,7 +39,7 @@ jobs:
         run: |
           test -s index.html
           test -s hardware.html
-          if grep -q "__STYLE__\|__VM__\|__APP__" index.html; then
+          if grep -q "__STYLE__\|__VM__\|__APP__\|__BUILD__" index.html hardware.html; then
             echo "构建产物里还残留占位符"; exit 1
           fi
 

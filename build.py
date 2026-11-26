@@ -21,6 +21,6 @@ print('大小: %.1f KB' % (out.stat().st_size / 1024))
 hw_src = src / 'hardware.html'
 if hw_src.exists():
     hw_out = base / 'hardware.html'
-    hw_out.write_text(hw_src.read_text(encoding='utf-8'), encoding='utf-8')
+    hw_out.write_text(hw_src.read_text(encoding='utf-8').replace('__BUILD__', stamp), encoding='utf-8')
     print('已生成:', hw_out)
     print('大小: %.1f KB' % (hw_out.stat().st_size / 1024))

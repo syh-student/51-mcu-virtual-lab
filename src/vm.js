@@ -662,6 +662,7 @@
     TR0: ['TCON', 4], TF0: ['TCON', 5], TR1: ['TCON', 6], TF1: ['TCON', 7],
     EX0: ['IE', 0], ET0: ['IE', 1], EX1: ['IE', 2], ET1: ['IE', 3],
     ES: ['IE', 4], EA: ['IE', 7],
+    PX0: ['IP', 0], PT0: ['IP', 1], PX1: ['IP', 2], PT1: ['IP', 3], PS: ['IP', 4],
     RI: ['SCON', 0], TI: ['SCON', 1], RB8: ['SCON', 2], TB8: ['SCON', 3],
     REN: ['SCON', 4], SM2: ['SCON', 5], SM1: ['SCON', 6], SM0: ['SCON', 7]
   };
