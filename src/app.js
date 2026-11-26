@@ -750,6 +750,33 @@
   }
 
   /* ---------------- 例程 ---------------- */
+  function requestExample(id, goPage) {
+    var ex = window.EXAMPLES.filter(function (e) { return e.id === id; })[0];
+    if (!ex) return;
+    if (project.fs) { loadExample(id); return; }
+    if (curExample && curExample.id === id) {
+      if (goPage) setPage('code');
+      return;
+    }
+    var currentName = curExample ? '「' + curExample.title + '」'
+      : (project && project.name ? '「' + project.name + '」' : '当前工程');
+    var nextName = '「' + ex.title + '」';
+    askModal('更换例程', {
+      msg: '当前编辑器将从 ' + currentName + ' 切换到 ' + nextName
+        + '。当前工程会先自动保存到浏览器，切换后可以再切回来。确定切换？',
+      input: false,
+      ok: '切换'
+    }).then(function (yes) {
+      if (yes) {
+        loadExample(id);
+        if (goPage) setPage('code');
+      } else {
+        var sel = $('ex-select');
+        if (sel) sel.value = curExample ? curExample.id : '';
+      }
+    });
+  }
+
   function buildExamples() {
     var host = $('ex-list');
     var sel = $('ex-select');
@@ -765,7 +792,7 @@
       t.textContent = ex.title;
       b.appendChild(n);
       b.appendChild(t);
-      b.onclick = function () { loadExample(ex.id); };
+      b.onclick = function () { requestExample(ex.id, false); };
       host.appendChild(b);
       if (sel) {
         var o = document.createElement('option');
@@ -776,7 +803,7 @@
     });
     if (sel) {
       sel.onchange = function () {
-        if (this.value) { loadExample(this.value); setPage('code'); }
+        if (this.value) requestExample(this.value, true);
       };
     }
   }
