@@ -1,12 +1,17 @@
 /* 离线缓存：页面导航走网络优先，其余静态资源走缓存优先 + 后台回源。
  * 发布新版本只改 CACHE 版本号；导航请求不读旧缓存，避免刷新后仍看到旧页面。 */
-const CACHE = 'c51lab-v7';
+const CACHE = 'c51lab-v9';
 const ASSETS = ['./', './index.html', './hardware.html', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', (e) => {
+  /* 不自动 skipWaiting：等页面提示「新版已准备好」，用户点刷新后再接管 */
   e.waitUntil(
-    caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting())
+    caches.open(CACHE).then((c) => c.addAll(ASSETS))
   );
+});
+
+self.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', (e) => {

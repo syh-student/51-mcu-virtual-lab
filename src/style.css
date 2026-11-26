@@ -1720,7 +1720,14 @@ body.zoomed .appbar { display: none; }
   .scope-panel .panel-h .sp { display: none; }
   .editor-panel { height: 380px; }
   .proj-tip { display: none; }
-  .proj { width: 168px; }
+  /* 手机上工程树默认收起；点左上角按钮打开时浮在编辑器上，不把代码区挤窄 */
+  .editor-body { position: relative; }
+  .proj {
+    position: absolute; top: 0; bottom: 0; left: 0; z-index: 30;
+    width: min(78vw, 260px);
+    background: var(--panel);
+    box-shadow: 18px 0 44px rgba(0, 0, 0, .46);
+  }
   .board-stage { height: min(54vh, 440px); }
   .board-modes .hint { display: none; }
   #board-view-tabs { gap: 16px; }
@@ -1736,6 +1743,14 @@ body.zoomed .appbar { display: none; }
   .controls { flex-wrap: wrap; row-gap: 8px; }
   .head-right { gap: 10px; }
   .p-row .nm { font-size: 11px; }
+}
+
+@media (max-width: 420px) {
+  .brand em { display: none; }
+  .brand { gap: 8px; white-space: nowrap; }
+  .quickbar { flex-wrap: wrap; row-gap: 3px; }
+  .quickbar .sp { display: none; }
+  .qb-close { margin-left: auto; }
 }
 
 /* ===== 寄存器 SFR 面板 / 手动 Watch / 诊断建议 ===== */
@@ -1789,6 +1804,35 @@ html.light .storage-notice {
 @media (max-width: 640px) {
   .storage-notice { flex-direction: column; bottom: 14px; padding: 11px 12px; }
   .storage-notice .notice-actions { width: 100%; justify-content: flex-start; }
+}
+
+/* ===== 新版本提示：不让 Service Worker 直接打断当前编辑 ===== */
+.update-toast {
+  position: fixed; right: 20px; bottom: 20px; z-index: 121;
+  display: flex; align-items: center; gap: 9px;
+  max-width: min(380px, calc(100vw - 24px));
+  padding: 9px 10px 9px 12px;
+  border: 1px solid rgba(63, 154, 214, .38); border-radius: 12px;
+  background: var(--panel); color: var(--ink);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .4);
+  font-size: 12px; line-height: 1.6;
+}
+.update-toast[hidden] { display: none; }
+.update-toast .update-text { flex: 1; min-width: 0; }
+#update-now {
+  appearance: none; flex: none; border: 0; border-radius: 8px;
+  padding: 5px 11px; background: var(--accent); color: var(--accent-ink);
+  font: 600 11.5px var(--sans); cursor: pointer;
+}
+#update-now:hover { filter: brightness(1.08); }
+#update-later {
+  appearance: none; flex: none; border: 0; background: none;
+  padding: 2px 4px; color: var(--faint); font: 15px/1 var(--sans); cursor: pointer;
+}
+#update-later:hover { color: var(--ink); }
+html.light .update-toast { box-shadow: 0 18px 48px rgba(16, 24, 40, .18); }
+@media (max-width: 640px) {
+  .update-toast { left: 12px; right: 12px; bottom: 78px; max-width: none; }
 }
 
 /* ===== 浅色主题：航空调度（雾白 / 银灰表面 + 保留蓝色功能主色） ===== */

@@ -1216,6 +1216,7 @@
   ============================================================== */
   var PROJ_PREFIX = 'c51lab.project.v1.';
   var TREE_KEY = 'c51lab.tree.v1';
+  var TREE_MOBILE_KEY = 'c51lab.tree.mobile.v1';
   var FS_DB_KEY = 'c51lab.dir.v1';
   var LIMIT_FILES = 600;
   var MAX_DEPTH = 6;
@@ -1416,6 +1417,7 @@
     renderTree();
     if (projTab === 'outline') renderOutline();
     flushSave();
+    if (isNarrowLayout()) applyTree(false);
   }
 
   function closeFile(path) {
@@ -1635,16 +1637,23 @@
 
   /* ---------------- 小对话框 ---------------- */
   var dlgEl = $('dlg'), dlgInput = $('dlg-input'), dlgTitle = $('dlg-title'), dlgMsg = $('dlg-msg');
-  var dlgResolve = null, dlgKind = 'text';
+  var dlgResolve = null, dlgKind = 'text', dlgPrevFocus = null;
   function closeDlg(val) {
-    if (dlgEl && dlgEl.classList) dlgEl.classList.remove('on');
+    if (dlgEl && dlgEl.classList) {
+      dlgEl.classList.remove('on');
+      try { dlgEl.setAttribute('aria-hidden', 'true'); } catch (e) {}
+    }
     var r = dlgResolve;
     dlgResolve = null;
+    var back = dlgPrevFocus;
+    dlgPrevFocus = null;
+    if (back && back.focus) { try { back.focus(); } catch (e) {} }
     if (r) r(val);
   }
   function askModal(title, opts) {
     opts = opts || {};
     dlgKind = opts.input === false ? 'confirm' : 'text';
+    dlgPrevFocus = document.activeElement;
     if (dlgTitle) dlgTitle.textContent = title;
     if (dlgMsg) dlgMsg.textContent = opts.msg || '';
     if (dlgInput) {
@@ -1653,9 +1662,14 @@
     }
     var okBtn = $('dlg-ok');
     if (okBtn) okBtn.textContent = opts.ok || '确定';
-    if (dlgEl && dlgEl.classList) dlgEl.classList.add('on');
+    if (dlgEl && dlgEl.classList) {
+      dlgEl.classList.add('on');
+      try { dlgEl.setAttribute('aria-hidden', 'false'); } catch (e) {}
+    }
     if (dlgKind !== 'confirm' && dlgInput && dlgInput.focus) {
       try { dlgInput.focus(); dlgInput.select(); } catch (e) {}
+    } else if (dlgKind === 'confirm' && okBtn && okBtn.focus) {
+      try { okBtn.focus(); } catch (e) {}
     }
     return new Promise(function (res) { dlgResolve = res; });
   }
@@ -1673,6 +1687,19 @@
     if (e.key === 'Enter') { e.preventDefault(); closeDlg(dlgInput.value); }
     else if (e.key === 'Escape') { e.preventDefault(); closeDlg(null); }
   });
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('keydown', function (e) {
+      if (!e || !dlgResolve || dlgKind !== 'confirm') return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+        closeDlg(false);
+      } else if (e.key === 'Enter' && e.target !== $('dlg-cancel')) {
+        e.preventDefault();
+        closeDlg(true);
+      }
+    });
+  }
 
   /* ---------------- 新建文件：先选类型，再填名字和分组 ---------------- */
   var ITEM_TYPES = [
@@ -3373,17 +3400,47 @@ void keys_scan()
   };
 
   /* ---------------- PWA：http(s) 下注册 Service Worker，断网也能打开 ---------------- */
+  var updateToast = $('update-toast');
+  var pendingUpdateReg = null;
+  var updateApplying = false;
+  function showUpdate(reg) {
+    pendingUpdateReg = reg || pendingUpdateReg;
+    if (updateToast) updateToast.hidden = false;
+  }
+  function hideUpdate() {
+    if (updateToast) updateToast.hidden = true;
+  }
+  if ($('update-later')) $('update-later').onclick = hideUpdate;
+  if ($('update-now')) $('update-now').onclick = function () {
+    flushSave();
+    updateApplying = true;
+    var waiting = pendingUpdateReg && pendingUpdateReg.waiting;
+    if (waiting && waiting.postMessage) {
+      waiting.postMessage({ type: 'SKIP_WAITING' });
+    } else {
+      location.reload();
+    }
+  };
   if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator
     && typeof location !== 'undefined' && /^https?:$/.test(location.protocol)) {
     window.addEventListener('load', function () {
-      /* 已经受旧版本控制时，新 SW 接管后自动刷新一次，避免一直看旧页面 */
-      var hadController = !!navigator.serviceWorker.controller;
-      if (hadController) {
-        navigator.serviceWorker.addEventListener('controllerchange', function () {
-          location.reload();
-        });
-      }
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        /* 只有点了「刷新」才自动 reload；后台发现更新时先提示，不打断编辑 */
+        if (updateApplying) location.reload();
+      });
       navigator.serviceWorker.register('sw.js').then(function (reg) {
+        if (reg && reg.waiting) showUpdate(reg);
+        if (reg && reg.addEventListener) {
+          reg.addEventListener('updatefound', function () {
+            var incoming = reg.installing;
+            if (!incoming || !incoming.addEventListener) return;
+            incoming.addEventListener('statechange', function () {
+              if (incoming.state === 'installed' && navigator.serviceWorker.controller) {
+                showUpdate(reg);
+              }
+            });
+          });
+        }
         if (reg && reg.update) reg.update().catch(function () { /* 静默 */ });
       }).catch(function () { /* 离线缓存不可用时静默 */ });
     });
@@ -3447,6 +3504,16 @@ void keys_scan()
     renderStat();
   }
 
+  function isNarrowLayout() {
+    try {
+      return !!(window.matchMedia && window.matchMedia('(max-width: 760px)').matches);
+    } catch (e) { return false; }
+  }
+
+  function treePrefKey() {
+    return isNarrowLayout() ? TREE_MOBILE_KEY : TREE_KEY;
+  }
+
   function applyTree(on) {
     var panel = $('editor-panel') || (document.querySelector && document.querySelector('.editor-panel'));
     if (panel && panel.classList) {
@@ -3460,11 +3527,16 @@ void keys_scan()
     if (b && b.classList) {
       if (on) b.classList.add('on'); else b.classList.remove('on');
     }
-    try { window.localStorage.setItem(TREE_KEY, on ? '1' : '0'); } catch (e) {}
+    try { window.localStorage.setItem(treePrefKey(), on ? '1' : '0'); } catch (e) {}
   }
   (function () {
-    var on = true;
-    try { on = window.localStorage.getItem(TREE_KEY) !== '0'; } catch (e) {}
+    var key = treePrefKey();
+    var mobile = key === TREE_MOBILE_KEY;
+    var on = !mobile;
+    try {
+      var saved = window.localStorage.getItem(key);
+      if (saved !== null) on = saved !== '0';
+    } catch (e) {}
     applyTree(on);
   })();
   if ($('btn-tree')) $('btn-tree').onclick = function () {
