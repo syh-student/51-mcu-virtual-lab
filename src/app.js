@@ -23,6 +23,26 @@
     while (consoleEl.childNodes.length > 200) consoleEl.removeChild(consoleEl.firstChild);
   }
 
+  /* 轻量操作反馈：保存工程后浮一条 2.5s 的 iOS 提示，不打断当前操作 */
+  var toastEl = $('ios-toast'), toastText = $('ios-toast-text'), toastTimer = 0;
+  function showToast(msg) {
+    if (!toastEl) return;
+    if (toastText) toastText.textContent = msg;
+    toastEl.hidden = false;
+    toastEl.classList.remove('on');
+    if (window.requestAnimationFrame) {
+      window.requestAnimationFrame(function () { toastEl.classList.add('on'); });
+    } else {
+      toastEl.classList.add('on');
+    }
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () {
+      toastEl.hidden = true;
+      toastEl.classList.remove('on');
+      toastTimer = 0;
+    }, 2500);
+  }
+
   /* 本地自动保存失败：不能只往控制台丢一行字，否则用户会以为代码已经存住了 */
   function showStorageNotice() {
     if (storageNotice || !document.body) return;
@@ -962,7 +982,10 @@
   function loadHwFrame(view) {
     var fr = boardHwFrame();
     if (!fr) return;
-    if (!fr.getAttribute('src')) fr.src = 'hardware.html#' + hwViewName(view);
+    if (!fr.getAttribute('src')) {
+      var theme = document.documentElement.classList.contains('light') ? 'light' : 'dark';
+      fr.src = 'hardware.html?theme=' + theme + '#' + hwViewName(view);
+    }
   }
   function pauseHardwareView() {
     if (pinState === 'running') postHw({ type: 'hw:pause' });
@@ -1065,6 +1088,7 @@
     if (d.type === 'hw:ready') {
       hwReady = true;
       postHw({ type: 'hw:view', view: hwWanted });
+      postHw({ type: 'hw:theme', light: document.documentElement.classList.contains('light') });
       if (boardView === 'pin') sendPinCode();
       return;
     }
@@ -1117,20 +1141,12 @@
     function draw() {
       var v = Math.min(1, Math.abs(s.vx) / 650);
       blob.style.width = s.w.toFixed(2) + 'px';
-      blob.style.transform =
-        'translate3d(' + s.x.toFixed(2) + 'px,0,0)' +
-        ' skewX(' + Math.max(-5, Math.min(5, -s.vx * 0.006)).toFixed(2) + 'deg)' +
-        ' scaleX(' + (1 + v * 0.055).toFixed(3) + ')' +
-        ' scaleY(' + (1 - v * 0.06).toFixed(3) + ')';
-      var dir = s.vx >= 0 ? 1 : -1;
-      blob.style.setProperty('--lead', (dir > 0 ? 100 : 0) + '%');
-      blob.style.setProperty('--bulge', (v * 0.86).toFixed(3));
-      blob.style.setProperty('--tilt', (dir * v * 14).toFixed(1) + 'deg');
-      blob.style.borderRadius =
-        (50 - v * 6).toFixed(1) + '% ' + (50 + v * 5).toFixed(1) + '% ' +
-        (50 - v * 4).toFixed(1) + '% ' + (50 + v * 6).toFixed(1) + '% / ' +
-        (50 - v * 7).toFixed(1) + '% ' + (50 + v * 6).toFixed(1) + '% ' +
-        (50 - v * 5).toFixed(1) + '% ' + (50 + v * 6).toFixed(1) + '%';
+      /* 方块滑块：只做横向平移，不再叠液态形变（斜切 / 拉伸 / 水泡鼓包），圆角固定 */
+      blob.style.transform = 'translate3d(' + s.x.toFixed(2) + 'px,0,0)';
+      blob.style.setProperty('--lead', '100%');
+      blob.style.setProperty('--bulge', '0');
+      blob.style.setProperty('--tilt', '0deg');
+      blob.style.borderRadius = '4px';
       paintLabels();
     }
     function snap(i) {
@@ -1205,6 +1221,80 @@
     markCurrent(active);
     snap(active);
     requestAnimationFrame(function () { snap(active); });
+  })();
+
+  /* 通用分段控件滑块：开发板视图、时序图窗口、工程/输出小标签共用。
+     选中态仍由原来的 .on 类决定，这里只负责把白色胶囊挪过去，
+     所以键盘、程序化恢复视图、运行后同步时间窗口都能跟上。 */
+  (function initSegBlobs() {
+    if (!document.querySelectorAll) return;
+    var segs = document.querySelectorAll('.seg');
+    if (!segs || !segs.length) return;
+    var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    Array.prototype.forEach.call(segs, function (seg) {
+      if (!seg || seg.classList.contains('has-blob')) return;
+      var blob = seg.querySelector ? seg.querySelector('.seg-blob') : null;
+      if (!blob) {
+        blob = document.createElement('span');
+        blob.className = 'seg-blob';
+        blob.setAttribute('aria-hidden', 'true');
+        seg.insertBefore(blob, seg.firstChild);
+      }
+      seg.classList.add('has-blob');
+
+      var placed = false, frame = 0;
+      function activeButton() {
+        if (!seg.querySelectorAll) return null;
+        var btns = seg.querySelectorAll('button');
+        for (var i = 0; i < btns.length; i++) {
+          if (btns[i].classList && btns[i].classList.contains('on')) return btns[i];
+        }
+        return null;
+      }
+      function place() {
+        frame = 0;
+        var btn = activeButton();
+        if (!btn || !btn.offsetWidth) {
+          blob.style.opacity = '0';
+          placed = false;
+          return;
+        }
+        if (!placed) blob.style.transition = 'none';
+        blob.style.opacity = '1';
+        blob.style.left = (btn.offsetLeft || 0) + 'px';
+        blob.style.top = (btn.offsetTop || 0) + 'px';
+        blob.style.width = btn.offsetWidth + 'px';
+        blob.style.height = btn.offsetHeight + 'px';
+        if (!placed) {
+          placed = true;
+          requestAnimationFrame(function () {
+            if (!reduceMotion) blob.style.transition = '';
+          });
+        }
+      }
+      function schedule() {
+        if (frame) return;
+        if (typeof requestAnimationFrame === 'function') {
+          frame = requestAnimationFrame(place);
+        } else {
+          frame = setTimeout(place, 16);
+        }
+      }
+
+      var btns = seg.querySelectorAll ? seg.querySelectorAll('button') : [];
+      if (window.MutationObserver) {
+        seg._segBlobMO = new window.MutationObserver(schedule);
+        seg._segBlobMO.observe(seg, { subtree: true, attributes: true, attributeFilter: ['class'] });
+      }
+      if (window.ResizeObserver) {
+        seg._segBlobRO = new window.ResizeObserver(schedule);
+        seg._segBlobRO.observe(seg);
+        for (var j = 0; j < btns.length; j++) seg._segBlobRO.observe(btns[j]);
+      }
+      window.addEventListener('resize', schedule);
+      schedule();
+    });
   })();
 
   /* ==================== 工程：多文件 + 真实磁盘 ====================
@@ -1394,6 +1484,7 @@
       b.addEventListener('click', function () { openFile(path); });
       host.appendChild(b);
     });
+    syncDesktopTitle();
   }
 
   function openFile(path) {
@@ -1662,6 +1753,8 @@
     }
     var okBtn = $('dlg-ok');
     if (okBtn) okBtn.textContent = opts.ok || '确定';
+    var cancelBtn = $('dlg-cancel');
+    if (cancelBtn) cancelBtn.style.display = opts.cancel === false ? 'none' : '';
     if (dlgEl && dlgEl.classList) {
       dlgEl.classList.add('on');
       try { dlgEl.setAttribute('aria-hidden', 'false'); } catch (e) {}
@@ -2950,17 +3043,34 @@ void keys_scan()
 
   function exportProjectFile() {
     var data = projectData();
+    var fileName = String(project.name || 'project').replace(/[\\/:*?"<>|]/g, '_') + '.c51proj.json';
+    if (window.c51Desktop && window.c51Desktop.saveProjectFile) {
+      log('正在选择工程保存位置…', 'dim');
+      window.c51Desktop.saveProjectFile({
+        name: project.name,
+        text: JSON.stringify(data, null, 2)
+      }).then(function (res) {
+        if (!res || res.canceled) return;
+        if (res.error) { log('存工程失败：' + res.error, 'err'); return; }
+        log('已存工程文件：' + res.filePath + '（' + project.files.length + ' 个文件）', 'ok');
+        showToast('工程文件已保存');
+      }).catch(function (e) {
+        log('存工程失败：' + (e && e.message ? e.message : e), 'err');
+      });
+      return;
+    }
     try {
       var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
       a.href = url;
-      a.download = String(project.name || 'project').replace(/[\\/:*?"<>|]/g, '_') + '.c51proj.json';
+      a.download = fileName;
       if (document.body) document.body.appendChild(a);
       a.click();
       if (document.body && a.parentNode) document.body.removeChild(a);
       setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) {} }, 5000);
       log('已存工程文件：' + a.download + '（' + project.files.length + ' 个文件）', 'ok');
+      showToast('工程文件已下载');
     } catch (e) {
       log('存工程失败：' + (e && e.message ? e.message : e), 'err');
     }
@@ -3391,7 +3501,8 @@ void keys_scan()
       localStorage.setItem('c51.theme', light ? 'light' : 'dark');
     } catch (e) { /* 忽略 */ }
     var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', light ? '#f2f7f9' : '#0a0b0e');
+    if (meta) meta.setAttribute('content', light ? '#f2f2f7' : '#000000');
+    postHw({ type: 'hw:theme', light: light });
   }
   if ($('btn-theme')) $('btn-theme').onclick = function () {
     var light = !document.documentElement.classList.contains('light');
@@ -3444,6 +3555,250 @@ void keys_scan()
         if (reg && reg.update) reg.update().catch(function () { /* 静默 */ });
       }).catch(function () { /* 离线缓存不可用时静默 */ });
     });
+  }
+
+  /* ---------------- 桌面版：标题栏 / 菜单栏 ---------------- */
+  var isDesktopShell = !!(document.documentElement && document.documentElement.classList && document.documentElement.classList.contains('desktop'));
+
+  function syncDesktopTitle() {
+    if (!isDesktopShell) return;
+    var projectEl = $('dt-project'), fileEl = $('dt-file'), dirtyEl = $('dt-dirty');
+    if (!projectEl) return;
+    var name = (typeof project !== 'undefined' && project && project.name)
+      ? project.name
+      : (curExample && curExample.title) || '未命名工程';
+    projectEl.textContent = name;
+    if (fileEl) fileEl.textContent = (typeof project !== 'undefined' && project && project.active) ? project.active : '';
+    var dirty = false;
+    if (typeof project !== 'undefined' && project && project.files) {
+      dirty = project.files.some(function (f) { return !!f.dirty; });
+      if (project.fs && typeof dirtyCount === 'function') dirty = dirty || dirtyCount() > 0;
+    }
+    if (dirtyEl) dirtyEl.hidden = !dirty;
+    document.title = name + ' · 51 实验台';
+  }
+
+  function initDesktopWindowControls() {
+    if (!isDesktopShell || !window.c51Desktop) return;
+    var min = $('win-min'), max = $('win-max'), close = $('win-close');
+    function paint(state) {
+      if (!max) return;
+      var maximized = !!(state && state.maximized);
+      max.classList.toggle('maximized', maximized);
+      max.textContent = maximized ? '❐' : '□';
+      max.title = maximized ? '还原' : '最大化';
+      max.setAttribute('aria-label', max.title);
+    }
+    if (min) min.onclick = function (e) {
+      if (e && e.stopPropagation) e.stopPropagation();
+      if (window.c51Desktop.minimize) window.c51Desktop.minimize();
+    };
+    if (max) max.onclick = function (e) {
+      if (e && e.stopPropagation) e.stopPropagation();
+      if (window.c51Desktop.toggleMaximize) window.c51Desktop.toggleMaximize();
+    };
+    if (close) close.onclick = function (e) {
+      if (e && e.stopPropagation) e.stopPropagation();
+      if (window.c51Desktop.close) window.c51Desktop.close();
+    };
+    var titlebar = document.querySelector('.desktop-titlebar');
+    if (titlebar) titlebar.addEventListener('dblclick', function (e) {
+      if (e && e.target && e.target.closest && e.target.closest('.dt-window-btns')) return;
+      if (window.c51Desktop.toggleMaximize) window.c51Desktop.toggleMaximize();
+    });
+    if (window.c51Desktop.getWindowState) {
+      window.c51Desktop.getWindowState().then(paint).catch(function () {});
+    }
+    if (window.c51Desktop.onWindowState) window.c51Desktop.onWindowState(paint);
+    paint({ maximized: false });
+  }
+
+  function showDesktopAbout() {
+    function render(info) {
+      var version = info && info.version ? '版本 ' + info.version : '桌面版';
+      var electron = info && info.electron ? ' · Electron ' + info.electron : '';
+      askModal('关于 51 实验台', {
+        msg: version + electron + '。工程可保存为 .c51proj.json，窗口大小和位置会自动记住。',
+        input: false,
+        cancel: false,
+        ok: '知道了'
+      });
+    }
+    if (window.c51Desktop && window.c51Desktop.getAppInfo) {
+      window.c51Desktop.getAppInfo().then(render).catch(function () { render({}); });
+    } else {
+      render({});
+    }
+  }
+
+  function initDesktopMenu() {
+    if (!isDesktopShell) return;
+    var slot = $('dt-status-slot'), status = $('status');
+    var build = document.querySelector('.build-tag');
+    if (slot) {
+      if (build) slot.appendChild(build);
+      if (status) slot.appendChild(status);
+    }
+
+    var menu = $('desktop-menu');
+    var buttons = Array.prototype.slice.call(document.querySelectorAll('.dm-btn'));
+    if (!menu || !buttons.length) return;
+    var current = '';
+    var items = {
+      file: [
+        { label: '打开文件夹…', action: 'open-dir' },
+        { label: '打开工程文件…', action: 'open-proj' },
+        { label: '保存工程文件', action: 'save-proj' },
+        { sep: true },
+        { label: '新建文件', action: 'new-file' },
+        { label: '导出源码 ZIP', action: 'export' },
+        { label: '导出实验报告', action: 'report' },
+        { sep: true },
+        { label: '退出应用', action: 'quit' }
+      ],
+      edit: [
+        { label: '撤销', action: 'undo', key: 'Ctrl+Z' },
+        { label: '重做', action: 'redo', key: 'Ctrl+Y' },
+        { sep: true },
+        { label: '查找 / 替换', action: 'find', key: 'Ctrl+F' }
+      ],
+      view: [
+        { label: '写代码', action: 'page-code' },
+        { label: '开发板', action: 'page-board' },
+        { label: '时序图', action: 'page-scope' },
+        { label: '讲义', action: 'page-notes' },
+        { sep: true },
+        { label: '显示 / 隐藏工程树', action: 'tree' },
+        { label: '切换浅色 / 深色主题', action: 'theme' }
+      ],
+      run: [
+        { label: '运行', action: 'run', key: 'F5' },
+        { label: '更新代码', action: 'apply' },
+        { label: '编译', action: 'build' },
+        { label: '暂停', action: 'pause' },
+        { sep: true },
+        { label: '单步进入', action: 'step', key: 'F11' },
+        { label: '单步越过', action: 'step-over', key: 'F10' },
+        { label: '复位', action: 'reset' }
+      ],
+      help: [
+        { label: '快捷键一览', action: 'keys' },
+        { label: '关于 51 实验台', action: 'about' }
+      ]
+    };
+
+    /* 桌面版固定深色皮肤（与线上一致），不提供浅色切换，避免切出半套观感 */
+    if (isDesktopShell) {
+      items.view = items.view.filter(function (it) { return it.action !== 'theme'; });
+    }
+
+    function closeMenu() {
+      if (menu.hidden) return;
+      menu.hidden = true;
+      current = '';
+      buttons.forEach(function (b) { b.classList.remove('on'); });
+    }
+    function clickId(id) {
+      var el = $(id);
+      if (el && el.click) el.click();
+    }
+    function runAction(action) {
+      if (action === 'undo') { histUndo(); return; }
+      if (action === 'redo') { histRedo(); return; }
+      if (action === 'find') { openFind(); return; }
+      if (action === 'page-code') { setPage('code'); return; }
+      if (action === 'page-board') { setPage('board'); return; }
+      if (action === 'page-scope') { setPage('scope'); return; }
+      if (action === 'page-notes') { setPage('notes'); return; }
+      if (action === 'tree') {
+        var panel = $('editor-panel');
+        applyTree(!(panel && panel.classList && panel.classList.contains('tree-off')));
+        return;
+      }
+      if (action === 'quit') { window.close(); return; }
+      if (action === 'about') {
+        showDesktopAbout();
+        return;
+      }
+      var map = {
+        'open-dir': 'btn-open-dir',
+        'open-proj': 'btn-load-proj',
+        'save-proj': 'btn-save-proj',
+        'new-file': 'btn-new-file',
+        'export': 'btn-export',
+        'report': 'btn-report',
+        'theme': 'btn-theme',
+        'keys': 'btn-keys',
+        'run': 'btn-run',
+        'apply': 'btn-save-apply',
+        'build': 'btn-build',
+        'pause': 'btn-pause',
+        'step': 'btn-step',
+        'step-over': 'btn-step-over',
+        'reset': 'btn-reset'
+      };
+      if (map[action]) clickId(map[action]);
+    }
+    function openMenu(name, button) {
+      if (!items[name]) return;
+      if (current === name && !menu.hidden) { closeMenu(); return; }
+      current = name;
+      buttons.forEach(function (b) { b.classList.toggle('on', b === button); });
+      menu.textContent = '';
+      items[name].forEach(function (item) {
+        if (item.sep) {
+          var sep = document.createElement('div');
+          sep.className = 'dm-sep';
+          menu.appendChild(sep);
+          return;
+        }
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'dm-item';
+        var label = document.createElement('span');
+        label.textContent = item.label;
+        b.appendChild(label);
+        if (item.key) {
+          var key = document.createElement('span');
+          key.className = 'dm-key';
+          key.textContent = item.key;
+          b.appendChild(key);
+        }
+        b.onclick = function (e) {
+          if (e && e.stopPropagation) e.stopPropagation();
+          closeMenu();
+          runAction(item.action);
+        };
+        menu.appendChild(b);
+      });
+      menu.hidden = false;
+      var bar = button.parentNode;
+      if (bar && bar.getBoundingClientRect) {
+        var r = button.getBoundingClientRect();
+        menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 330)) + 'px';
+      }
+    }
+
+    buttons.forEach(function (b) {
+      b.onclick = function (e) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        openMenu(b.getAttribute('data-dmenu'), b);
+      };
+    });
+    document.addEventListener('click', function (e) {
+      if (menu.hidden) return;
+      if (menu.contains && menu.contains(e.target)) return;
+      closeMenu();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e && e.key === 'Escape' && !menu.hidden) closeMenu();
+    });
+  }
+
+  if (isDesktopShell) {
+    initDesktopWindowControls();
+    initDesktopMenu();
+    syncDesktopTitle();
   }
 
   /* ---------------- 状态栏 / 工程树开关 ---------------- */
@@ -3616,6 +3971,16 @@ void keys_scan()
   if ($('btn-save-proj')) $('btn-save-proj').onclick = function () { exportProjectFile(); };
   if ($('btn-keil-demo')) $('btn-keil-demo').onclick = function () { createLibraryDemo(); };
   if ($('btn-load-proj')) $('btn-load-proj').onclick = function () {
+    if (window.c51Desktop && window.c51Desktop.openProjectFile) {
+      window.c51Desktop.openProjectFile().then(function (res) {
+        if (!res) return;
+        var file = new File([res.text], res.name, { type: 'application/json' });
+        importProjectFile(file);
+      }).catch(function (e) {
+        log('打开工程失败：' + (e && e.message ? e.message : e), 'err');
+      });
+      return;
+    }
     var inp = $('proj-input');
     if (inp) inp.click();
   };
@@ -3982,12 +4347,16 @@ void keys_scan()
     }
 
     if (!lanes.length) {
-      ctx.fillStyle = 'rgba(228,234,242,.3)';
-      ctx.font = '11px "Microsoft YaHei", "PingFang SC", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(now < 20 ? '点「运行」，这里会画出引脚电平的变化' : '这个时间窗口里没有任何引脚变化',
-        padL + visW / 2, padT + visH / 2);
-      ctx.textAlign = 'left';
+      /* DOM 空状态已经给了引导文案时不再重复画在 canvas 上，
+         否则深色主题下两行字会叠在一起。 */
+      if (!emptyEl || emptyEl.hidden) {
+        ctx.fillStyle = 'rgba(228,234,242,.3)';
+        ctx.font = '11px "Microsoft YaHei", "PingFang SC", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(now < 20 ? '点「运行」，这里会画出引脚电平的变化' : '这个时间窗口里没有任何引脚变化',
+          padL + visW / 2, padT + visH / 2);
+        ctx.textAlign = 'left';
+      }
       scopeView = { t0: t0v, dur: durV, padL: padL, plotW: visW, now: now,
                     lanes: [], start: start, seg: seg };
       updateScopeInfo(now, tr.length, 0);
@@ -5578,6 +5947,7 @@ void keys_scan()
     }
     var p = $('btn-pause');
     if (p) p.disabled = state !== 'running';
+    syncDesktopTitle();
   }
 
   function startRun() {

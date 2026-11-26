@@ -1,7 +1,8 @@
 {
   "name": "51-mcu-virtual-lab",
-  "version": "1.0.0",
+  "version": "1.2.2",
   "private": true,
+  "main": "desktop/main.js",
   "description": "51 单片机虚拟实验台：纯前端、零依赖、可离线的单页 IDE",
   "keywords": [
     "8051",
@@ -13,14 +14,63 @@
     "offline"
   ],
   "license": "MIT",
+  "author": "邵宇豪",
   "scripts": {
     "build": "python build.py",
     "test": "node test.js && node test-examples.js && node test-ui.js && node test-diagnostics.js && node test-persistence.js",
     "lint": "eslint src",
+    "desktop": "electron .",
+    "dist:portable": "electron-builder --win portable --x64",
+    "dist:installer": "electron-builder --win nsis --x64",
+    "dist:win": "electron-builder --win --x64",
     "shots": "node tools/shots.js",
     "verify": "node tools/verify.js"
   },
+  "build": {
+    "appId": "com.syh.c51lab",
+    "productName": "51实验台",
+    "artifactName": "51Lab-${version}-${os}-${arch}.${ext}",
+    "asar": true,
+    "npmRebuild": false,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "index.html",
+      "hardware.html",
+      "icon.svg",
+      "manifest.webmanifest",
+      "sw.js",
+      "desktop/**/*"
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "artifactName": "51Lab-Setup-${version}-${arch}.${ext}",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "51实验台"
+    }
+  },
   "devDependencies": {
+    "electron": "^45.5.0",
+    "electron-builder": "^26.18.0",
     "eslint": "^8.57.1",
     "puppeteer": "^25.18.1"
   },

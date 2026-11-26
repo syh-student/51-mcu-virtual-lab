@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="ios">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#14161b">
+<meta name="theme-color" content="#000000">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <meta name="description" content="51 单片机硬件虚拟实验室：电路实验台、引脚级仿真板、画板模拟、参数计算器与自测练习，纯前端离线可用。">
 <meta property="og:type" content="website">
@@ -535,8 +535,467 @@ html.pin-bridged .pin-left { display: none; }
 @media (max-width: 900px) {
   html.pin-bridged .pin-layout { grid-template-columns: 1fr; }
 }
+
+/* ==========================================================================
+   iOS 工具皮肤：与主实验台同一套分组背景、圆角卡片、分段控件和系统蓝
+   画布/引脚板/EDA 舞台保留深色，作为“仪器画面”，四周 chrome 跟随主题
+   ========================================================================== */
+html.ios {
+  color-scheme: dark;
+  --bg: #000;
+  --ink: #f2f2f7;
+  --muted: rgba(235, 235, 245, .62);
+  --faint: rgba(235, 235, 245, .36);
+  --line: rgba(84, 84, 88, .52);
+  --line-soft: rgba(84, 84, 88, .3);
+  --panel: #1c1c1e;
+  --panel-soft: #2c2c2e;
+  --hover: rgba(255, 255, 255, .07);
+  --white: #fff;
+  --accent: #0a84ff;
+  --accent-soft: rgba(10, 132, 255, .16);
+  --warn: #ff9f0a;
+  --danger: #ff453a;
+  --ok: #30d158;
+  --ease: cubic-bezier(.25, .1, .25, 1);
+  --mono: "SF Mono", "Cascadia Mono", Consolas, "Courier New", monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+    "Segoe UI Variable", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --r-md: 20px;
+  --r-sm: 12px;
+  --control: rgba(118, 118, 128, .24);
+  --seg-track: rgba(118, 118, 128, .28);
+  --seg-on: #636366;
+  --seg-on-ink: #fff;
+  --glass: rgba(28, 28, 30, .72);
+  --glass-heavy: rgba(28, 28, 30, .9);
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, .42), 0 12px 30px rgba(0, 0, 0, .18);
+}
+
+html.ios.light {
+  color-scheme: light;
+  --bg: #f2f2f7;
+  --ink: #000;
+  --muted: rgba(60, 60, 67, .62);
+  --faint: rgba(60, 60, 67, .36);
+  --line: rgba(60, 60, 67, .24);
+  --line-soft: rgba(60, 60, 67, .12);
+  --panel: #fff;
+  --panel-soft: #f2f2f7;
+  --hover: rgba(0, 0, 0, .04);
+  --accent: #007aff;
+  --accent-soft: rgba(0, 122, 255, .12);
+  --warn: #ff9500;
+  --danger: #ff3b30;
+  --ok: #34c759;
+  --control: rgba(118, 118, 128, .12);
+  --seg-track: rgba(118, 118, 128, .12);
+  --seg-on: #fff;
+  --seg-on-ink: #000;
+  --glass: rgba(249, 249, 251, .76);
+  --glass-heavy: rgba(255, 255, 255, .92);
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 10px 30px rgba(0, 0, 0, .04);
+}
+
+html.ios body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 13.5px;
+  line-height: 1.55;
+  letter-spacing: -.005em;
+}
+html.ios body::before { background: var(--bg); }
+html.ios.light body::before {
+  background: linear-gradient(180deg, #fff 0, #fff 62px, var(--bg) 180px, var(--bg) 100%);
+}
+html.ios.embed body { background: var(--bg); }
+html.ios.embed body::before { background: var(--bg); }
+html.ios ::selection { background: var(--accent); color: #fff; }
+
+html.ios .page-head { padding: 14px 26px 6px; }
+html.ios .brand b { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+html.ios .brand i { background: var(--line); }
+html.ios .brand span { color: var(--muted); font-size: 12px; letter-spacing: 0; }
+html.ios .brand em { font-family: var(--sans); font-size: 11px; letter-spacing: 0; }
+html.ios .head-note { font-family: var(--sans); font-size: 10.5px; letter-spacing: 0; color: var(--faint); }
+html.ios .build-tag { font-family: var(--sans); font-size: 10.5px; letter-spacing: 0; color: var(--faint); }
+html.ios .appbar { padding: 6px 26px 12px; }
+html.ios .capsule {
+  padding: 3px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--seg-track);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+html.ios .nav-item {
+  padding: 6px 13px;
+  border-radius: 9px;
+  color: var(--muted);
+  font: 500 12px var(--sans);
+  letter-spacing: 0;
+}
+html.ios .nav-item:hover { color: var(--ink); }
+html.ios .nav-item.on {
+  background: var(--seg-on);
+  color: var(--seg-on-ink);
+}
+html.ios .nav-item.ink { color: var(--seg-on-ink); }
+html.ios .hover-pill { display: none; }
+html.ios .appbar-right .hint-inline { color: var(--faint); font-size: 11px; letter-spacing: 0; }
+html.ios.embed .capsule { background: var(--seg-track); }
+html.ios.embed .nav-item { padding: 4px 11px; font-size: 10.5px; border-radius: 7px; }
+html.ios.embed .nav-item.on { background: var(--seg-on); color: var(--seg-on-ink); }
+
+html.ios main { padding: 0 22px 18px; }
+html.ios.embed main { padding: 4px 6px 6px; }
+
+html.ios .panel {
+  background: var(--panel);
+  border: .5px solid var(--line-soft);
+  border-radius: var(--r-md);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+html.ios.embed .panel { border-radius: 16px; box-shadow: none; }
+html.ios .panel-h {
+  min-height: 44px;
+  padding: 0 16px;
+  gap: 9px;
+  border-bottom: .5px solid var(--line-soft);
+}
+html.ios.embed .panel-h { min-height: 40px; }
+html.ios .panel-h .idx { display: none; }
+html.ios .panel-h h2 { font: 600 14px var(--sans); letter-spacing: -.01em; color: var(--ink); }
+html.ios .panel-h .hint { color: var(--faint); font: 11px var(--sans); letter-spacing: 0; }
+html.ios .panel-b { padding: 14px 16px; }
+html.ios .sub-h { border-top: .5px solid var(--line-soft); }
+html.ios .empty-note { color: var(--faint); font-size: 11.5px; line-height: 1.7; }
+
+html.ios .ghost {
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--accent);
+  font: 500 11.5px var(--sans);
+  letter-spacing: 0;
+}
+html.ios .ghost:hover { background: var(--accent-soft); color: var(--accent); }
+html.ios .ghost.on { background: var(--accent-soft); border: 0; color: var(--accent); }
+html.ios .ghost.ico {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 8px;
+  background: var(--control);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
+}
+html.ios .ghost.ico:hover { background: var(--accent-soft); color: var(--accent); }
+html.ios .run-btn {
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font: 600 11.5px var(--sans);
+}
+html.ios .run-btn:hover { background: var(--accent); filter: brightness(.96); }
+
+html.ios .seg {
+  padding: 2px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--seg-track);
+}
+html.ios .seg button {
+  padding: 4px 10px;
+  border-radius: 7px;
+  color: var(--muted);
+  font: 500 11px var(--sans);
+  letter-spacing: 0;
+}
+html.ios .seg button:hover { color: var(--ink); }
+html.ios .seg button.on {
+  background: var(--seg-on);
+  color: var(--seg-on-ink);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, .12);
+}
+html.ios .seg.eda-tabs button { font-size: 10.5px; padding: 5px 11px; }
+
+html.ios .lib-title { font: 600 11px var(--sans); letter-spacing: 0; color: var(--faint); }
+html.ios .preset,
+html.ios .pal-item,
+html.ios .eda-part {
+  border: .5px solid transparent;
+  border-radius: 12px;
+  background: var(--panel-soft);
+  color: var(--muted);
+  font-family: var(--sans);
+  letter-spacing: 0;
+  transition: background .18s var(--ease), color .18s var(--ease), transform .18s var(--ease);
+}
+html.ios .preset:hover,
+html.ios .pal-item:hover,
+html.ios .eda-part:hover {
+  background: var(--control);
+  border-color: transparent;
+  color: var(--ink);
+  transform: none;
+}
+html.ios .preset.on {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--ink);
+}
+html.ios .preset.on b { color: var(--ink); }
+html.ios .preset.on span { color: var(--muted); }
+html.ios .preset b { font-weight: 600; font-size: 11.5px; }
+html.ios .preset span { color: var(--faint); font-size: 10px; }
+html.ios .eda-part b { font-size: 10.5px; }
+html.ios .eda-part span { font-size: 9px; }
+html.ios .lib-tip {
+  border: 0;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.6;
+}
+html.ios .lib-tip b { color: var(--ink); font-size: 11px; }
+html.ios .lib-tip span { color: var(--muted); }
+
+/* 仪器画布：主题切换时保持深色，让电路和波形有足够对比 */
+html.ios .canvas-wrap {
+  background:
+    radial-gradient(62% 52% at 50% 44%, rgba(10, 132, 255, .10), rgba(10, 132, 255, 0) 72%),
+    linear-gradient(160deg, #1c1c1e, #000 76%);
+}
+html.ios .canvas-hint { color: rgba(235, 235, 245, .5); font: 12px var(--sans); line-height: 1.9; }
+html.ios .canvas-tools .ghost {
+  padding: 4px 8px;
+  border: .5px solid rgba(84, 84, 88, .46);
+  border-radius: 8px;
+  background: rgba(28, 28, 30, .72);
+  color: rgba(235, 235, 245, .64);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+html.ios .canvas-tools .ghost:hover { background: rgba(118, 118, 128, .32); color: #fff; }
+html.ios .canvas-foot {
+  min-height: 36px;
+  padding: 0 16px;
+  border-top: .5px solid var(--line-soft);
+  color: var(--faint);
+  font: 10.5px var(--sans);
+  letter-spacing: 0;
+}
+html.ios .ckt-pin-tip,
+html.ios .pin-tip {
+  border: .5px solid var(--line);
+  border-radius: 10px;
+  background: var(--glass-heavy);
+  color: var(--ink);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .2);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+html.ios .param-row label { color: var(--muted); font: 11px var(--sans); }
+html.ios .param-row .pv { color: var(--accent); font: 11px var(--mono); }
+html.ios .param-row input[type=text],
+html.ios .field input,
+html.ios .field select,
+html.ios .mini-sel {
+  background: var(--control);
+  border: 0;
+  border-radius: 9px;
+  color: var(--ink);
+  font-family: var(--mono);
+}
+html.ios .field select, html.ios .mini-sel { font-family: var(--sans); }
+html.ios .param-row input[type=range] { accent-color: var(--accent); }
+html.ios .comp-actions .ghost { background: var(--control); color: var(--muted); font-size: 11px; }
+html.ios .comp-actions .ghost:hover { background: var(--accent-soft); color: var(--accent); }
+html.ios .comp-actions .danger { background: rgba(255, 69, 58, .12); color: var(--danger); }
+html.ios .wire-info { color: var(--muted); font-size: 11px; }
+html.ios .wire-info .wi-row { border-bottom: .5px solid var(--line-soft); }
+html.ios .wire-info b { color: var(--ink); }
+html.ios .wire-info .wi-net { color: var(--accent); }
+html.ios .readout .ro-item { border-bottom: .5px solid var(--line-soft); font-size: 11px; }
+html.ios .readout .ro-k { color: var(--muted); }
+html.ios .readout .ro-v { color: var(--ink); }
+html.ios .readout .ro-v.hl { color: var(--accent); }
+html.ios .readout .warn-box {
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 149, 0, .12);
+  color: var(--warn);
+}
+html.ios .readout .warn-box.danger { background: rgba(255, 59, 48, .12); color: var(--danger); }
+html.ios .readout .formula { color: var(--faint); font-size: 10px; }
+
+html.ios .calc-grid { gap: 14px; }
+html.ios .calc-card .panel-b { padding: 16px; }
+html.ios .calc-card h3 { font-size: 13px; letter-spacing: -.01em; }
+html.ios .calc-card .calc-desc { color: var(--faint); font-size: 10.5px; }
+html.ios .field label { color: var(--muted); font-size: 11px; }
+html.ios .field .unit { color: var(--faint); font-size: 10px; }
+html.ios .calc-result {
+  border: 0;
+  border-radius: 12px;
+  background: var(--accent-soft);
+}
+html.ios .calc-result .big { font-family: var(--mono); color: var(--accent); }
+html.ios .calc-result .sub, html.ios .calc-formula { color: var(--faint); }
+html.ios .field input, html.ios .field select { text-align: right; }
+html.ios .field select { text-align: left; }
+
+html.ios .opt {
+  border: 0;
+  border-radius: 10px;
+  background: var(--panel-soft);
+  color: var(--muted);
+  font-size: 11px;
+}
+html.ios .opt:hover { background: var(--control); }
+html.ios .opt.correct { background: rgba(52, 199, 89, .12); }
+html.ios .opt.wrong { background: rgba(255, 59, 48, .12); }
+html.ios .explain {
+  border-left: 3px solid var(--ok);
+  border-radius: 9px;
+  background: rgba(52, 199, 89, .10);
+  color: var(--muted);
+  font-size: 10.5px;
+}
+html.ios .score-big { color: var(--accent); font-family: var(--mono); }
+html.ios .score-big span { color: var(--faint); }
+html.ios .score-bar { background: var(--control); border-radius: 4px; }
+html.ios .score-bar i { background: var(--accent); border-radius: 4px; }
+html.ios .score-note { color: var(--faint); font-size: 10.5px; }
+
+html.ios .pin-stage {
+  background: radial-gradient(ellipse at 50% 38%, #123a5a 0%, #081827 58%, #02060b 100%);
+}
+html.ios .pin-hud {
+  background: rgba(0, 0, 0, .62);
+  border: .5px solid rgba(84, 84, 88, .42);
+  border-radius: 8px;
+  color: rgba(235, 235, 245, .58);
+}
+html.ios .pin-controls { border-bottom: .5px solid var(--line-soft); }
+html.ios .pin-controls .speed-lbl { color: var(--faint); font-size: 10px; }
+html.ios .pin-controls .speed-lbl input { accent-color: var(--accent); }
+html.ios .code-pane { padding: 10px; }
+html.ios #pin-code {
+  border: 0;
+  border-radius: 12px;
+  background: var(--panel-soft);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 10.5px;
+}
+html.ios .pin-status .ps-name { color: var(--muted); }
+html.ios .pin-status .ps-bit {
+  border-radius: 4px;
+  background: var(--control);
+  color: var(--faint);
+}
+html.ios .pin-status .ps-bit.lo { background: rgba(255, 59, 48, .22); border: 0; color: #ff9a8c; }
+html.ios .pin-status .ps-bit.hi { background: var(--control); color: var(--muted); border: 0; }
+html.ios .pin-info-title { color: var(--accent); font-size: 15px; }
+html.ios .pin-info-sub { color: var(--faint); font-family: var(--mono); }
+html.ios .pin-info-desc { color: var(--muted); font-size: 11.5px; }
+html.ios .pin-info-warn { border-radius: 10px; background: rgba(255, 149, 0, .12); color: var(--warn); }
+html.ios .pin-lv { color: var(--muted); }
+html.ios .pin-net { color: var(--faint); }
+html.ios .pin-net i { background: var(--accent-soft); border: 0; color: var(--accent); border-radius: 5px; }
+html.ios .pin-list { color: var(--muted); font-size: 10.5px; }
+html.ios .wire-item { border-bottom: .5px solid var(--line-soft); color: var(--muted); }
+html.ios .wire-item b { color: var(--accent); }
+html.ios .pin-table { padding: 7px 8px; gap: 4px; }
+html.ios .pt-row:hover { background: var(--control); }
+html.ios .pt-row.sel { background: var(--accent-soft); }
+html.ios .pt-row b { color: var(--faint); }
+html.ios .pt-row span { color: var(--muted); }
+html.ios .pt-row i.lo { background: var(--danger); box-shadow: none; }
+html.ios .pt-row i.hi { background: var(--accent); }
+html.ios .pt-row i.na { background: var(--faint); }
+
+html.ios .eda-stage {
+  background:
+    radial-gradient(circle at 1px 1px, rgba(118, 118, 128, .20) 1px, transparent 0) 0 0/20px 20px,
+    linear-gradient(160deg, #1c1c1e, #000 74%);
+}
+html.ios .eda-comp .body { stroke: rgba(235, 235, 245, .72); fill: rgba(255, 255, 255, .04); }
+html.ios .eda-comp.sel .body { stroke: var(--accent); }
+html.ios .eda-comp .ref { fill: rgba(235, 235, 245, .86); }
+html.ios .eda-comp .pin-n { fill: var(--faint); }
+html.ios .eda-netline { stroke: rgba(10, 132, 255, .58); }
+html.ios .eda-netlabel { fill: var(--accent); }
+html.ios .eda-board { fill: rgba(48, 209, 88, .08); stroke: rgba(48, 209, 88, .5); }
+html.ios .eda-pad { fill: rgba(255, 149, 0, .5); stroke: var(--warn); }
+html.ios .netlist .net-item { border-bottom: .5px solid var(--line-soft); }
+html.ios .net-item .net-name { color: var(--accent); }
+html.ios .net-item .net-pins { color: var(--faint); }
+html.ios .drc-list .drc-item { border-bottom: .5px solid var(--line-soft); }
+html.ios .drc-item .drc-msg { color: var(--muted); }
+html.ios .drc-item .drc-hint { color: var(--faint); }
+html.ios .checklist .ck-item { color: var(--muted); }
+html.ios .fab-item b { color: var(--accent); }
+html.ios .fab-item span { color: var(--faint); }
+
+/* 浅色模式下仍放在白卡片上的小字改用系统墨色；深色仪器画布保持浅字 */
+html.ios.light .pin-info-desc,
+html.ios.light .pin-list,
+html.ios.light .wire-item,
+html.ios.light .pt-row span,
+html.ios.light .pin-status .ps-name,
+html.ios.light .drc-item .drc-msg,
+html.ios.light .checklist .ck-item { color: var(--muted); }
+html.ios.light .pt-row b { color: var(--faint); }
+html.ios.light .pin-status .ps-bit.lo {
+  background: rgba(255, 59, 48, .12);
+  color: var(--danger);
+}
+html.ios.light .pin-status .ps-bit.hi { color: var(--muted); }
+html.ios.light .pin-lv.lo b { color: var(--danger); }
+html.ios.light .pin-lv.hi b { color: var(--accent); }
+html.ios.light .canvas-hint { color: rgba(235, 235, 245, .5); }
+html.ios.light .pin-stage, html.ios.light .eda-stage { color-scheme: dark; }
+
+@media (max-width: 900px) {
+  html.ios main { padding: 0 12px 16px; }
+  html.ios .page-head { padding: 14px 16px 6px; }
+  html.ios .appbar { padding: 6px 16px 12px; }
+  html.ios .lab-layout, html.ios .eda-layout, html.ios .pin-layout { gap: 12px; }
+  html.ios .panel { border-radius: 18px; }
+}
+
 </style>
-<script>if (window.self !== window.top) document.documentElement.classList.add('embed');</script>
+<script>
+(function () {
+  var embedded = window.self !== window.top;
+  if (embedded) document.documentElement.classList.add('embed');
+  var theme = null;
+  try { theme = new URLSearchParams(location.search).get('theme'); } catch (e) { /* 忽略 */ }
+  var systemLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+  if (theme === 'light' || (!theme && systemLight)) document.documentElement.classList.add('light');
+})();
+window.addEventListener('message', function (e) {
+  if (window.self !== window.top && e.source !== window.parent) return;
+  var d = e.data || {};
+  if (d.type === 'hw:theme') {
+    document.documentElement.classList.toggle('light', !!d.light);
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', d.light ? '#f2f2f7' : '#000000');
+  }
+});
+</script>
 </head>
 <body>
 

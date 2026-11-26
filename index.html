@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="ios">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#14161b">
+<meta name="theme-color" content="#f2f2f7">
 <meta name="description" content="纯前端、零依赖的 51 单片机（STC89C52RC）虚拟实验台：在浏览器里写 C51、跑虚拟开发板、看时序波形，双击 HTML 即可离线使用。">
 <meta name="author" content="syh-student">
 <link rel="canonical" href="https://syh-student.github.io/51-mcu-virtual-lab/">
@@ -44,6 +44,9 @@
   --accent-strong: #58b6f5;
   --accent-ink: #04121c;
   --accent-soft: rgba(63, 154, 214, .13);
+  /* 分段控件滑块：深色底上是实心方块，字用反色，保留滑动观感 */
+  --seg-on: var(--accent);
+  --seg-on-ink: var(--accent-ink);
   --ok: #3ecf92;
   --warn: #e8bb4e;
   --err: #f28070;
@@ -85,6 +88,124 @@ body::before {
 }
 
 ::selection { background: var(--white); color: var(--bg); }
+
+/* ---------------- 桌面版：独立窗口外壳 ---------------- */
+.desktop-chrome { display: none; }
+html.desktop .desktop-chrome { display: block; flex: none; position: relative; z-index: 3; }
+html.desktop .page-head { display: none; }
+.desktop-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 34px;
+  padding: 0 0 0 14px;
+  color: #e7ecf3;
+  background: #0a0b0e;
+  border-bottom: 1px solid rgba(255, 255, 255, .06);
+  user-select: none;
+  -webkit-app-region: drag;
+}
+.dt-brand { display: flex; align-items: center; gap: 8px; flex: none; }
+.dt-mark {
+  display: grid; place-items: center;
+  width: 22px; height: 22px; border-radius: 6px;
+  background: linear-gradient(135deg, #58b6f5, #3f9ad6);
+  color: #04121c; font: 700 11px var(--mono); letter-spacing: .04em;
+}
+.dt-name { font: 600 12.5px var(--sans); letter-spacing: .05em; }
+.dt-kind {
+  font: 500 8.5px var(--mono); letter-spacing: .12em;
+  color: rgba(231, 236, 243, .4);
+  border-left: 1px solid rgba(255, 255, 255, .13);
+  padding-left: 8px;
+}
+.dt-doc {
+  display: flex; align-items: center; gap: 7px;
+  min-width: 0; flex: 1;
+  font: 11px var(--sans);
+  color: rgba(231, 236, 243, .62);
+  overflow: hidden;
+}
+.dt-doc span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dt-doc #dt-file { color: rgba(231, 236, 243, .4); }
+.dt-doc .dt-sep { flex: none; color: rgba(231, 236, 243, .22); }
+.dt-dirty {
+  flex: none; width: 6px; height: 6px; border-radius: 50%;
+  background: #e8bb4e;
+  box-shadow: 0 0 8px rgba(232, 187, 78, .45);
+}
+.dt-dirty[hidden] { display: none; }
+.dt-window-btns {
+  display: flex; align-items: stretch; flex: none;
+  height: 34px; margin-left: 8px;
+  -webkit-app-region: no-drag;
+}
+.dt-win {
+  appearance: none; border: 0; border-radius: 0;
+  width: 46px; height: 34px; padding: 0;
+  background: none; color: rgba(231, 236, 243, .62);
+  font: 13px/1 var(--sans); cursor: pointer;
+  display: grid; place-items: center;
+  -webkit-app-region: no-drag;
+}
+.dt-win:hover { background: rgba(255, 255, 255, .09); color: #fff; }
+.dt-win.dt-close:hover { background: #c42b1c; color: #fff; }
+.dt-win.maximized { color: rgba(231, 236, 243, .78); }
+.desktop-menubar {
+  display: flex; align-items: center; gap: 2px;
+  height: 31px;
+  padding: 0 10px;
+  background: #0d0f14;
+  border-bottom: 1px solid rgba(255, 255, 255, .07);
+  -webkit-app-region: no-drag;
+}
+.dm-btn {
+  appearance: none; border: 0; border-radius: 5px;
+  background: none; color: rgba(231, 236, 243, .6);
+  padding: 4px 9px;
+  font: 500 11px var(--sans); letter-spacing: .03em;
+  cursor: pointer; -webkit-app-region: no-drag;
+}
+.dm-btn:hover, .dm-btn.on { color: #e7ecf3; background: rgba(255, 255, 255, .08); }
+.dm-spacer { flex: 1; }
+.dt-status-slot { display: flex; align-items: center; gap: 12px; flex: none; min-width: 0; }
+.dt-status-slot .build-tag {
+  color: rgba(231, 236, 243, .4);
+  border-left-color: rgba(255, 255, 255, .12);
+}
+.dt-status-slot .status {
+  color: rgba(231, 236, 243, .66);
+  border-color: rgba(255, 255, 255, .1);
+  background: rgba(255, 255, 255, .045);
+}
+.dt-status-slot .status.running { color: #e7ecf3; border-color: rgba(255, 255, 255, .16); }
+.dt-status-slot .status.error { color: #f28070; border-color: rgba(255, 90, 70, .28); }
+.desktop-menu {
+  position: fixed; z-index: 200;
+  top: 66px; left: 10px;
+  min-width: 218px; max-width: min(320px, calc(100vw - 20px));
+  max-height: calc(100vh - 80px); overflow: auto;
+  padding: 5px;
+  border: 1px solid rgba(255, 255, 255, .11);
+  border-radius: 9px;
+  background: #14161c;
+  box-shadow: 0 22px 55px rgba(0, 0, 0, .5);
+  -webkit-app-region: no-drag;
+}
+.desktop-menu[hidden] { display: none; }
+.dm-item {
+  display: flex; align-items: center; gap: 14px; width: 100%;
+  appearance: none; border: 0; border-radius: 5px;
+  padding: 7px 9px; background: none;
+  color: rgba(231, 236, 243, .78);
+  font: 11.5px var(--sans); text-align: left;
+  cursor: pointer;
+}
+.dm-item:hover { background: rgba(255, 255, 255, .08); color: #fff; }
+.dm-item .dm-key { margin-left: auto; color: rgba(231, 236, 243, .32); font: 10px var(--mono); }
+.dm-sep { height: 1px; margin: 5px 4px; background: rgba(255, 255, 255, .08); }
+.dm-head { padding: 5px 9px 4px; color: rgba(231, 236, 243, .38); font: 9.5px var(--mono); letter-spacing: .13em; }
+html.desktop .appbar { padding-top: 7px; }
 
 /* ---------------- 页头 ---------------- */
 .page-head {
@@ -161,14 +282,14 @@ body::before {
 }
 .appbar .sp { flex: 1; }
 
-/* 液态胶囊：白色滑块 + 灰色悬停底 */
+/* 液态胶囊：滑块 + 悬停底 */
 .capsule {
   position: relative;
   display: flex;
   align-items: center;
   padding: 4px;
   border: 1px solid rgba(var(--fg-rgb), .075);
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--panel);
   box-shadow: 0 20px 50px rgba(0, 0, 0, .3), inset 0 1px 0 rgba(var(--fg-rgb), .035);
   backdrop-filter: blur(18px);
@@ -181,7 +302,7 @@ body::before {
   border: 0;
   background: none;
   padding: 6px 17px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-family: var(--sans);
   font-size: 11.5px;
   font-weight: 500;
@@ -204,7 +325,7 @@ html.light .nav-item.on { color: #ffffff; }
   top: 4px;
   left: 0;
   height: calc(100% - 8px);
-  border-radius: 999px;
+  border-radius: 4px;
   pointer-events: none;
 }
 .hover-pill {
@@ -222,6 +343,8 @@ html.light .nav-item.on { color: #ffffff; }
   will-change: transform, width, border-radius;
 }
 .blob::after {
+  /* 方块滑块去掉液态鼓包，避免滑到边缘时露出圆鼓 */
+  display: none;
   content: "";
   position: absolute;
   left: var(--lead, 100%);
@@ -1602,13 +1725,13 @@ body.zoomed .appbar { display: none; }
 .scope-foot .scope-btns .ghost { padding: 2px 9px; font-size: 9.5px; }
 #scope { cursor: crosshair; }
 
-.seg { display: flex; flex: none; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 999px; }
+.seg { display: flex; flex: none; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; }
 .seg button {
   appearance: none;
   border: 0;
   background: none;
   padding: 3px 9px;
-  border-radius: 999px;
+  border-radius: 6px;
   color: var(--faint);
   font-family: var(--mono);
   font-size: 9.5px;
@@ -2098,14 +2221,1253 @@ html.light #board svg { filter: drop-shadow(0 14px 30px rgba(16, 24, 40, .15)); 
   .qb-tag { display: none; }
 }
 
+/* ==========================================================================
+   iOS 工作台皮肤：浅色分组背景 / 白色圆角卡片 / 分段控件 / 半透明工具栏
+   只覆盖视觉层，不改页面结构与交互；深色模式按 iOS 的黑色层级同步
+   ========================================================================== */
+
+html.ios {
+  color-scheme: dark;
+  --bg: #000;
+  --fg-rgb: 255, 255, 255;
+  --inset: #1c1c1e;
+  --ink: #f2f2f7;
+  --muted: rgba(235, 235, 245, .62);
+  --faint: rgba(235, 235, 245, .36);
+  --line: rgba(84, 84, 88, .52);
+  --line-soft: rgba(84, 84, 88, .3);
+  --panel: #1c1c1e;
+  --panel-soft: #1c1c1e;
+  --hover: rgba(255, 255, 255, .07);
+  --white: #fff;
+  --accent: #0a84ff;
+  --accent-strong: #0a84ff;
+  --accent-ink: #fff;
+  --accent-soft: rgba(10, 132, 255, .16);
+  --ok: #30d158;
+  --warn: #ffd60a;
+  --err: #ff453a;
+  --ease: cubic-bezier(.25, .1, .25, 1);
+  --mono: "SF Mono", "Cascadia Mono", Consolas, "Courier New", monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+    "Segoe UI Variable", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --r-md: 20px;
+  --r-sm: 12px;
+  --control: rgba(118, 118, 128, .24);
+  --seg-track: rgba(118, 118, 128, .28);
+  --seg-on: var(--accent);
+  --seg-on-ink: var(--accent-ink);
+  --glass: rgba(28, 28, 30, .72);
+  --glass-heavy: rgba(28, 28, 30, .9);
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, .42), 0 12px 30px rgba(0, 0, 0, .18);
+}
+
+html.ios.light {
+  color-scheme: light;
+  --bg: #f2f2f7;
+  --fg-rgb: 0, 0, 0;
+  --inset: #fff;
+  --ink: #000;
+  --muted: rgba(60, 60, 67, .62);
+  --faint: rgba(60, 60, 67, .36);
+  --line: rgba(60, 60, 67, .24);
+  --line-soft: rgba(60, 60, 67, .12);
+  --panel: #fff;
+  --panel-soft: #f2f2f7;
+  --hover: rgba(0, 0, 0, .04);
+  --white: #fff;
+  --accent: #007aff;
+  --accent-strong: #007aff;
+  --accent-ink: #fff;
+  --accent-soft: rgba(0, 122, 255, .12);
+  --ok: #34c759;
+  --warn: #ff9500;
+  --err: #ff3b30;
+  --control: rgba(118, 118, 128, .12);
+  --seg-track: rgba(118, 118, 128, .12);
+  --seg-on: var(--accent);
+  --seg-on-ink: var(--accent-ink);
+  --glass: rgba(249, 249, 251, .76);
+  --glass-heavy: rgba(255, 255, 255, .92);
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 10px 30px rgba(0, 0, 0, .04);
+}
+
+html.ios body {
+  font-family: var(--sans);
+  font-size: 13.5px;
+  line-height: 1.5;
+  letter-spacing: -.005em;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+html.ios body::before {
+  background: var(--bg);
+}
+
+html.ios.light body::before {
+  background: linear-gradient(180deg, #fff 0, #fff 58px, var(--bg) 170px, var(--bg) 100%);
+}
+
+html.ios ::selection { background: var(--accent); color: #fff; }
+
+/* ---- 窗口外壳：半透明导航条 + 轻量菜单栏 ---- */
+html.ios .desktop-titlebar {
+  height: 48px;
+  gap: 12px;
+  padding: 0 8px 0 12px;
+  color: var(--ink);
+  background: var(--glass);
+  border-bottom: .5px solid var(--line);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+}
+
+html.ios .dt-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: linear-gradient(145deg, #0a84ff 0%, #5ac8fa 100%);
+  color: #fff;
+  font: 700 11px var(--sans);
+  letter-spacing: 0;
+  box-shadow: 0 4px 10px rgba(0, 122, 255, .22);
+}
+
+html.ios .dt-name {
+  font: 600 13.5px var(--sans);
+  letter-spacing: -.01em;
+}
+
+html.ios .dt-kind {
+  display: none;
+}
+
+html.ios .dt-doc {
+  gap: 8px;
+  font: 12.5px var(--sans);
+  color: var(--muted);
+}
+
+html.ios .dt-doc #dt-project {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+html.ios .dt-doc #dt-file { color: var(--muted); }
+html.ios .dt-doc .dt-sep { color: var(--faint); }
+
+html.ios .dt-dirty {
+  width: 7px;
+  height: 7px;
+  background: var(--warn);
+  box-shadow: none;
+}
+
+html.ios .dt-window-btns {
+  height: 48px;
+  gap: 2px;
+  margin-left: 6px;
+}
+
+html.ios .dt-win {
+  width: 40px;
+  height: 32px;
+  border-radius: 9px;
+  color: var(--muted);
+  font: 14px/1 var(--sans);
+}
+
+html.ios .dt-win:hover {
+  background: var(--control);
+  color: var(--ink);
+}
+
+html.ios .dt-win.dt-close:hover {
+  background: #ff3b30;
+  color: #fff;
+}
+
+html.ios .desktop-menubar {
+  height: 30px;
+  gap: 4px;
+  padding: 0 10px;
+  background: var(--glass);
+  border-bottom: .5px solid var(--line);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+}
+
+html.ios .dm-btn {
+  padding: 4px 10px;
+  border-radius: 8px;
+  color: var(--ink);
+  opacity: .72;
+  font: 500 12px var(--sans);
+  letter-spacing: 0;
+}
+
+html.ios .dm-btn:hover,
+html.ios .dm-btn.on {
+  color: var(--accent);
+  opacity: 1;
+  background: var(--accent-soft);
+}
+
+html.ios .dt-status-slot { gap: 10px; }
+html.ios .desktop-menu { top: 82px; left: 8px; }
+
+html.ios .desktop-menu,
+html.ios .hw-menu-pop,
+html.ios .ac {
+  border: .5px solid var(--line);
+  border-radius: 14px;
+  background: var(--glass-heavy);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .18), 0 2px 8px rgba(0, 0, 0, .06);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+}
+
+html.ios .desktop-menu { padding: 6px; min-width: 232px; }
+html.ios .dm-item {
+  padding: 8px 10px;
+  border-radius: 9px;
+  color: var(--ink);
+  font: 13px var(--sans);
+}
+html.ios .dm-item:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+html.ios .dm-item .dm-key {
+  color: var(--faint);
+  font: 11px var(--sans);
+}
+html.ios .dm-sep {
+  height: .5px;
+  margin: 6px 8px;
+  background: var(--line);
+}
+html.ios .dm-head {
+  padding: 6px 10px 4px;
+  color: var(--faint);
+  font: 11px var(--sans);
+  letter-spacing: 0;
+}
+
+/* ---- 页头（网页端保留） ---- */
+html.ios .page-head { padding: 13px clamp(16px, 2vw, 32px) 4px; }
+html.ios .brand b { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+html.ios .brand span { font-size: 11.5px; letter-spacing: 0; }
+html.ios .brand em { font-family: var(--sans); font-size: 11px; letter-spacing: 0; }
+html.ios .head-note { font-size: 10.5px; letter-spacing: 0; }
+html.ios .build-tag {
+  font-family: var(--sans);
+  font-size: 10.5px;
+  letter-spacing: 0;
+  border-left: .5px solid var(--line);
+}
+html.ios .status {
+  min-height: 24px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--control);
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0;
+  gap: 6px;
+}
+html.ios .status::before { width: 7px; height: 7px; background: var(--faint); }
+html.ios .status.running { color: var(--ink); }
+html.ios .status.running::before { background: var(--ok); }
+html.ios .status.error { color: var(--err); }
+html.ios .status.error::before { background: var(--err); }
+
+/* ---- 顶栏：iOS 分段控件 + 蓝色操作按钮 ---- */
+html.ios .appbar { padding: 8px clamp(16px, 2vw, 32px) 10px; gap: 12px; }
+html.ios .capsule {
+  padding: 3px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--seg-track);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+html.ios .capsule .hover-pill { display: none; }
+html.ios .capsule .blob {
+  top: 3px;
+  height: calc(100% - 6px);
+  border-radius: 4px !important;
+  background: var(--seg-on);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .13);
+}
+html.ios .capsule .blob::after { display: none; }
+html.ios .nav-item {
+  padding: 6px 15px;
+  border-radius: 6px;
+  font: 500 12.5px var(--sans);
+  letter-spacing: 0;
+  color: var(--muted);
+  transition: background .2s var(--ease), color .2s var(--ease), box-shadow .2s var(--ease);
+}
+html.ios .nav-item:hover { color: var(--ink); }
+html.ios .nav-item.ink:not([aria-current="page"]) { color: var(--muted); }
+html.ios .nav-item[aria-current="page"],
+html.ios .nav-item[aria-current="page"].ink {
+  color: var(--seg-on-ink);
+  background: transparent;
+  box-shadow: none;
+}
+html.ios .nav-item.on {
+  color: var(--seg-on-ink);
+  background: transparent;
+  box-shadow: none;
+}
+html.ios .controls { gap: 8px; }
+html.ios .play {
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font: 600 13.5px var(--sans);
+  letter-spacing: 0;
+  box-shadow: 0 1px 2px rgba(0, 122, 255, .2);
+}
+html.ios .play:hover {
+  transform: none;
+  filter: brightness(.96);
+  box-shadow: 0 4px 12px rgba(0, 122, 255, .18);
+}
+html.ios .play:active { transform: scale(.97); }
+html.ios .savebtn {
+  height: 34px;
+  padding: 0 12px;
+  border: .5px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--ink);
+  font: 500 12.5px var(--sans);
+  letter-spacing: 0;
+  box-shadow: none;
+}
+html.ios .savebtn:hover { background: var(--control); color: var(--ink); transform: none; }
+html.ios .circle {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--control);
+  color: var(--accent);
+}
+html.ios .circle:hover { background: var(--accent-soft); color: var(--accent); transform: none; }
+html.ios .circle:disabled { opacity: .4; background: var(--control); color: var(--faint); }
+html.ios .speed { font: 11px var(--sans); letter-spacing: 0; }
+html.ios .speed b { font: 500 11px var(--sans); color: var(--ink); }
+html.ios .speed input { accent-color: var(--accent); }
+
+/* ---- 快速开始条：轻量提示卡 ---- */
+html.ios .quickbar {
+  margin: 0 clamp(16px, 2vw, 32px) 6px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: var(--card-shadow);
+  font-size: 11.5px;
+}
+html.ios .qb-tag { font: 600 10.5px var(--sans); color: var(--faint); border-right: 0; padding-right: 6px; }
+html.ios .qb-step { color: var(--muted); }
+html.ios .qb-step i { color: var(--accent); font-family: var(--sans); font-weight: 600; }
+html.ios .qb-go { color: var(--accent); font: 500 11.5px var(--sans); text-decoration: none; }
+html.ios .qb-close { color: var(--muted); font: 11.5px var(--sans); }
+html.ios .qb-go:hover, html.ios .qb-close:hover { color: var(--ink); }
+
+html.ios main { padding: 0 clamp(16px, 2vw, 32px) 16px; }
+html.ios .page.active { gap: 16px; }
+html.ios .page-code { grid-template-columns: minmax(0, 1.16fr) minmax(0, 1fr); }
+
+/* ---- 卡片：白色圆角分组，去掉仪表盘编号和状态小点 ---- */
+html.ios .panel {
+  border: .5px solid var(--line-soft);
+  border-radius: var(--r-md);
+  background: var(--panel);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+html.ios .panel:hover { border-color: var(--line-soft); }
+html.ios .panel-h {
+  min-height: 44px;
+  padding: 0 16px;
+  gap: 10px;
+  border-bottom: .5px solid var(--line-soft);
+}
+html.ios .panel-h .idx { display: none; }
+html.ios .panel-h h2 {
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  color: var(--ink);
+}
+html.ios .panel-h .hint {
+  font-size: 11.5px;
+  letter-spacing: 0;
+  color: var(--faint);
+}
+html.ios .panel-h .hint::before { display: none; }
+html.ios .panel-b { padding: 14px 16px; }
+
+/* ---- 文字按钮 / 小控件 ---- */
+html.ios .ghost {
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--accent);
+  font: 500 12px var(--sans);
+  letter-spacing: 0;
+}
+html.ios .ghost:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: transparent;
+}
+html.ios .ghost.icon {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 9px;
+  background: var(--control);
+  color: var(--muted);
+}
+html.ios .ghost.icon:hover { background: var(--accent-soft); color: var(--accent); }
+html.ios .ghost.icon.on { background: var(--accent-soft); color: var(--accent); }
+html.ios .mini {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--control);
+  color: var(--muted);
+  font-size: 12px;
+}
+html.ios .mini:hover { background: var(--accent-soft); color: var(--accent); border: 0; }
+html.ios .linky {
+  color: var(--accent);
+  font: 500 11px var(--sans);
+  text-decoration: none;
+}
+html.ios .linky:hover { color: var(--accent); opacity: .7; }
+
+html.ios .seg {
+  padding: 2px;
+  gap: 1px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--seg-track);
+}
+html.ios .seg button {
+  padding: 4px 10px;
+  border-radius: 6px;
+  color: var(--muted);
+  font: 500 11px var(--sans);
+  letter-spacing: 0;
+}
+html.ios .seg button:hover { color: var(--ink); }
+html.ios .seg button.on {
+  background: transparent;
+  color: var(--seg-on-ink);
+  box-shadow: none;
+}
+html.ios .seg.seg-sm button { padding: 4px 9px; font-size: 11px; }
+
+html.ios .sel select {
+  max-width: 178px;
+  padding: 5px 24px 5px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--control);
+  color: var(--ink);
+  font: 11.5px var(--sans);
+  letter-spacing: 0;
+}
+html.ios .sel select:hover { border: 0; background: var(--accent-soft); }
+html.ios .sel::after { border-color: var(--muted); }
+html.ios .sel select option { background: var(--panel); color: var(--ink); }
+
+/* ---- 文件标签 / 查找条 ---- */
+html.ios .tabs { gap: 3px; }
+html.ios .tab {
+  padding: 6px 9px;
+  border-radius: 8px;
+  color: var(--muted);
+  font: 11.5px var(--mono);
+}
+html.ios .tab:hover { background: var(--control); color: var(--ink); }
+html.ios .tab.on { background: var(--accent-soft); color: var(--accent); }
+html.ios .tab .dot { background: var(--faint); }
+html.ios .tab.on .dot { background: var(--warn); box-shadow: none; }
+html.ios .findbar {
+  padding: 8px 12px;
+  border-bottom: .5px solid var(--line-soft);
+  background: var(--panel-soft);
+}
+html.ios .findbar input {
+  width: 132px;
+  height: 28px;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--control);
+  color: var(--ink);
+  font: 11.5px var(--mono);
+}
+html.ios .findbar input:focus { box-shadow: inset 0 0 0 1.5px var(--accent); }
+html.ios .findbar .fc { color: var(--faint); font: 10.5px var(--mono); }
+
+/* ---- 工程树：Files 式分组列表 ---- */
+html.ios .editor-body { background: var(--panel); }
+html.ios .proj {
+  width: 216px;
+  border-right: .5px solid var(--line-soft);
+  background: var(--panel-soft);
+}
+html.ios:not(.light) .proj { background: #2c2c2e; }
+html.ios:not(.light) .findbar { background: #2c2c2e; }
+html.ios .proj-h {
+  padding: 10px 12px 6px;
+  color: var(--faint);
+  font: 11px var(--sans);
+  letter-spacing: 0;
+}
+html.ios .proj-h .pn { font: 600 12px var(--sans); color: var(--ink); letter-spacing: 0; }
+html.ios .proj-open {
+  margin: 0 10px 8px;
+  padding: 8px 10px;
+  border: .5px solid var(--line-soft);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--ink);
+  font: 500 12px var(--sans);
+}
+html.ios .proj-open:hover { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+html.ios .proj-open svg { color: var(--accent); opacity: 1; }
+html.ios .proj-acts { gap: 4px; padding: 0 10px 8px; }
+html.ios .proj-acts button,
+html.ios .proj-f button {
+  padding: 6px 3px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--control);
+  color: var(--muted);
+  font: 500 10.5px var(--sans);
+  letter-spacing: 0;
+}
+html.ios .proj-acts button:hover,
+html.ios .proj-f button:hover { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+html.ios .proj-tree { padding: 0 8px 10px; }
+html.ios .p-row {
+  gap: 7px;
+  padding: 6px 8px;
+  border-radius: 9px;
+  color: var(--muted);
+  font: 12px var(--sans);
+}
+html.ios .p-row:hover { background: var(--control); color: var(--ink); }
+html.ios .p-row.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: none;
+  font-weight: 500;
+}
+html.ios .p-row .ico { color: var(--accent); font-size: 9.5px; }
+html.ios .p-row.dir .ico { color: var(--faint); }
+html.ios .p-row .cnt { color: var(--faint); font: 9.5px var(--sans); }
+html.ios .p-row .dirty { background: var(--warn); box-shadow: none; }
+html.ios .p-row .x:hover { background: var(--err); color: #fff; }
+html.ios .proj-stat {
+  padding: 8px 12px 4px;
+  border-top: .5px solid var(--line-soft);
+  color: var(--faint);
+  font-size: 10.5px;
+}
+html.ios .proj-src { padding: 6px 12px 0; color: var(--faint); font-size: 10px; }
+html.ios .proj-f { gap: 4px; padding: 8px 10px 10px; }
+html.ios .proj-f button { color: var(--accent); background: transparent; }
+html.ios .proj-f button:hover { background: var(--accent-soft); }
+html.ios .proj-empty { color: var(--faint); font-size: 11.5px; }
+
+/* ---- 编辑器 ---- */
+html.ios .editor-wrap { background: var(--inset); }
+html.ios #gutter {
+  width: 46px;
+  padding: 12px 8px 12px 0;
+  border-right: .5px solid var(--line-soft);
+  color: var(--faint);
+  font-size: 11.5px;
+}
+html.ios #gutter div.bp::before { background: var(--err); box-shadow: none; }
+html.ios #gutter div.cur::after { background: var(--accent); box-shadow: none; }
+html.ios #gutter div.cur { color: var(--ink); }
+html.ios #hl, html.ios #code { font-size: 12.5px; }
+html.ios .marks i.cur { background: var(--accent-soft); }
+html.ios .marks i.err { background: rgba(255, 59, 48, .14); }
+html.ios #code::selection { background: rgba(0, 122, 255, .22); }
+html.ios .editor-foot {
+  padding: 9px 16px;
+  border-top: .5px solid var(--line-soft);
+  color: var(--faint);
+  font: 10.5px var(--sans);
+  letter-spacing: 0;
+  gap: 14px;
+}
+html.ios .editor-panel,
+html.ios .build-panel { box-shadow: var(--card-shadow); }
+
+html.ios .hl-k { color: #ff9f0a; }
+html.ios .hl-t { color: #64d2ff; }
+html.ios .hl-n { color: #ffd60a; }
+html.ios .hl-s { color: #30d158; }
+html.ios .hl-c { color: #8e8e93; font-style: normal; }
+html.ios .hl-p { color: #bf5af2; }
+html.ios .hl-r { color: #0a84ff; }
+html.ios .hl-f { color: var(--ink); }
+html.ios.light .hl-k { color: #af52de; }
+html.ios.light .hl-t { color: #007aff; }
+html.ios.light .hl-n { color: #ff9500; }
+html.ios.light .hl-s { color: #34c759; }
+html.ios.light .hl-c { color: #8e8e93; }
+html.ios.light .hl-p { color: #5856d6; }
+html.ios.light .hl-r { color: #007aff; }
+html.ios.light .hl-f { color: #1c1c1e; }
+
+/* ---- 编译输出 / 调试 / 串口 ---- */
+html.ios .build-log {
+  padding: 12px 16px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.75;
+}
+html.ios .build-log .ok { color: var(--ok); }
+html.ios .build-log .warn { color: var(--warn); }
+html.ios .build-log .err { color: var(--err); }
+html.ios .build-log .dim { color: var(--faint); }
+html.ios .build-log .cmd { color: var(--accent); }
+html.ios .build-problems {
+  border-bottom: .5px solid var(--line-soft);
+  background: var(--panel-soft);
+  font-size: 11px;
+}
+html.ios .prob-filter { padding: 8px 14px 5px; background: var(--panel-soft); }
+html.ios .prob-filter button {
+  padding: 3px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--control);
+  color: var(--muted);
+  font: 11px var(--sans);
+}
+html.ios .prob-filter button.on { background: var(--accent-soft); color: var(--accent); }
+html.ios .prob-row { padding: 5px 16px; font-size: 11px; }
+html.ios .prob-row:hover { background: var(--control); }
+html.ios .prob-head { background: var(--panel-soft); color: var(--faint); font-size: 10px; }
+html.ios .prob-head:hover { background: var(--panel-soft); }
+html.ios .debug-view { font-size: 11.5px; }
+html.ios .dbg-k { color: var(--faint); font: 600 10px var(--sans); letter-spacing: .06em; }
+html.ios .stack .row { border-radius: 8px; color: var(--muted); font-size: 11px; }
+html.ios .stack .row:hover { background: var(--control); color: var(--ink); }
+html.ios .stack .row.top { background: var(--accent-soft); color: var(--accent); }
+html.ios .serial-out { background: var(--panel-soft); color: var(--ink); font-size: 11.5px; }
+html.ios .serial-bar { border-top: .5px solid var(--line-soft); }
+html.ios .serial-tx {
+  background: var(--control);
+  border: 0;
+  border-radius: 9px;
+  color: var(--ink);
+  font-size: 11px;
+}
+
+/* ---- 开发板 / 侧栏 ---- */
+html.ios .page-board { grid-template-columns: minmax(0, 1fr) minmax(228px, 282px); }
+html.ios .board-modes { min-height: 38px; border-bottom: 0; gap: 8px 14px; }
+html.ios #board-view-tabs {
+  gap: 1px;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--seg-track);
+  overflow: hidden;
+}
+html.ios #board-view-tabs button {
+  padding: 5px 12px;
+  border-radius: 6px;
+  color: var(--muted);
+  font: 500 11.5px var(--sans);
+}
+html.ios #board-view-tabs button:hover { color: var(--ink); }
+html.ios #board-view-tabs button.on {
+  color: var(--seg-on-ink);
+  background: transparent;
+  box-shadow: none;
+}
+html.ios #board-view-tabs button.on::after { display: none; }
+html.ios .hw-menu { border-left: 0; padding-left: 8px; }
+html.ios .hw-menu-btn {
+  padding: 5px 9px;
+  border-radius: 8px;
+  color: var(--accent);
+  font: 500 11.5px var(--sans);
+}
+html.ios .hw-menu-btn:hover { background: var(--accent-soft); color: var(--accent); }
+html.ios .hw-menu-btn.on { background: var(--accent-soft); color: var(--accent); }
+html.ios .hw-menu-btn.on::after { display: none; }
+html.ios .hw-menu-btn b { font-weight: 500; }
+html.ios .hw-menu-btn span { color: var(--faint); font-size: 9px; }
+html.ios .board-modes .hint { font-family: var(--sans); font-size: 11px; color: var(--faint); }
+html.ios .pin-cap-note {
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: rgba(255, 149, 0, .12);
+  color: var(--muted);
+  font-size: 11px;
+}
+html.ios .pin-cap-note button { color: var(--warn); font: 500 10.5px var(--sans); text-decoration: none; }
+html.ios .board-stage {
+  background:
+    radial-gradient(58% 48% at 50% 44%, rgba(0, 122, 255, .07), rgba(0, 122, 255, 0) 72%),
+    var(--panel-soft);
+}
+html.ios #board svg { filter: drop-shadow(0 18px 34px rgba(0, 0, 0, .2)); }
+html.ios.light #board svg { filter: drop-shadow(0 18px 30px rgba(0, 0, 0, .12)); }
+html.ios .board-tip {
+  height: 44px;
+  margin: 0 12px 12px;
+  padding: 8px 12px;
+  border: .5px solid var(--line-soft);
+  border-radius: 12px;
+  background: var(--panel-soft);
+  color: var(--muted);
+  font-size: 11.5px;
+}
+html.ios .board-tip.on { background: var(--accent-soft); border-color: transparent; color: var(--ink); }
+html.ios .board-panel.board-full { background: var(--panel); border-color: var(--line); }
+html.ios .corner { border-color: var(--accent); border-width: 2px; border-radius: 7px; }
+html.ios .reticle-label { color: var(--ink); font: 500 11.5px var(--sans); }
+
+html.ios .ports { gap: 8px; padding: 13px 14px 4px; }
+html.ios .port-row { font-size: 10px; }
+html.ios .port-name { color: var(--muted); font: 600 10px var(--sans); }
+html.ios .bit {
+  width: 18px;
+  height: 22px;
+  border: .5px solid transparent;
+  border-radius: 5px;
+  background: var(--control);
+  color: var(--faint);
+  font: 10px var(--mono);
+  line-height: 19px;
+}
+html.ios .bit.one { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: none; }
+html.ios .bit:hover { border-color: var(--accent); }
+html.ios .hexval { color: var(--faint); font: 10px var(--mono); }
+html.ios .ports-legend { color: var(--faint); font-size: 10px; letter-spacing: 0; }
+
+html.ios .sfr-row { grid-template-columns: 46px 34px 1fr; gap: 7px; }
+html.ios .sfr-name { color: var(--muted); font-size: 10.5px; }
+html.ios .sfr-hex { color: var(--accent); font-size: 10.5px; }
+html.ios .sfr-bit {
+  width: 15px;
+  height: 15px;
+  border: .5px solid transparent;
+  border-radius: 4px;
+  background: var(--control);
+  color: var(--faint);
+}
+html.ios .sfr-bit.one { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: none; }
+html.ios .sfr-timer { border-top: .5px solid var(--line-soft); color: var(--muted); font-size: 10.5px; }
+html.ios .sfr-empty { color: var(--faint); font-size: 11.5px; }
+html.ios .watch-add { padding: 7px 12px 12px; }
+html.ios .watch-add input {
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--control);
+  color: var(--ink);
+  font: 11px var(--mono);
+}
+html.ios .watch-add input:focus { box-shadow: inset 0 0 0 1.5px var(--accent); }
+html.ios .w-row { font-size: 11px; }
+html.ios .w-name { color: var(--muted); }
+html.ios .w-val { color: var(--ink); }
+html.ios .w-row.w-custom .w-name { color: var(--accent); }
+html.ios #console { padding: 13px 16px; font-size: 11px; color: var(--muted); }
+html.ios #console .ok { color: var(--ok); }
+html.ios #console .err { color: var(--err); }
+html.ios #console .dim { color: var(--faint); }
+
+/* ---- 时序图 / 讲义 ---- */
+html.ios .scope-foot {
+  border-top: .5px solid var(--line-soft);
+  color: var(--faint);
+  font: 10.5px var(--sans);
+  letter-spacing: 0;
+}
+html.ios .scope-body {
+  background-color: var(--panel);
+  background-image:
+    linear-gradient(to right, rgba(var(--fg-rgb), .035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(var(--fg-rgb), .035) 1px, transparent 1px);
+  background-size: 48px 34px;
+}
+html.ios .scope-empty { color: var(--muted); }
+html.ios .scope-empty b { color: var(--ink); font-size: 14px; font-weight: 600; }
+html.ios .ex-code {
+  border: 0;
+  border-radius: 12px;
+  background: var(--panel-soft);
+  color: var(--muted);
+  font-size: 11.5px;
+}
+html.ios .ex-btn {
+  padding: 9px 11px;
+  border-radius: 9px;
+  color: var(--muted);
+  font: 12.5px var(--sans);
+}
+html.ios .ex-btn:hover { background: var(--control); color: var(--ink); }
+html.ios .ex-btn.active { background: var(--accent-soft); color: var(--accent); }
+html.ios .ex-btn.active .n { color: var(--accent); }
+html.ios .chapter {
+  margin-bottom: 9px;
+  color: var(--faint);
+  font: 600 11px var(--sans);
+  letter-spacing: 0;
+}
+html.ios .goal {
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  border: 0;
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--muted);
+  font-size: 12.5px;
+}
+html.ios .panel-b h3 { font: 600 12.5px var(--sans); letter-spacing: 0; color: var(--muted); }
+html.ios .panel-b li { color: var(--muted); font-size: 12.5px; line-height: 1.7; }
+
+/* ---- 对话框 / 弹层 / 提示 ---- */
+html.ios .dlg-mask {
+  background: rgba(0, 0, 0, .3);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+html.ios .dlg {
+  width: min(380px, 90vw);
+  padding: 22px;
+  border: .5px solid var(--line);
+  border-radius: 20px;
+  background: var(--glass-heavy);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, .22), 0 2px 8px rgba(0, 0, 0, .08);
+  backdrop-filter: saturate(180%) blur(28px);
+  -webkit-backdrop-filter: saturate(180%) blur(28px);
+}
+html.ios .dlg h3 {
+  margin-bottom: 8px;
+  font: 600 17px var(--sans);
+  letter-spacing: -.015em;
+  text-align: center;
+}
+html.ios .dlg-msg {
+  margin-bottom: 16px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
+}
+html.ios .dlg input {
+  padding: 10px 12px;
+  border: .5px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--ink);
+  font: 13px var(--mono);
+}
+html.ios .dlg input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+html.ios .dlg-f { margin-top: 18px; gap: 10px; }
+html.ios .play.sm { height: 34px; padding: 0 18px; border-radius: 10px; font-size: 13px; }
+html.ios .item-types {
+  border: 0;
+  border-radius: 12px;
+  background: var(--panel-soft);
+}
+html.ios .item-types li { border-radius: 8px; color: var(--muted); font-size: 12px; }
+html.ios .item-types li:hover { background: var(--control); color: var(--ink); }
+html.ios .item-types li.on { background: var(--accent-soft); color: var(--accent); }
+html.ios .item-types li.on b { background: var(--accent); color: #fff; }
+html.ios .item-types li b { background: var(--control); color: var(--ink); }
+html.ios .item-row input,
+html.ios .item-row select {
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--control);
+  color: var(--ink);
+  font: 12.5px var(--mono);
+}
+html.ios .item-row select { font-family: var(--sans); }
+html.ios .keys kbd {
+  padding: 3px 7px;
+  border: 0;
+  border-bottom-width: 0;
+  border-radius: 6px;
+  background: var(--control);
+  color: var(--ink);
+  font: 11px var(--mono);
+}
+html.ios .dlg-note { border-top: .5px solid var(--line-soft); color: var(--faint); font-size: 11px; }
+html.ios .ac { padding: 5px; font: 11.5px var(--mono); }
+html.ios .ac-item { padding: 5px 8px; border-radius: 8px; color: var(--ink); }
+html.ios .ac-item.on { background: var(--accent-soft); color: var(--accent); }
+html.ios .ac-item .k { color: var(--faint); font-size: 10px; }
+html.ios .ac-item .d { color: var(--faint); font-size: 10px; }
+html.ios .hw-menu-pop { padding: 6px; min-width: 154px; }
+html.ios .hw-menu-pop button {
+  padding: 8px 9px;
+  border-radius: 8px;
+  color: var(--ink);
+  font: 12px var(--sans);
+}
+html.ios .hw-menu-pop button:hover { background: var(--accent-soft); color: var(--accent); }
+html.ios .hw-menu-pop button.on { background: var(--accent-soft); color: var(--accent); }
+html.ios .storage-notice,
+html.ios .update-toast {
+  border: .5px solid var(--line);
+  border-radius: 16px;
+  background: var(--glass-heavy);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .16);
+  color: var(--ink);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+}
+html.ios .update-toast { border-color: var(--line); }
+html.ios #update-now {
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font: 600 12px var(--sans);
+}
+
+/* ---- 浅色模式的细节校正：避免白卡片上出现白/暖色残留 ---- */
+html.ios.light .bit.one { color: #fff; }
+html.ios.light .proj-open { color: #000; }
+html.ios.light .proj-open:hover { color: var(--accent); }
+html.ios.light .quickbar { background: #fff; }
+html.ios.light .board-tip { color: var(--muted); }
+html.ios.light .corner { border-color: var(--accent); }
+html.ios.light .reticle-label { color: #000; }
+html.ios.light .status { color: var(--muted); }
+html.ios.light .status.running { color: #000; }
+html.ios.light .dt-win:hover { background: rgba(0, 0, 0, .06); }
+html.ios.light .dt-win.dt-close:hover { background: #ff3b30; }
+
+/* 窄屏下把提示卡和窗口留白继续收住 */
+@media (max-width: 760px) {
+  html.ios .quickbar { margin: 0 12px 6px; }
+  html.ios main { padding: 0 12px 12px; }
+  html.ios .appbar { padding: 8px 12px 10px; }
+  html.ios .desktop-chrome { display: none; }
+}
+
+/* ==================== iOS 微交互 ====================
+   动效只服务状态变化：切页、弹窗、提示、按压、运行指示、分段控件。
+   不跟随光标、不做全屏扫屏、不做无限旋转，避免干扰代码和波形阅读。 */
+
+/* #092 页面转场：淡入 + 4~6px 上移，约 240ms */
+html.ios .page.active { animation: ios-page-in .24s cubic-bezier(.22, .8, .28, 1); }
+@keyframes ios-page-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* #049 模态对话框：遮罩淡入，卡片 0.96 → 1 */
+html.ios .dlg-mask.on { animation: ios-scrim-in .2s ease-out both; }
+html.ios .dlg-mask.on .dlg { animation: ios-dialog-in .26s cubic-bezier(.2, .85, .3, 1) both; }
+@keyframes ios-scrim-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes ios-dialog-in {
+  from { opacity: 0; transform: scale(.96) translateY(7px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* #056 轻提示：右下角更新提示滑入；通用提示从底部浮起，约 2.5s 后淡出 */
+html.ios .update-toast:not([hidden]) { animation: ios-toast-slide .3s cubic-bezier(.2, .85, .3, 1) both; }
+@keyframes ios-toast-slide {
+  from { opacity: 0; transform: translateX(14px) scale(.985); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+html.ios .ios-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  z-index: 122;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 9px 14px 9px 9px;
+  border: .5px solid var(--line);
+  border-radius: 999px;
+  background: var(--glass-heavy);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, .16);
+  color: var(--ink);
+  font: 500 12px var(--sans);
+  letter-spacing: 0;
+  transform: translateX(-50%);
+  pointer-events: none;
+  opacity: 0;
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+}
+html.ios .ios-toast[hidden] { display: none; }
+html.ios .ios-toast.on { animation: ios-toast-life 2.5s cubic-bezier(.2, .85, .3, 1) both; }
+html.ios .ios-toast-ic {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--ok);
+  color: #fff;
+  font: 600 11px var(--sans);
+}
+html.ios .ios-toast-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@keyframes ios-toast-life {
+  0% { opacity: 0; transform: translate(-50%, 10px) scale(.985); }
+  9% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  86% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -4px) scale(1); }
+}
+
+/* #011 按压缩放：主按钮 / 保存 / 圆形图标 / 小工具按钮按下 0.96 */
+html.ios .play { transition: transform .08s var(--ease), filter .2s var(--ease), box-shadow .2s var(--ease); }
+html.ios .savebtn,
+html.ios .circle,
+html.ios .ghost,
+html.ios .hw-menu-btn,
+html.ios .dlg-f button,
+html.ios .dt-win,
+html.ios #update-now {
+  transition: transform .08s var(--ease), background .2s var(--ease), color .2s var(--ease),
+    border-color .2s var(--ease), opacity .2s var(--ease);
+}
+html.ios .play:active,
+html.ios .savebtn:active,
+html.ios .circle:active,
+html.ios .ghost:active,
+html.ios .hw-menu-btn:active,
+html.ios .dlg-f button:active,
+html.ios .dt-win:active,
+html.ios #update-now:active { transform: scale(.96); }
+
+/* #125 运行状态脉冲：只让运行点呼吸，不闪整块状态栏 */
+html.ios .status.running::before {
+  animation: ios-running-pulse 1.8s ease-in-out infinite;
+  box-shadow: 0 0 0 0 rgba(52, 199, 89, 0);
+}
+@keyframes ios-running-pulse {
+  0%, 100% { opacity: .55; transform: scale(.9); box-shadow: 0 0 0 0 rgba(52, 199, 89, .32); }
+  50% { opacity: 1; transform: scale(1.2); box-shadow: 0 0 0 5px rgba(52, 199, 89, 0); }
+}
+
+/* #060 分段控件滑块：胶囊在轨道里滑动，程序化切换也跟随 —— 网页 iOS 皮肤和桌面深色皮肤共用 */
+.seg.has-blob { position: relative; }
+.seg.has-blob button { position: relative; z-index: 2; background: transparent; }
+.seg.has-blob button:hover { background: transparent; }
+.seg.has-blob button.on,
+#board-view-tabs.has-blob button.on {
+  background: transparent;
+  box-shadow: none;
+}
+.seg-blob {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  width: 0;
+  height: 0;
+  border-radius: 4px;
+  background: var(--seg-on);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, .12);
+  opacity: 0;
+  pointer-events: none;
+  transition: left .26s cubic-bezier(.22, .85, .28, 1), top .26s cubic-bezier(.22, .85, .28, 1),
+    width .26s cubic-bezier(.22, .85, .28, 1), height .26s cubic-bezier(.22, .85, .28, 1),
+    opacity .12s linear;
+}
+/* 滑块上的选中文字用反色（蓝底配深字，浅色皮肤配白字） */
+.seg.has-blob button.on { color: var(--seg-on-ink); }
+/* 开发板顶部页签：id 规则权重更高，单独覆盖，并去掉原来的下划线指示器（滑块已承担选中提示） */
+#board-view-tabs.has-blob button.on { color: var(--seg-on-ink); }
+#board-view-tabs.has-blob button.on::after { display: none; }
+
+/* 系统要求减少动态效果时，只保留即时状态变化 */
+@media (prefers-reduced-motion: reduce) {
+  html.ios .page.active,
+  html.ios .dlg-mask.on,
+  html.ios .dlg-mask.on .dlg,
+  html.ios .update-toast:not([hidden]),
+  html.ios .ios-toast.on,
+  html.ios .status.running::before { animation: none !important; }
+  html.ios .seg-blob { transition: none !important; }
+  html.ios .ios-toast { opacity: 1; }
+  html.ios .play:active,
+  html.ios .savebtn:active,
+  html.ios .circle:active,
+  html.ios .ghost:active,
+  html.ios .hw-menu-btn:active,
+  html.ios .dlg-f button:active,
+  html.ios .dt-win:active,
+  html.ios #update-now:active { transform: none; }
+}
+
+/* ==========================================================================
+   桌面版深色皮肤（与线上「深夜仪表台」一致）
+   桌面窗口不套 iOS 皮肤：这里只补上 iOS 专属组件在深色底下的最小兜底，
+   避免提示、滑块这些功能件在深色下不可见。
+   ========================================================================== */
+html.desktop:not(.ios) #btn-theme { display: none; }
+
+/* 分段控件滑块在深色皮肤下同样启用（颜色来自 :root 的 --seg-on） */
+
+/* 开发板页签在非 iOS 皮肤下也做成「轨道 + 方块」形态：
+   原来这里是纯文字 + 底部下划线，套上滑块后文字会被色块顶满 */
+html:not(.ios) #board-view-tabs.has-blob {
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  overflow: hidden;
+}
+html:not(.ios) #board-view-tabs.has-blob button {
+  padding: 5px 10px;
+  border-radius: 6px;
+}
+
+/* 成功提示：居中浮在底部，深色玻璃胶囊 */
+html.desktop:not(.ios) .ios-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  z-index: 122;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 9px 14px 9px 9px;
+  border: .5px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, .5);
+  color: var(--ink);
+  font: 500 12px var(--sans);
+  transform: translateX(-50%);
+  pointer-events: none;
+  opacity: 0;
+}
+html.desktop:not(.ios) .ios-toast[hidden] { display: none; }
+html.desktop:not(.ios) .ios-toast.on {
+  animation: ios-toast-life 2.5s cubic-bezier(.2, .85, .3, 1) both;
+}
+html.desktop:not(.ios) .ios-toast-ic {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--ok);
+  color: #04121c;
+  font: 600 11px var(--sans);
+}
+html.desktop:not(.ios) .ios-toast-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 页面切页：沿用同一段淡入，桌面深色也保留 240ms 转场 */
+html.desktop:not(.ios) .page.active {
+  animation: ios-page-in .24s cubic-bezier(.22, .8, .28, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.desktop:not(.ios) .page.active,
+  html.desktop:not(.ios) .ios-toast.on { animation: none !important; }
+  html.desktop:not(.ios) .ios-toast { opacity: 1; }
+  html.desktop:not(.ios) .seg-blob { transition: none !important; }
+}
+
+
 </style>
 <link rel="manifest" href="manifest.webmanifest">
 <script>
-/* 主题要在第一帧之前应用，避免先深色闪一下 */
-try { if (localStorage.getItem('c51.theme') === 'light') document.documentElement.classList.add('light'); } catch (e) {}
-</script>
-</head>
+/* 主题要在第一帧之前应用：首次启动跟随系统，之后尊重用户选择 */
+try {
+  var savedTheme = localStorage.getItem('c51.theme');
+  if (savedTheme === 'light' || (!savedTheme && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches)) {
+    document.documentElement.classList.add('light');
+  }
+} catch (e) {}
+/* 桌面版标记：只在 Electron 里显示软件外壳，网页保持原样。
+   桌面版沿用线上那套「深夜仪表台」深色皮肤，不套 iOS 皮肤，所以撤掉 ios 与 light。 */
+if (window.c51Desktop && window.c51Desktop.isDesktop) {
+  var de = document.documentElement;
+  de.classList.add('desktop');
+  de.classList.remove('ios', 'light');
+  var tc = document.querySelector('meta[name="theme-color"]');
+  if (tc) tc.setAttribute('content', '#0a0b0e');
+}
+</script></head>
 <body>
+
+<div class="desktop-chrome" id="desktop-chrome">
+  <div class="desktop-titlebar">
+    <div class="dt-brand">
+      <span class="dt-mark">51</span>
+      <span class="dt-name">实验台</span>
+      <span class="dt-kind">桌面版</span>
+    </div>
+    <div class="dt-doc">
+      <span class="dt-dirty" id="dt-dirty" hidden></span>
+      <span id="dt-project">未命名工程</span>
+      <span class="dt-sep">/</span>
+      <span id="dt-file">main.c</span>
+    </div>
+    <div class="dt-window-btns">
+      <button class="dt-win" id="win-min" type="button" title="最小化" aria-label="最小化">–</button>
+      <button class="dt-win" id="win-max" type="button" title="最大化" aria-label="最大化">□</button>
+      <button class="dt-win dt-close" id="win-close" type="button" title="关闭" aria-label="关闭">×</button>
+    </div>
+  </div>
+  <div class="desktop-menubar">
+    <button class="dm-btn" type="button" data-dmenu="file">文件</button>
+    <button class="dm-btn" type="button" data-dmenu="edit">编辑</button>
+    <button class="dm-btn" type="button" data-dmenu="view">视图</button>
+    <button class="dm-btn" type="button" data-dmenu="run">运行</button>
+    <button class="dm-btn" type="button" data-dmenu="help">帮助</button>
+    <div class="dm-spacer"></div>
+    <div class="dt-status-slot" id="dt-status-slot"></div>
+  </div>
+  <div class="desktop-menu" id="desktop-menu" hidden></div>
+</div>
 
 <header class="page-head">
   <div class="brand">
@@ -2114,7 +3476,7 @@ try { if (localStorage.getItem('c51.theme') === 'light') document.documentElemen
   </div>
   <div class="head-right">
     <span class="head-note">例程 01—15 · 离线可用</span>
-    <span class="build-tag" id="build-tag">构建 11-26 14:28</span>
+    <span class="build-tag" id="build-tag">构建 11-26 23:07</span>
     <span id="status" class="status">已停止</span>
   </div>
 </header>
@@ -5327,6 +6689,11 @@ void main()
   </div>
 </div>
 
+<div class="ios-toast" id="ios-toast" role="status" aria-live="polite" hidden>
+  <span class="ios-toast-ic" aria-hidden="true">✓</span>
+  <span class="ios-toast-text" id="ios-toast-text"></span>
+</div>
+
 <div class="update-toast" id="update-toast" hidden>
   <span class="update-text">新版本已准备好，刷新后启用。</span>
   <button type="button" id="update-now">刷新</button>
@@ -5456,6 +6823,26 @@ void main()
     consoleEl.appendChild(d);
     consoleEl.scrollTop = consoleEl.scrollHeight;
     while (consoleEl.childNodes.length > 200) consoleEl.removeChild(consoleEl.firstChild);
+  }
+
+  /* 轻量操作反馈：保存工程后浮一条 2.5s 的 iOS 提示，不打断当前操作 */
+  var toastEl = $('ios-toast'), toastText = $('ios-toast-text'), toastTimer = 0;
+  function showToast(msg) {
+    if (!toastEl) return;
+    if (toastText) toastText.textContent = msg;
+    toastEl.hidden = false;
+    toastEl.classList.remove('on');
+    if (window.requestAnimationFrame) {
+      window.requestAnimationFrame(function () { toastEl.classList.add('on'); });
+    } else {
+      toastEl.classList.add('on');
+    }
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () {
+      toastEl.hidden = true;
+      toastEl.classList.remove('on');
+      toastTimer = 0;
+    }, 2500);
   }
 
   /* 本地自动保存失败：不能只往控制台丢一行字，否则用户会以为代码已经存住了 */
@@ -6397,7 +7784,10 @@ void main()
   function loadHwFrame(view) {
     var fr = boardHwFrame();
     if (!fr) return;
-    if (!fr.getAttribute('src')) fr.src = 'hardware.html#' + hwViewName(view);
+    if (!fr.getAttribute('src')) {
+      var theme = document.documentElement.classList.contains('light') ? 'light' : 'dark';
+      fr.src = 'hardware.html?theme=' + theme + '#' + hwViewName(view);
+    }
   }
   function pauseHardwareView() {
     if (pinState === 'running') postHw({ type: 'hw:pause' });
@@ -6500,6 +7890,7 @@ void main()
     if (d.type === 'hw:ready') {
       hwReady = true;
       postHw({ type: 'hw:view', view: hwWanted });
+      postHw({ type: 'hw:theme', light: document.documentElement.classList.contains('light') });
       if (boardView === 'pin') sendPinCode();
       return;
     }
@@ -6552,20 +7943,12 @@ void main()
     function draw() {
       var v = Math.min(1, Math.abs(s.vx) / 650);
       blob.style.width = s.w.toFixed(2) + 'px';
-      blob.style.transform =
-        'translate3d(' + s.x.toFixed(2) + 'px,0,0)' +
-        ' skewX(' + Math.max(-5, Math.min(5, -s.vx * 0.006)).toFixed(2) + 'deg)' +
-        ' scaleX(' + (1 + v * 0.055).toFixed(3) + ')' +
-        ' scaleY(' + (1 - v * 0.06).toFixed(3) + ')';
-      var dir = s.vx >= 0 ? 1 : -1;
-      blob.style.setProperty('--lead', (dir > 0 ? 100 : 0) + '%');
-      blob.style.setProperty('--bulge', (v * 0.86).toFixed(3));
-      blob.style.setProperty('--tilt', (dir * v * 14).toFixed(1) + 'deg');
-      blob.style.borderRadius =
-        (50 - v * 6).toFixed(1) + '% ' + (50 + v * 5).toFixed(1) + '% ' +
-        (50 - v * 4).toFixed(1) + '% ' + (50 + v * 6).toFixed(1) + '% / ' +
-        (50 - v * 7).toFixed(1) + '% ' + (50 + v * 6).toFixed(1) + '% ' +
-        (50 - v * 5).toFixed(1) + '% ' + (50 + v * 6).toFixed(1) + '%';
+      /* 方块滑块：只做横向平移，不再叠液态形变（斜切 / 拉伸 / 水泡鼓包），圆角固定 */
+      blob.style.transform = 'translate3d(' + s.x.toFixed(2) + 'px,0,0)';
+      blob.style.setProperty('--lead', '100%');
+      blob.style.setProperty('--bulge', '0');
+      blob.style.setProperty('--tilt', '0deg');
+      blob.style.borderRadius = '4px';
       paintLabels();
     }
     function snap(i) {
@@ -6640,6 +8023,80 @@ void main()
     markCurrent(active);
     snap(active);
     requestAnimationFrame(function () { snap(active); });
+  })();
+
+  /* 通用分段控件滑块：开发板视图、时序图窗口、工程/输出小标签共用。
+     选中态仍由原来的 .on 类决定，这里只负责把白色胶囊挪过去，
+     所以键盘、程序化恢复视图、运行后同步时间窗口都能跟上。 */
+  (function initSegBlobs() {
+    if (!document.querySelectorAll) return;
+    var segs = document.querySelectorAll('.seg');
+    if (!segs || !segs.length) return;
+    var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    Array.prototype.forEach.call(segs, function (seg) {
+      if (!seg || seg.classList.contains('has-blob')) return;
+      var blob = seg.querySelector ? seg.querySelector('.seg-blob') : null;
+      if (!blob) {
+        blob = document.createElement('span');
+        blob.className = 'seg-blob';
+        blob.setAttribute('aria-hidden', 'true');
+        seg.insertBefore(blob, seg.firstChild);
+      }
+      seg.classList.add('has-blob');
+
+      var placed = false, frame = 0;
+      function activeButton() {
+        if (!seg.querySelectorAll) return null;
+        var btns = seg.querySelectorAll('button');
+        for (var i = 0; i < btns.length; i++) {
+          if (btns[i].classList && btns[i].classList.contains('on')) return btns[i];
+        }
+        return null;
+      }
+      function place() {
+        frame = 0;
+        var btn = activeButton();
+        if (!btn || !btn.offsetWidth) {
+          blob.style.opacity = '0';
+          placed = false;
+          return;
+        }
+        if (!placed) blob.style.transition = 'none';
+        blob.style.opacity = '1';
+        blob.style.left = (btn.offsetLeft || 0) + 'px';
+        blob.style.top = (btn.offsetTop || 0) + 'px';
+        blob.style.width = btn.offsetWidth + 'px';
+        blob.style.height = btn.offsetHeight + 'px';
+        if (!placed) {
+          placed = true;
+          requestAnimationFrame(function () {
+            if (!reduceMotion) blob.style.transition = '';
+          });
+        }
+      }
+      function schedule() {
+        if (frame) return;
+        if (typeof requestAnimationFrame === 'function') {
+          frame = requestAnimationFrame(place);
+        } else {
+          frame = setTimeout(place, 16);
+        }
+      }
+
+      var btns = seg.querySelectorAll ? seg.querySelectorAll('button') : [];
+      if (window.MutationObserver) {
+        seg._segBlobMO = new window.MutationObserver(schedule);
+        seg._segBlobMO.observe(seg, { subtree: true, attributes: true, attributeFilter: ['class'] });
+      }
+      if (window.ResizeObserver) {
+        seg._segBlobRO = new window.ResizeObserver(schedule);
+        seg._segBlobRO.observe(seg);
+        for (var j = 0; j < btns.length; j++) seg._segBlobRO.observe(btns[j]);
+      }
+      window.addEventListener('resize', schedule);
+      schedule();
+    });
   })();
 
   /* ==================== 工程：多文件 + 真实磁盘 ====================
@@ -6829,6 +8286,7 @@ void main()
       b.addEventListener('click', function () { openFile(path); });
       host.appendChild(b);
     });
+    syncDesktopTitle();
   }
 
   function openFile(path) {
@@ -7097,6 +8555,8 @@ void main()
     }
     var okBtn = $('dlg-ok');
     if (okBtn) okBtn.textContent = opts.ok || '确定';
+    var cancelBtn = $('dlg-cancel');
+    if (cancelBtn) cancelBtn.style.display = opts.cancel === false ? 'none' : '';
     if (dlgEl && dlgEl.classList) {
       dlgEl.classList.add('on');
       try { dlgEl.setAttribute('aria-hidden', 'false'); } catch (e) {}
@@ -8385,17 +9845,34 @@ void keys_scan()
 
   function exportProjectFile() {
     var data = projectData();
+    var fileName = String(project.name || 'project').replace(/[\\/:*?"<>|]/g, '_') + '.c51proj.json';
+    if (window.c51Desktop && window.c51Desktop.saveProjectFile) {
+      log('正在选择工程保存位置…', 'dim');
+      window.c51Desktop.saveProjectFile({
+        name: project.name,
+        text: JSON.stringify(data, null, 2)
+      }).then(function (res) {
+        if (!res || res.canceled) return;
+        if (res.error) { log('存工程失败：' + res.error, 'err'); return; }
+        log('已存工程文件：' + res.filePath + '（' + project.files.length + ' 个文件）', 'ok');
+        showToast('工程文件已保存');
+      }).catch(function (e) {
+        log('存工程失败：' + (e && e.message ? e.message : e), 'err');
+      });
+      return;
+    }
     try {
       var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
       a.href = url;
-      a.download = String(project.name || 'project').replace(/[\\/:*?"<>|]/g, '_') + '.c51proj.json';
+      a.download = fileName;
       if (document.body) document.body.appendChild(a);
       a.click();
       if (document.body && a.parentNode) document.body.removeChild(a);
       setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) {} }, 5000);
       log('已存工程文件：' + a.download + '（' + project.files.length + ' 个文件）', 'ok');
+      showToast('工程文件已下载');
     } catch (e) {
       log('存工程失败：' + (e && e.message ? e.message : e), 'err');
     }
@@ -8826,7 +10303,8 @@ void keys_scan()
       localStorage.setItem('c51.theme', light ? 'light' : 'dark');
     } catch (e) { /* 忽略 */ }
     var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', light ? '#f2f7f9' : '#0a0b0e');
+    if (meta) meta.setAttribute('content', light ? '#f2f2f7' : '#000000');
+    postHw({ type: 'hw:theme', light: light });
   }
   if ($('btn-theme')) $('btn-theme').onclick = function () {
     var light = !document.documentElement.classList.contains('light');
@@ -8879,6 +10357,250 @@ void keys_scan()
         if (reg && reg.update) reg.update().catch(function () { /* 静默 */ });
       }).catch(function () { /* 离线缓存不可用时静默 */ });
     });
+  }
+
+  /* ---------------- 桌面版：标题栏 / 菜单栏 ---------------- */
+  var isDesktopShell = !!(document.documentElement && document.documentElement.classList && document.documentElement.classList.contains('desktop'));
+
+  function syncDesktopTitle() {
+    if (!isDesktopShell) return;
+    var projectEl = $('dt-project'), fileEl = $('dt-file'), dirtyEl = $('dt-dirty');
+    if (!projectEl) return;
+    var name = (typeof project !== 'undefined' && project && project.name)
+      ? project.name
+      : (curExample && curExample.title) || '未命名工程';
+    projectEl.textContent = name;
+    if (fileEl) fileEl.textContent = (typeof project !== 'undefined' && project && project.active) ? project.active : '';
+    var dirty = false;
+    if (typeof project !== 'undefined' && project && project.files) {
+      dirty = project.files.some(function (f) { return !!f.dirty; });
+      if (project.fs && typeof dirtyCount === 'function') dirty = dirty || dirtyCount() > 0;
+    }
+    if (dirtyEl) dirtyEl.hidden = !dirty;
+    document.title = name + ' · 51 实验台';
+  }
+
+  function initDesktopWindowControls() {
+    if (!isDesktopShell || !window.c51Desktop) return;
+    var min = $('win-min'), max = $('win-max'), close = $('win-close');
+    function paint(state) {
+      if (!max) return;
+      var maximized = !!(state && state.maximized);
+      max.classList.toggle('maximized', maximized);
+      max.textContent = maximized ? '❐' : '□';
+      max.title = maximized ? '还原' : '最大化';
+      max.setAttribute('aria-label', max.title);
+    }
+    if (min) min.onclick = function (e) {
+      if (e && e.stopPropagation) e.stopPropagation();
+      if (window.c51Desktop.minimize) window.c51Desktop.minimize();
+    };
+    if (max) max.onclick = function (e) {
+      if (e && e.stopPropagation) e.stopPropagation();
+      if (window.c51Desktop.toggleMaximize) window.c51Desktop.toggleMaximize();
+    };
+    if (close) close.onclick = function (e) {
+      if (e && e.stopPropagation) e.stopPropagation();
+      if (window.c51Desktop.close) window.c51Desktop.close();
+    };
+    var titlebar = document.querySelector('.desktop-titlebar');
+    if (titlebar) titlebar.addEventListener('dblclick', function (e) {
+      if (e && e.target && e.target.closest && e.target.closest('.dt-window-btns')) return;
+      if (window.c51Desktop.toggleMaximize) window.c51Desktop.toggleMaximize();
+    });
+    if (window.c51Desktop.getWindowState) {
+      window.c51Desktop.getWindowState().then(paint).catch(function () {});
+    }
+    if (window.c51Desktop.onWindowState) window.c51Desktop.onWindowState(paint);
+    paint({ maximized: false });
+  }
+
+  function showDesktopAbout() {
+    function render(info) {
+      var version = info && info.version ? '版本 ' + info.version : '桌面版';
+      var electron = info && info.electron ? ' · Electron ' + info.electron : '';
+      askModal('关于 51 实验台', {
+        msg: version + electron + '。工程可保存为 .c51proj.json，窗口大小和位置会自动记住。',
+        input: false,
+        cancel: false,
+        ok: '知道了'
+      });
+    }
+    if (window.c51Desktop && window.c51Desktop.getAppInfo) {
+      window.c51Desktop.getAppInfo().then(render).catch(function () { render({}); });
+    } else {
+      render({});
+    }
+  }
+
+  function initDesktopMenu() {
+    if (!isDesktopShell) return;
+    var slot = $('dt-status-slot'), status = $('status');
+    var build = document.querySelector('.build-tag');
+    if (slot) {
+      if (build) slot.appendChild(build);
+      if (status) slot.appendChild(status);
+    }
+
+    var menu = $('desktop-menu');
+    var buttons = Array.prototype.slice.call(document.querySelectorAll('.dm-btn'));
+    if (!menu || !buttons.length) return;
+    var current = '';
+    var items = {
+      file: [
+        { label: '打开文件夹…', action: 'open-dir' },
+        { label: '打开工程文件…', action: 'open-proj' },
+        { label: '保存工程文件', action: 'save-proj' },
+        { sep: true },
+        { label: '新建文件', action: 'new-file' },
+        { label: '导出源码 ZIP', action: 'export' },
+        { label: '导出实验报告', action: 'report' },
+        { sep: true },
+        { label: '退出应用', action: 'quit' }
+      ],
+      edit: [
+        { label: '撤销', action: 'undo', key: 'Ctrl+Z' },
+        { label: '重做', action: 'redo', key: 'Ctrl+Y' },
+        { sep: true },
+        { label: '查找 / 替换', action: 'find', key: 'Ctrl+F' }
+      ],
+      view: [
+        { label: '写代码', action: 'page-code' },
+        { label: '开发板', action: 'page-board' },
+        { label: '时序图', action: 'page-scope' },
+        { label: '讲义', action: 'page-notes' },
+        { sep: true },
+        { label: '显示 / 隐藏工程树', action: 'tree' },
+        { label: '切换浅色 / 深色主题', action: 'theme' }
+      ],
+      run: [
+        { label: '运行', action: 'run', key: 'F5' },
+        { label: '更新代码', action: 'apply' },
+        { label: '编译', action: 'build' },
+        { label: '暂停', action: 'pause' },
+        { sep: true },
+        { label: '单步进入', action: 'step', key: 'F11' },
+        { label: '单步越过', action: 'step-over', key: 'F10' },
+        { label: '复位', action: 'reset' }
+      ],
+      help: [
+        { label: '快捷键一览', action: 'keys' },
+        { label: '关于 51 实验台', action: 'about' }
+      ]
+    };
+
+    /* 桌面版固定深色皮肤（与线上一致），不提供浅色切换，避免切出半套观感 */
+    if (isDesktopShell) {
+      items.view = items.view.filter(function (it) { return it.action !== 'theme'; });
+    }
+
+    function closeMenu() {
+      if (menu.hidden) return;
+      menu.hidden = true;
+      current = '';
+      buttons.forEach(function (b) { b.classList.remove('on'); });
+    }
+    function clickId(id) {
+      var el = $(id);
+      if (el && el.click) el.click();
+    }
+    function runAction(action) {
+      if (action === 'undo') { histUndo(); return; }
+      if (action === 'redo') { histRedo(); return; }
+      if (action === 'find') { openFind(); return; }
+      if (action === 'page-code') { setPage('code'); return; }
+      if (action === 'page-board') { setPage('board'); return; }
+      if (action === 'page-scope') { setPage('scope'); return; }
+      if (action === 'page-notes') { setPage('notes'); return; }
+      if (action === 'tree') {
+        var panel = $('editor-panel');
+        applyTree(!(panel && panel.classList && panel.classList.contains('tree-off')));
+        return;
+      }
+      if (action === 'quit') { window.close(); return; }
+      if (action === 'about') {
+        showDesktopAbout();
+        return;
+      }
+      var map = {
+        'open-dir': 'btn-open-dir',
+        'open-proj': 'btn-load-proj',
+        'save-proj': 'btn-save-proj',
+        'new-file': 'btn-new-file',
+        'export': 'btn-export',
+        'report': 'btn-report',
+        'theme': 'btn-theme',
+        'keys': 'btn-keys',
+        'run': 'btn-run',
+        'apply': 'btn-save-apply',
+        'build': 'btn-build',
+        'pause': 'btn-pause',
+        'step': 'btn-step',
+        'step-over': 'btn-step-over',
+        'reset': 'btn-reset'
+      };
+      if (map[action]) clickId(map[action]);
+    }
+    function openMenu(name, button) {
+      if (!items[name]) return;
+      if (current === name && !menu.hidden) { closeMenu(); return; }
+      current = name;
+      buttons.forEach(function (b) { b.classList.toggle('on', b === button); });
+      menu.textContent = '';
+      items[name].forEach(function (item) {
+        if (item.sep) {
+          var sep = document.createElement('div');
+          sep.className = 'dm-sep';
+          menu.appendChild(sep);
+          return;
+        }
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'dm-item';
+        var label = document.createElement('span');
+        label.textContent = item.label;
+        b.appendChild(label);
+        if (item.key) {
+          var key = document.createElement('span');
+          key.className = 'dm-key';
+          key.textContent = item.key;
+          b.appendChild(key);
+        }
+        b.onclick = function (e) {
+          if (e && e.stopPropagation) e.stopPropagation();
+          closeMenu();
+          runAction(item.action);
+        };
+        menu.appendChild(b);
+      });
+      menu.hidden = false;
+      var bar = button.parentNode;
+      if (bar && bar.getBoundingClientRect) {
+        var r = button.getBoundingClientRect();
+        menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 330)) + 'px';
+      }
+    }
+
+    buttons.forEach(function (b) {
+      b.onclick = function (e) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        openMenu(b.getAttribute('data-dmenu'), b);
+      };
+    });
+    document.addEventListener('click', function (e) {
+      if (menu.hidden) return;
+      if (menu.contains && menu.contains(e.target)) return;
+      closeMenu();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e && e.key === 'Escape' && !menu.hidden) closeMenu();
+    });
+  }
+
+  if (isDesktopShell) {
+    initDesktopWindowControls();
+    initDesktopMenu();
+    syncDesktopTitle();
   }
 
   /* ---------------- 状态栏 / 工程树开关 ---------------- */
@@ -9051,6 +10773,16 @@ void keys_scan()
   if ($('btn-save-proj')) $('btn-save-proj').onclick = function () { exportProjectFile(); };
   if ($('btn-keil-demo')) $('btn-keil-demo').onclick = function () { createLibraryDemo(); };
   if ($('btn-load-proj')) $('btn-load-proj').onclick = function () {
+    if (window.c51Desktop && window.c51Desktop.openProjectFile) {
+      window.c51Desktop.openProjectFile().then(function (res) {
+        if (!res) return;
+        var file = new File([res.text], res.name, { type: 'application/json' });
+        importProjectFile(file);
+      }).catch(function (e) {
+        log('打开工程失败：' + (e && e.message ? e.message : e), 'err');
+      });
+      return;
+    }
     var inp = $('proj-input');
     if (inp) inp.click();
   };
@@ -9417,12 +11149,16 @@ void keys_scan()
     }
 
     if (!lanes.length) {
-      ctx.fillStyle = 'rgba(228,234,242,.3)';
-      ctx.font = '11px "Microsoft YaHei", "PingFang SC", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(now < 20 ? '点「运行」，这里会画出引脚电平的变化' : '这个时间窗口里没有任何引脚变化',
-        padL + visW / 2, padT + visH / 2);
-      ctx.textAlign = 'left';
+      /* DOM 空状态已经给了引导文案时不再重复画在 canvas 上，
+         否则深色主题下两行字会叠在一起。 */
+      if (!emptyEl || emptyEl.hidden) {
+        ctx.fillStyle = 'rgba(228,234,242,.3)';
+        ctx.font = '11px "Microsoft YaHei", "PingFang SC", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(now < 20 ? '点「运行」，这里会画出引脚电平的变化' : '这个时间窗口里没有任何引脚变化',
+          padL + visW / 2, padT + visH / 2);
+        ctx.textAlign = 'left';
+      }
       scopeView = { t0: t0v, dur: durV, padL: padL, plotW: visW, now: now,
                     lanes: [], start: start, seg: seg };
       updateScopeInfo(now, tr.length, 0);
@@ -11013,6 +12749,7 @@ void keys_scan()
     }
     var p = $('btn-pause');
     if (p) p.disabled = state !== 'running';
+    syncDesktopTitle();
   }
 
   function startRun() {

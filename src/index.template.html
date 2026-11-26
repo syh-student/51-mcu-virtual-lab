@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="ios">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#14161b">
+<meta name="theme-color" content="#f2f2f7">
 <meta name="description" content="纯前端、零依赖的 51 单片机（STC89C52RC）虚拟实验台：在浏览器里写 C51、跑虚拟开发板、看时序波形，双击 HTML 即可离线使用。">
 <meta name="author" content="syh-student">
 <link rel="canonical" href="https://syh-student.github.io/51-mcu-virtual-lab/">
@@ -23,11 +23,55 @@
 </style>
 <link rel="manifest" href="manifest.webmanifest">
 <script>
-/* 主题要在第一帧之前应用，避免先深色闪一下 */
-try { if (localStorage.getItem('c51.theme') === 'light') document.documentElement.classList.add('light'); } catch (e) {}
-</script>
-</head>
+/* 主题要在第一帧之前应用：首次启动跟随系统，之后尊重用户选择 */
+try {
+  var savedTheme = localStorage.getItem('c51.theme');
+  if (savedTheme === 'light' || (!savedTheme && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches)) {
+    document.documentElement.classList.add('light');
+  }
+} catch (e) {}
+/* 桌面版标记：只在 Electron 里显示软件外壳，网页保持原样。
+   桌面版沿用线上那套「深夜仪表台」深色皮肤，不套 iOS 皮肤，所以撤掉 ios 与 light。 */
+if (window.c51Desktop && window.c51Desktop.isDesktop) {
+  var de = document.documentElement;
+  de.classList.add('desktop');
+  de.classList.remove('ios', 'light');
+  var tc = document.querySelector('meta[name="theme-color"]');
+  if (tc) tc.setAttribute('content', '#0a0b0e');
+}
+</script></head>
 <body>
+
+<div class="desktop-chrome" id="desktop-chrome">
+  <div class="desktop-titlebar">
+    <div class="dt-brand">
+      <span class="dt-mark">51</span>
+      <span class="dt-name">实验台</span>
+      <span class="dt-kind">桌面版</span>
+    </div>
+    <div class="dt-doc">
+      <span class="dt-dirty" id="dt-dirty" hidden></span>
+      <span id="dt-project">未命名工程</span>
+      <span class="dt-sep">/</span>
+      <span id="dt-file">main.c</span>
+    </div>
+    <div class="dt-window-btns">
+      <button class="dt-win" id="win-min" type="button" title="最小化" aria-label="最小化">–</button>
+      <button class="dt-win" id="win-max" type="button" title="最大化" aria-label="最大化">□</button>
+      <button class="dt-win dt-close" id="win-close" type="button" title="关闭" aria-label="关闭">×</button>
+    </div>
+  </div>
+  <div class="desktop-menubar">
+    <button class="dm-btn" type="button" data-dmenu="file">文件</button>
+    <button class="dm-btn" type="button" data-dmenu="edit">编辑</button>
+    <button class="dm-btn" type="button" data-dmenu="view">视图</button>
+    <button class="dm-btn" type="button" data-dmenu="run">运行</button>
+    <button class="dm-btn" type="button" data-dmenu="help">帮助</button>
+    <div class="dm-spacer"></div>
+    <div class="dt-status-slot" id="dt-status-slot"></div>
+  </div>
+  <div class="desktop-menu" id="desktop-menu" hidden></div>
+</div>
 
 <header class="page-head">
   <div class="brand">
@@ -502,6 +546,11 @@ try { if (localStorage.getItem('c51.theme') === 'light') document.documentElemen
     <div class="snap-list" id="snap-list"></div>
     <div class="dlg-f"><button id="snap-close" type="button">关闭</button></div>
   </div>
+</div>
+
+<div class="ios-toast" id="ios-toast" role="status" aria-live="polite" hidden>
+  <span class="ios-toast-ic" aria-hidden="true">✓</span>
+  <span class="ios-toast-text" id="ios-toast-text"></span>
 </div>
 
 <div class="update-toast" id="update-toast" hidden>
