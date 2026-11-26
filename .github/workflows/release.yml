@@ -1,0 +1,74 @@
+name: Desktop Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "要创建的 Release tag，例如 v1.0.0"
+        required: true
+        default: "v1.0.0"
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: 打包 Windows 桌面版并发布
+    runs-on: windows-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 准备 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: 安装依赖（含 Electron 运行时）
+        run: npm ci
+
+      - name: 构建免安装版 + 安装版
+        run: npm run dist:win
+
+      - name: 检查产物
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $files = Get-ChildItem dist -Filter '*.exe' | Where-Object { $_.Name -notmatch '__uninstaller' }
+          if ($files.Count -lt 2) { throw "没有找到两个 exe 产物" }
+          $files | Format-Table Name, Length
+
+      - name: 生成 SHA-256 校验和
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $files = Get-ChildItem dist -Filter '*.exe' | Where-Object { $_.Name -notmatch '__uninstaller' }
+          $lines = foreach ($file in $files) {
+            $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($file.Name)"
+          }
+          $lines | Set-Content -LiteralPath dist/SHA256SUMS.txt -Encoding ascii
+
+      - name: 创建 Release 并上传附件
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = $env:TAG
+          if ($tag -notmatch '^v') { throw "tag 必须以 v 开头：$tag" }
+          gh release view $tag --json tagName 2>$null | Out-Null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --title "51实验台 $tag" --generate-notes
+          }
+          $assets = Get-ChildItem dist -Filter '*.exe' | Where-Object { $_.Name -notmatch '__uninstaller' }
+          foreach ($asset in $assets) {
+            gh release upload $tag $asset.FullName --clobber
+          }
+          gh release upload $tag (Join-Path (Get-Location) 'dist/SHA256SUMS.txt') --clobber
+          gh release view $tag --json url,assets --jq '{url: .url, assets: [.assets[].name]}'
