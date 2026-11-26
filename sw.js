@@ -1,7 +1,7 @@
 /* 离线缓存：页面导航走网络优先，其余静态资源走缓存优先 + 后台回源。
  * 发布新版本只改 CACHE 版本号；导航请求不读旧缓存，避免刷新后仍看到旧页面。 */
-const CACHE = 'c51lab-v12';
-const ASSETS = ['./', './index.html', './hardware.html', './manifest.webmanifest', './icon.svg'];
+const CACHE = 'c51lab-v13';
+const ASSETS = ['./', './index.html', './hardware.html', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {
   /* 不自动 skipWaiting：等页面提示「新版已准备好」，用户点刷新后再接管 */
