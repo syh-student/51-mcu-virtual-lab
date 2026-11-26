@@ -461,28 +461,6 @@ try {
       expect('文件缩进比文件夹深', fileRow && dirRow && padOf(fileRow) > padOf(dirRow), true);
       expect('文件夹在组里只出现一次', tree.filter(r => nameOf(r) === 'src/').length, 1);
 
-      /* 江协库风格多文件示例：按钮能载入，工程能编译，不产生错误条 */
-      registry['btn-keil-demo'].onclick();
-      const demoTree = registry['proj-tree'].children;
-      const demoLabels = demoTree.map(r => {
-        const nm = r.children.filter(c => c.className === 'nm')[0];
-        return nm ? nm.textContent : '';
-      });
-      expect('江协库示例载入 user/main.c', demoLabels.indexOf('main.c') >= 0, true);
-      const demoErrors = registry['console'].children.filter(c => c.className === 'err');
-      expect('江协库示例编译无错误', demoErrors.length, 0);
-      console.log('江协库示例：' + registry['proj-stat-text'].textContent);
-
-      /* 让它真的跑一小段，确认 disled / display / keyscan 不是只通过编译 */
-      registry['btn-run'].onclick();
-      for (let i = 0; i < 40; i++) {
-        const cbs = rafQueue.splice(0, rafQueue.length);
-        t += 16; cbs.forEach(fn => fn(t));
-      }
-      const demoRunErrors = registry['console'].children.filter(c => c.className === 'err');
-      expect('江协库示例运行无错误', demoRunErrors.length, 0);
-      expect('江协库示例虚拟时间在走', registry['vtime'].textContent !== '0 ms', true);
-
       /* 自动补全：点回编辑器 / 点编辑器外部 / Esc 都要能收起 */
       code.value = 'Delay';
       code.selectionStart = 5;

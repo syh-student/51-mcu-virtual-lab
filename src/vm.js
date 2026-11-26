@@ -47,6 +47,145 @@
     macros[name] = { params: null, body: after.trim() };
   }
 
+  /* #if 的常量表达式解析：只接受整数、括号和运算符，不执行任何代码。
+     这里刻意不使用动态代码执行，避免把用户源码里的表达式送进 JS 引擎。 */
+  var IF_TOKEN_RE = /^(?:0x[0-9a-fA-F]+|\d+|<<|>>>|>>|<=|>=|==|!=|&&|\|\||[()!~+\-*/%<>&|^?:])/;
+
+  function ifTokenize(text) {
+    var s = String(text).replace(/\s+/g, '');
+    var tokens = [];
+    while (s) {
+      var m = IF_TOKEN_RE.exec(s);
+      if (!m) throw new Error('bad token');
+      tokens.push(m[0]);
+      s = s.slice(m[0].length);
+    }
+    return tokens;
+  }
+
+  function ifNumber(token) {
+    return token.slice(0, 2).toLowerCase() === '0x' ? parseInt(token, 16) : parseInt(token, 10);
+  }
+
+  function ifPrimary(st) {
+    var token = st.tokens[st.i++];
+    if (token === '(') {
+      var v = ifConditional(st);
+      if (st.tokens[st.i++] !== ')') throw new Error('missing )');
+      return v;
+    }
+    if (/^(?:0x[0-9a-fA-F]+|\d+)$/.test(token || '')) return ifNumber(token);
+    throw new Error('bad number');
+  }
+
+  function ifUnary(st) {
+    var t = st.tokens[st.i];
+    if (t === '!') { st.i++; return !ifUnary(st); }
+    if (t === '~') { st.i++; return ~ifUnary(st); }
+    if (t === '+') { st.i++; return +ifUnary(st); }
+    if (t === '-') { st.i++; return -ifUnary(st); }
+    return ifPrimary(st);
+  }
+
+  function ifMul(st) {
+    var v = ifUnary(st), t;
+    while ((t = st.tokens[st.i]) === '*' || t === '/' || t === '%') {
+      st.i++;
+      var r = ifUnary(st);
+      if (t === '*') v = v * r;
+      else if (t === '/') v = v / r;
+      else v = v % r;
+    }
+    return v;
+  }
+
+  function ifAdd(st) {
+    var v = ifMul(st), t;
+    while ((t = st.tokens[st.i]) === '+' || t === '-') {
+      st.i++;
+      var r = ifMul(st);
+      v = t === '+' ? v + r : v - r;
+    }
+    return v;
+  }
+
+  function ifShift(st) {
+    var v = ifAdd(st), t;
+    while ((t = st.tokens[st.i]) === '<<' || t === '>>' || t === '>>>') {
+      st.i++;
+      var r = ifAdd(st);
+      if (t === '<<') v = v << r;
+      else if (t === '>>') v = v >> r;
+      else v = v >>> r;
+    }
+    return v;
+  }
+
+  function ifRel(st) {
+    var v = ifShift(st), t;
+    while ((t = st.tokens[st.i]) === '<' || t === '<=' || t === '>' || t === '>=') {
+      st.i++;
+      var r = ifShift(st);
+      if (t === '<') v = v < r;
+      else if (t === '<=') v = v <= r;
+      else if (t === '>') v = v > r;
+      else v = v >= r;
+    }
+    return v;
+  }
+
+  function ifEq(st) {
+    var v = ifRel(st), t;
+    while ((t = st.tokens[st.i]) === '==' || t === '!=') {
+      st.i++;
+      var r = ifRel(st);
+      v = t === '==' ? v === r : v !== r;
+    }
+    return v;
+  }
+
+  function ifBitAnd(st) {
+    var v = ifEq(st);
+    while (st.tokens[st.i] === '&') { st.i++; v = v & ifEq(st); }
+    return v;
+  }
+
+  function ifBitXor(st) {
+    var v = ifBitAnd(st);
+    while (st.tokens[st.i] === '^') { st.i++; v = v ^ ifBitAnd(st); }
+    return v;
+  }
+
+  function ifBitOr(st) {
+    var v = ifBitXor(st);
+    while (st.tokens[st.i] === '|') { st.i++; v = v | ifBitXor(st); }
+    return v;
+  }
+
+  function ifAnd(st) {
+    var v = ifBitOr(st);
+    while (st.tokens[st.i] === '&&') { st.i++; v = !!v && !!ifBitOr(st); }
+    return v;
+  }
+
+  function ifOr(st) {
+    var v = ifAnd(st);
+    while (st.tokens[st.i] === '||') { st.i++; v = !!v || !!ifAnd(st); }
+    return v;
+  }
+
+  function ifConditional(st) {
+    var c = ifOr(st);
+    if (st.tokens[st.i] === '?') {
+      st.i++;
+      var yes = ifConditional(st);
+      if (st.tokens[st.i] === ':') st.i++;
+      var no = ifConditional(st);
+      return c ? yes : no;
+    }
+    return c;
+  }
+
   function evalIf(expr, macros) {
     var e = String(expr || '').trim();
     if (!e) return true;
@@ -57,10 +196,10 @@
       return macros[n] ? '1' : '0';
     });
     e = e.replace(/\b[A-Za-z_]\w*\b/g, '0');
-    if (!/^[\s0-9()!<>=+\-*/%&|^~]*$/.test(e)) return true;
     try {
-      /* eslint-disable no-new-func */
-      return !!new Function('return (' + e + ');')();
+      var st = { tokens: ifTokenize(e), i: 0 };
+      var v = ifConditional(st);
+      return st.i === st.tokens.length ? !!v : true;
     } catch (err) { return true; }
   }
 
@@ -119,6 +258,10 @@
       for (var i = 0; i < stack.length; i++) if (!stack[i].on) return false;
       return true;
     }
+    function liveParent() {
+      for (var i = 0; i < stack.length - 1; i++) if (!stack[i].on) return false;
+      return true;
+    }
     var lines = src.replace(/\r\n?/g, '\n').split('\n').map(function (l) {
       var m = /^\s*#\s*(include|define|undef|ifdef|ifndef|if|elif|else|endif)\b([\s\S]*)$/.exec(l);
       if (!m) return live() ? l : '';
@@ -145,7 +288,7 @@
       if (kw === 'elif') {
         var top = stack[stack.length - 1];
         if (top) {
-          var ok = !top.taken && live() && evalIf(rest, macros);
+          var ok = !top.taken && liveParent() && evalIf(rest, macros);
           top.on = ok;
           top.taken = top.taken || ok;
         }
@@ -153,7 +296,7 @@
       }
       if (kw === 'else') {
         var tp = stack[stack.length - 1];
-        if (tp) { tp.on = !tp.taken && live(); tp.taken = true; }
+        if (tp) { tp.on = !tp.taken && liveParent(); tp.taken = true; }
         return '';
       }
       if (kw === 'endif') { stack.pop(); return ''; }

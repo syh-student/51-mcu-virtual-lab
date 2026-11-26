@@ -2027,14 +2027,14 @@
     log('已生成多文件示例：main.c 调 led.c / delay.c，函数声明放在 .h 里。', 'ok');
   }
 
-  /* 江协库风格的多文件示例：disled / display / keyscan。
+  /* 江协科技教程风格的多文件示例：disled / display / keyscan。
      为了方便虚拟实验室解析，headfile.h 里的 uint16/uint32 用 unsigned int 表示；
      8051 上 int 本来就是 16 位，位宽不变。 */
   function createLibraryDemo() {
     flushSave();
     curExample = null;
     project = {
-      name: '江协库·库函数示例',
+      name: '江协科技教程 · 库函数示例',
       folders: ['user', 'library'],
       folderGroup: { user: 'User', library: 'Library' },
       open: ['user/main.c', 'library/led.c', 'library/display.c', 'library/key.c'],
@@ -2341,7 +2341,7 @@ void keys_scan()
     saveProject();
     build();
     updateFsUi();
-    log('已生成江协库风格示例：user/main.c 调用 library 里的 disled / display / keyscan。', 'ok');
+    log('已生成江协科技教程风格示例：user/main.c 调用 library 里的 disled / display / keyscan；来源：江协科技《51 单片机入门教程 · 2020 版》。', 'ok');
   }
 
   /* ---------------- 增删改：磁盘模式会同步到磁盘 ---------------- */
@@ -4178,7 +4178,9 @@ void keys_scan()
   var HL_RE = /(\/\/[^\n]*)|(\/\*[\s\S]*?\*\/)|("(?:\\[\s\S]|[^"\\])*")|('(?:\\[\s\S]|[^'\\])*')|(^[ \t]*#[^\n]*)|(0[xX][0-9a-fA-F]+|\d+)|([A-Za-z_]\w*)/gm;
 
   function esc(s) {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
   }
   function highlightC51(src) {
     var out = '', last = 0, m;

@@ -2,7 +2,7 @@
 
 **在浏览器里写 C51、跑开发板、量时序——不用买板子，也不用装 Keil。**
 
-纯前端 · 零运行时依赖 · 离线可用 · 构建产物是单个 HTML
+纯前端内核 · 零运行时依赖 · 离线可用 · 可选 Windows 桌面版（Electron）
 
 [![CI](https://github.com/syh-student/51-mcu-virtual-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/syh-student/51-mcu-virtual-lab/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -39,6 +39,39 @@
 
 > 以上截图由 `npm run shots` 用真实浏览器渲染生成，改界面后可以一键重拍，不存在"图文不一致"。
 
+桌面版是同一份页面套上 Electron 窗口，截图如下：
+
+| 桌面版 · 写代码 | 桌面版 · 硬件实验台 |
+| --- | --- |
+| ![桌面版写代码](docs/screenshots/desktop-code.png) | ![桌面版硬件实验台](docs/screenshots/desktop-hardware.png) |
+
+## 桌面版（Windows）
+
+如果不想依赖浏览器、或者想要一个独立的桌面窗口，可以直接用打包好的 Electron 版。
+
+| 版本 | 文件 | 特点 |
+| --- | --- | --- |
+| 免安装绿色版 | `dist/51Lab-1.0.0-win-x64.exe` | 双击即用，不写注册表；首次启动会解压到临时目录，约 110 MB |
+| 安装版 | `dist/51Lab-Setup-1.0.0-x64.exe` | 可选安装目录、创建桌面快捷方式、可从"应用和功能"卸载，约 116 MB |
+
+- 桌面版仍然是**离线**的：`index.html`、`hardware.html`、虚拟机和例程都在安装包里，不联网也能运行。
+- 文件选择器（"打开文件夹 / 磁盘工程"）在 Electron 里可用，权限只给本地文件选择，不开放 Node API。
+- 安装包**未做代码签名**，Windows SmartScreen 可能显示"未知发布者"；点"更多信息 → 仍要运行"即可。这是个人项目的正常现象，不是文件损坏。
+- 首次启动会在 `%APPDATA%\51-mcu-virtual-lab` 下保存窗口和本地工程缓存；卸载安装版不会自动删除这些缓存，需要的话手动清理。
+
+从源码运行 / 打包：
+
+```bash
+npm install
+npm run desktop          # 开发模式，直接开 Electron 窗口
+npm run dist:portable    # 生成免安装版：dist/51Lab-1.0.0-win-x64.exe
+npm run dist:installer   # 生成安装版：dist/51Lab-Setup-1.0.0-x64.exe
+```
+
+> `dist/` 已在 `.gitignore` 里，构建产物不提交到仓库；发布时通过 GitHub Release 上传这两个 exe。
+>
+> 发布流程：推一个 `v*` tag（例如 `v1.0.0`）会触发 `.github/workflows/release.yml`，在 GitHub 的 Windows runner 上重新打包并自动创建 Release、上传两个 exe 和 `SHA256SUMS.txt`；也可以在 Actions 页面手动运行并填 tag。
+
 ## 快速开始
 
 **在线**：打开 <https://syh-student.github.io/51-mcu-virtual-lab/>。
@@ -49,7 +82,7 @@
 # 从源码构建（改 src/ 之后必须重新生成根目录的 index.html）
 python build.py
 
-# 三套回归，纯 Node，不依赖浏览器
+# 整套回归，纯 Node，不依赖浏览器
 npm test
 ```
 
@@ -62,7 +95,6 @@ npm test
 - **C51 教学级解释器**：变量、数组、函数、`static`、`typedef`、`struct`（含结构体数组与嵌套）、`if/while/for/do/switch`、内置 SFR 名。
 - **Keil 式多文件工程**：Project → Target → Source Group，逐文件编译后链接；`static` 按文件隔离，`extern` 跨文件引用；工程树支持多级文件夹与拖拽换组。
 - **Keil 工程导入**：开工程支持 `.uvproj / .uvprojx`：选中工程文件后，再选它所在目录，按 Keil 里的路径把 `.c/.h` 读进来；也可以直接用「打开文件夹」读写原工程。
-- **江协库风格例题**：工程树底部「江协库」一键载入多文件示例，包含 `disled` / `display` / `keyscan`，按 `user` / `library` 分组；也能直接编译原始江协库源码（`unsigned short int` 已支持）。
 - **IDE 手感**：语法高亮、自动缩进、括号配对、自动补全、`Ctrl+/` 注释、断点、单步（进入/越过/跳出）、调用栈、查找替换、F12 跳转到定义。
 - **结构化编译输出**：级别 / 文件 / 行号 / 说明，可筛选、点击跳转；不是一坨日志。
 - **工程可带走**：存成 `.c51proj.json` 换台电脑继续改；也能把当前代码压成分享链接。
@@ -109,8 +141,14 @@ npm test
 │   ├── examples.js           # 15 个配套例程（代码 + 知识点 + 练习）
 │   ├── app.js                # 界面、工程树、编辑器、时序图、分享
 │   └── hardware.html         # 硬件实验室（单文件）
+├── desktop/
+│   ├── main.js               # Electron 主进程：窗口、外链、权限
+│   └── preload.js            # 只暴露只读桌面标识，不开放 Node API
+├── build/
+│   ├── icon.ico              # Windows 应用图标
+│   └── make_icon.py          # 图标生成脚本
 ├── build.py              # 把 src/ 拼成两个 HTML
-├── test.js               # 虚拟机与硬件模型回归（60 条）
+├── test.js               # 虚拟机与硬件模型回归（64 条）
 ├── test-examples.js      # 所有例程编译 + 跑一段，防回归
 ├── test-ui.js            # 极简 DOM 桩跑界面代码（树、编辑器、事件）
 ├── tools/
@@ -131,22 +169,24 @@ src/*.js + style.css + index.template.html
   （单文件 约 380 KB）  （原样复制）
 ```
 
-没有打包器、没有 npm 运行时依赖——拼字符串就是构建，改完刷新就能看到。
+网页内核没有运行时 npm 依赖，拼字符串就是构建；桌面壳只在开发 / 打包阶段使用 Electron，产物仍把同一份 HTML 装进包里。
 
 ## 测试
 
 ```bash
-npm test          # 三套全跑，约 1 秒
+npm test          # 五套全跑，约 2 秒
 npm run lint      # ESLint，源码零告警
 ```
 
 | 套件 | 覆盖什么 | 规模 |
 | --- | --- | --- |
-| `test.js` | 端口位操作、数码管扫描、按键消抖、LCD、定时器与中断、串口、多文件链接、宏与条件编译、struct | 58 条断言 |
+| `test.js` | 端口位操作、数码管扫描、按键消抖、LCD、定时器与中断、串口、多文件链接、宏与条件编译、struct、IP 位别名 | 64 条断言 |
 | `test-examples.js` | 把 15 个例程全部编译并推进虚拟时间，对比端口 / 数码管 / LCD 状态 | 15 个例程 |
-| `test-ui.js` | 用极简 DOM 桩跑真实界面代码：工程树、文件夹、新建文件、断点、自动缩进、Ctrl+/ 等 | 40+ 条断言 |
+| `test-ui.js` | 用极简 DOM 桩跑真实界面代码：工程树、文件夹、新建文件、断点、自动缩进、Ctrl+/ 等 | 36 条断言 |
+| `test-diagnostics.js` | 编译诊断的 did-you-mean、静态提醒与误报防护 | 21 项 |
+| `test-persistence.js` | 工程存档、启动恢复、分享工程与文件夹结构持久化 | 9 项 |
 
-CI 在每次 push / PR 时跑：构建 → 校验产物无残留占位符 → lint → 三套回归（见 `.github/workflows/ci.yml`）。
+CI 在每次 push / PR 时跑：构建 → 校验产物无残留占位符 → lint → 五套回归（见 `.github/workflows/ci.yml`）。
 
 想在真实浏览器里验证：`npm install && npm run verify`（会下载一次 Chrome）。
 
@@ -174,7 +214,7 @@ CI 在每次 push / PR 时跑：构建 → 校验产物无残留占位符 → li
 
 ## 来源与版权
 
-本项目是个人学习笔记性质的整理与工具实现，**代码、虚拟硬件模型与例程均为按知识点独立实现**，未复制任何课程原文、讲义或源码，仅供学习交流，非商业用途。以 [MIT](LICENSE) 协议开源。
+本项目是个人学习笔记性质的整理与工具实现。虚拟硬件模型、C51 解释器、编译检查和界面代码为本项目实现；**部分示例代码按江协科技《51 单片机入门教程 · 2020 版》的知识点整理，并针对虚拟硬件做了适配**。教程原文、讲义、原始工程和示例版权归原作者所有，本项目仅用于学习交流、非商业用途；这些第三方内容不在本项目的 MIT 授权范围内。如原作者认为使用不当，请联系删除。
 
 知识点顺序参考（版权归原作者所有）：
 

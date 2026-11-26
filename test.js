@@ -573,6 +573,30 @@ void main()
   const vm2 = new C51.VM('', hw2, u2.ast);
   run(vm2, 8);
   check('#if 0：被屏蔽的分支不执行', vm2.ports.P2 === 0x22, 'P2=0x' + vm2.ports.P2.toString(16));
+
+  const u3 = C51.compileProject([
+    { path: 'main.c', content: 'void main(){\n#if (1 + 2 * 3 == 7) && (0x10 >> 4 == 1)\n P2 = 0x33;\n#else\n P2 = 0x44;\n#endif\n while(1){}\n}\n' }
+  ]);
+  const hw3 = HW.createHardware();
+  const vm3 = new C51.VM('', hw3, u3.ast);
+  run(vm3, 8);
+  check('#if：算术 / 位运算 / 逻辑组合', vm3.ports.P2 === 0x33, 'P2=0x' + vm3.ports.P2.toString(16));
+
+  const u4 = C51.compileProject([
+    { path: 'main.c', content: 'void main(){\n#if 0 ? 1 : 0\n P2 = 0x55;\n#else\n P2 = 0x66;\n#endif\n while(1){}\n}\n' }
+  ]);
+  const hw4 = HW.createHardware();
+  const vm4 = new C51.VM('', hw4, u4.ast);
+  run(vm4, 8);
+  check('#if：三目条件表达式', vm4.ports.P2 === 0x66, 'P2=0x' + vm4.ports.P2.toString(16));
+
+  const u5 = C51.compileProject([
+    { path: 'main.c', content: 'void main(){\n#if 0\n P2 = 0x11;\n#elif 1\n P2 = 0x77;\n#else\n P2 = 0x88;\n#endif\n while(1){}\n}\n' }
+  ]);
+  const hw5 = HW.createHardware();
+  const vm5 = new C51.VM('', hw5, u5.ast);
+  run(vm5, 8);
+  check('#elif：前一分支未命中时命中当前分支', vm5.ports.P2 === 0x77, 'P2=0x' + vm5.ports.P2.toString(16));
 }
 
 /* 32. 引号头 / 尖括号自定义头找不到 → 都报错 */

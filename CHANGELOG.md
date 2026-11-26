@@ -4,6 +4,11 @@
 
 ### 修复
 
+- 移除工程树底部的「江协库」按钮入口；示例代码、快捷键弹窗和工程树下方的来源说明保留，不再从界面直接载入该示例。
+- Service Worker 缓存版本从 `c51lab-v5` 升到 `c51lab-v6`，确保线上刷新后不会再命中带「江协库」按钮的旧页面。
+- 桌面壳加固：`C51_DEBUG_PORT` 只在未打包的开发模式生效，正式版不再可能打开远程调试端口；本地导航限制在应用自己的 `app.asar` 目录内，禁止跳转到任意 `file://` 路径。
+- `#if` 条件编译不再用 `new Function` 执行表达式，改成纯整数表达式解析器（支持括号、算术、移位、比较、位运算、`&&` / `||` 和三目运算），并修复 `#else` / `#elif` 在条件为假时无法恢复父层启用状态的问题；补算术/位运算/逻辑组合、三目运算和 `#elif` 回归，`test.js` 共 64 条断言。
+- 文本转义函数 `esc()` 补上双引号和单引号，降低以后把用户内容拼进 HTML 属性时的 XSS 风险；当前调用点仍全部按文本节点使用。
 - 编译检查向 Keil 对齐：缺失的自定义尖括号头（如 `<headfile.h>`）、调用没有定义的函数（如 `disled`）现在按硬错误处理，不再以 `0 Error(s), 1 Warning(s)` 放行。
 - 导出 zip 的提示不再说“Keil 能直接用”：明确只导出源码，Keil 里需要先新建工程再加文件；README 同步补上“不生成 hex / 不含 STC-ISP”的边界。
 - 类型解析支持 `short`：`typedef unsigned short int uint16` / `signed short int int16` 这类江协库 `headfile.h` 写法可以直接编译，不再报 15 个语法错误。
@@ -19,7 +24,11 @@
 
 ### 新增
 
+- 新增 Windows 桌面版（Electron）：`desktop/main.js` 负责窗口、外链和权限，`desktop/preload.js` 只暴露只读桌面标识，不开放 Node API；页面仍是同一份离线 `index.html`。
+- 新增免安装绿色版与 NSIS 安装版：`npm run dist:portable` / `npm run dist:installer`，产物在 `dist/`，带自定义芯片图标；安装版支持选择安装目录、桌面快捷方式和标准卸载。
+- 桌面版沿用 Chromium 的 File System Access API，本地「打开文件夹 / 磁盘工程」可用；窗口 1440×900、最小 1024×640，外链交给系统浏览器。
 - 工程树底部新增「江协库」按钮：一键载入 `user/main.c` + `library/led/display/delay/key` 的多文件示例，`disled` / `display` / `keyscan` 都能编译运行。
+- 工程树下方和快捷键弹窗补充「示例来源：江协科技《51 单片机入门教程 · 2020 版》」，明确示例为虚拟硬件适配版本；保留「江协库」入口，不改示例逻辑。
 - 「开工程」支持 Keil `.uvproj / .uvprojx`：选中工程文件后，再选 `project.uvproj` 所在目录，按工程里的路径把源码读进来；导入的是浏览器内快照，要写回磁盘仍用「打开文件夹」。
 - 工程树支持多级文件夹：按文件路径自动分层（`src/led.c` 会缩进到 `src/` 里），并接上了原本没入口的「＋文件夹」「重命名文件夹」「删除文件夹」。
 - 新建文件夹时记住所属分组，改名 / 删除会同步更新折叠状态与分组映射。
@@ -79,7 +88,8 @@
 
 - 新增 `package.json`：`build` / `test` / `lint` / `shots` / `verify` 五个脚本。
 - 新增 ESLint 配置（`no-redeclare` / `no-dupe-keys` / `no-unused-vars` 等），源码零告警。
-- 新增 GitHub Actions：构建 → 校验产物无占位符 → lint → 三套回归。
+- 新增 GitHub Actions：构建 → 校验产物无占位符 → lint → 五套回归。
+- 新增 `.github/workflows/release.yml`：推送 `v*` tag 时在 Windows 上打包免安装版 + 安装版，并用 `GITHUB_TOKEN` 创建 Release、上传两个 exe；也支持手动指定 tag。
 - 新增 Issue / PR 模板、`CONTRIBUTING.md`、`LICENSE`（MIT）、`.editorconfig`、`.gitattributes`。
 
 ### 文档

@@ -920,6 +920,16 @@ main {
   border-top: 1px solid var(--line-soft);
 }
 .proj-stat span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.proj-src {
+  flex: none;
+  padding: 5px 10px 0;
+  font-size: 9px;
+  line-height: 1.5;
+  color: rgba(var(--fg-rgb), .38);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .linky {
   appearance: none;
   flex: none;
@@ -1064,6 +1074,14 @@ main {
   border-radius: 5px;
   background: rgba(var(--fg-rgb), .05);
   white-space: nowrap;
+}
+.dlg-note {
+  margin: 12px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 10px;
+  line-height: 1.6;
+  color: rgba(var(--fg-rgb), .42);
 }
 .sel { position: relative; display: inline-flex; }
 .sel select {
