@@ -1423,8 +1423,103 @@
   var errFile = '';
 
   var FS = { supported: false, root: null, name: '', pending: null, busy: false };
+  /* 桌面版（Electron）：主进程直接按路径读写磁盘，不用文件夹选择器，也不用授权。
+     下面这组包装对象模仿 FileSystemHandle 的形状，所以读盘、保存、新建都走同一套代码。 */
+  var DESK = null;
   try {
-    FS.supported = typeof window !== 'undefined' && typeof window.showDirectoryPicker === 'function';
+    if (typeof window !== 'undefined' && window.c51Desktop && window.c51Desktop.listDir) DESK = window.c51Desktop;
+  } catch (e) { DESK = null; }
+  var DESK_SEP = DESK && DESK.platform === 'win32' ? '\\' : '/';
+
+  function deskJoin(abs, seg) {
+    var base = String(abs).replace(/[\\/]+$/, '');
+    return base + DESK_SEP + seg;
+  }
+  function deskBase(abs) {
+    var a = String(abs).split(/[\\/]/);
+    return a[a.length - 1] || String(abs);
+  }
+  function deskMissing(name) {
+    var err = new Error('没找到「' + name + '」');
+    err.name = 'NotFoundError';
+    return err;
+  }
+
+  function deskFileHandle(abs, name) {
+    return {
+      kind: 'file',
+      name: name,
+      path: abs,
+      getFile: function () {
+        return DESK.readText(abs).then(function (r) {
+          return {
+            size: r.size,
+            name: name,
+            text: function () { return Promise.resolve(r.text); }
+          };
+        });
+      },
+      createWritable: function () {
+        var buf = '';
+        return Promise.resolve({
+          write: function (data) { buf += String(data == null ? '' : data); return Promise.resolve(); },
+          close: function () { return DESK.writeText(abs, buf); }
+        });
+      }
+    };
+  }
+
+  function deskDirHandle(abs, name) {
+    return {
+      kind: 'directory',
+      name: name,
+      path: abs,
+      values: function () {
+        var cache = null, i = 0;
+        return {
+          next: function () {
+            var load = cache ? Promise.resolve(cache) : Promise.resolve(DESK.listDir(abs)).then(function (list) {
+              cache = (list || []).slice().sort(function (a, b) {
+                if (a.kind !== b.kind) return a.kind === 'directory' ? -1 : 1;
+                return cmpName(a.name, b.name);
+              });
+              return cache;
+            });
+            return load.then(function (list) {
+              if (i >= list.length) return { done: true, value: undefined };
+              var e = list[i++];
+              return {
+                done: false,
+                value: e.kind === 'directory' ? deskDirHandle(e.path, e.name) : deskFileHandle(e.path, e.name)
+              };
+            });
+          }
+        };
+      },
+      getDirectoryHandle: function (seg, opts) {
+        var p = deskJoin(abs, seg);
+        return DESK.pathExists(p).then(function (ex) {
+          if (ex) return deskDirHandle(p, seg);
+          if (!opts || !opts.create) throw deskMissing(seg);
+          return DESK.mkdir(p).then(function () { return deskDirHandle(p, seg); });
+        });
+      },
+      getFileHandle: function (seg, opts) {
+        var p = deskJoin(abs, seg);
+        return DESK.pathExists(p).then(function (ex) {
+          if (ex) return deskFileHandle(p, seg);
+          if (!opts || !opts.create) throw deskMissing(seg);
+          return DESK.writeText(p, '').then(function () { return deskFileHandle(p, seg); });
+        });
+      },
+      /* 桌面版不需要授权，永远当作已授权 */
+      queryPermission: function () { return Promise.resolve('granted'); },
+      requestPermission: function () { return Promise.resolve('granted'); }
+    };
+  }
+
+  try {
+    FS.supported = !!DESK || (typeof window !== 'undefined' && typeof window.showDirectoryPicker === 'function');
   } catch (e) { FS.supported = false; }
 
   /* ---------------- 路径工具 ---------------- */
@@ -2326,7 +2421,8 @@
       build();
       updateFsUi();
       FS.busy = false;
-      try { idbSet(FS_DB_KEY, dir).catch(function () {}); } catch (e) {}
+      /* 网页版存句柄；桌面版存的是路径，由主进程配置文件负责 */
+      if (!DESK) { try { idbSet(FS_DB_KEY, dir).catch(function () {}); } catch (e) {} }
       log('已连接文件夹「' + dir.name + '」：读到 ' + out.files.length + ' 个文件、' + out.folders.length + ' 个目录。改动点「保存」或 Ctrl+S 写回磁盘。', 'ok');
       if (!out.files.length) {
         log('这个文件夹里没找到 .c / .h 源码。Keil 工程通常把源码放在 user/、library/ 这些子目录里，'
@@ -2340,6 +2436,19 @@
     });
   }
 
+  /* 统一入口：桌面版弹系统选择框拿真实路径，网页版走 File System Access */
+  function chooseFolder() {
+    if (DESK) {
+      return DESK.pickFolder().then(function (pick) {
+        if (!pick) return null;
+        return DESK.setLastDir(pick.path).then(function () {
+          return deskDirHandle(pick.path, pick.name);
+        });
+      });
+    }
+    return window.showDirectoryPicker({ id: 'c51lab', mode: 'readwrite', startIn: 'documents' });
+  }
+
   function openFolder() {
     if (!FS.supported) {
       var inFrame = false;
@@ -2351,8 +2460,8 @@
     }
     if (FS.busy) return;
     if (FS.pending) { requestReconnect(); return; }
-    var opts = { id: 'c51lab', mode: 'readwrite', startIn: 'documents' };
-    window.showDirectoryPicker(opts).then(function (dir) {
+    chooseFolder().then(function (dir) {
+      if (!dir) return null;
       return attachDir(dir);
     }).catch(function (e) {
       if (e && e.name === 'AbortError') return;
@@ -2379,6 +2488,16 @@
     /* 启动时自动接上上次的磁盘文件夹：有完整权限就直接读，否则留一个「重新连接」入口。
        想彻底不挂任何文件夹，点工程树底部的「断开」回到浏览器内工程。 */
     if (!FS.supported) { updateFsUi(); return Promise.resolve(); }
+    if (DESK) {
+      /* 桌面版：记住的是路径，直接读，不需要点「重新连接」 */
+      return DESK.getLastDir().then(function (dir) {
+        if (!dir) { updateFsUi(); return; }
+        return attachDir(deskDirHandle(dir, deskBase(dir)));
+      }).catch(function (e) {
+        updateFsUi();
+        log('上次的工程文件夹没读到：' + (e && e.message ? e.message : e), 'dim');
+      });
+    }
     return idbGet(FS_DB_KEY).then(function (h) {
       if (!h) { updateFsUi(); return; }
       return h.queryPermission({ mode: 'readwrite' }).then(function (perm) {
@@ -3499,7 +3618,7 @@ void keys_scan()
         input: false, ok: '选择文件夹'
       }).then(function (yes) {
         if (!yes) return null;
-        return window.showDirectoryPicker({ id: 'c51lab-keil', mode: 'readwrite', startIn: 'documents' });
+        return chooseFolder();
       }).then(function (dir) {
         if (!dir) return null;
         return readKeilFiles(dir, parsed.files);
@@ -4269,6 +4388,7 @@ void keys_scan()
       FS.pending = null;
       project.fs = false;
       try { idbDel(FS_DB_KEY).catch(function () {}); } catch (e) {}
+      if (DESK) { try { DESK.clearLastDir(); } catch (e2) {} }
       loadExample(curExample ? curExample.id : lastExampleId());
       updateFsUi();
       log('已断开磁盘文件夹，回到浏览器内工程（磁盘上的文件没动）。', 'dim');

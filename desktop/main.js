@@ -78,6 +78,86 @@ function registerWindowIpc() {
     version: app.getVersion(),
     electron: process.versions.electron
   }));
+
+  /* ---------- 直接按真实路径读写工程文件夹 ----------
+     桌面版不再走浏览器的文件夹选择器 + 授权，主进程用 Node 的 fs 直接读盘，
+     渲染进程拿到的是一个"长得像 FileSystemDirectoryHandle"的包装对象。 */
+  const configPath = () => path.join(app.getPath('userData'), 'c51-config.json');
+  const readConfig = () => {
+    try { return JSON.parse(fs.readFileSync(configPath(), 'utf8')) || {}; } catch (err) { return {}; }
+  };
+  const writeConfig = (next) => {
+    try { fs.writeFileSync(configPath(), JSON.stringify(next, null, 2), 'utf8'); } catch (err) { /* 配置写不了不影响使用 */ }
+  };
+  const onlyPath = (value) => (typeof value === 'string' && value.trim() ? value : null);
+
+  ipcMain.handle('c51-pick-folder', async (event) => {
+    const win = windowForEvent(event);
+    const last = onlyPath(readConfig().lastDir);
+    const result = await dialog.showOpenDialog(win || undefined, {
+      title: '打开工程文件夹',
+      properties: ['openDirectory'],
+      defaultPath: last && fs.existsSync(last) ? last : app.getPath('documents')
+    });
+    if (result.canceled || !result.filePaths.length) return null;
+    const folder = result.filePaths[0];
+    writeConfig(Object.assign(readConfig(), { lastDir: folder }));
+    return { path: folder, name: path.basename(folder) || folder };
+  });
+
+  ipcMain.handle('c51-last-dir', () => {
+    const saved = onlyPath(readConfig().lastDir);
+    if (saved && fs.existsSync(saved)) return saved;
+    /* 第一次用：如果 D:\江协库 在，就直接挂上，省掉选择这一步 */
+    const fallback = 'D:\\江协库';
+    return process.platform === 'win32' && fs.existsSync(fallback) ? fallback : '';
+  });
+  ipcMain.handle('c51-set-last-dir', (_event, value) => {
+    const dir = onlyPath(value);
+    if (!dir) return false;
+    writeConfig(Object.assign(readConfig(), { lastDir: dir }));
+    return true;
+  });
+  ipcMain.handle('c51-clear-last-dir', () => {
+    const cfg = readConfig();
+    delete cfg.lastDir;
+    writeConfig(cfg);
+    return true;
+  });
+
+  ipcMain.handle('c51-path-exists', (_event, value) => {
+    const p = onlyPath(value);
+    return !!p && fs.existsSync(p);
+  });
+  ipcMain.handle('c51-list-dir', (_event, value) => {
+    const p = onlyPath(value);
+    if (!p) throw new Error('缺少目录路径');
+    return fs.readdirSync(p, { withFileTypes: true })
+      .filter((ent) => ent.isDirectory() || ent.isFile())
+      .map((ent) => ({
+        name: ent.name,
+        kind: ent.isDirectory() ? 'directory' : 'file',
+        path: path.join(p, ent.name)
+      }));
+  });
+  ipcMain.handle('c51-read-text', (_event, value) => {
+    const p = onlyPath(value);
+    if (!p) throw new Error('缺少文件路径');
+    const buf = fs.readFileSync(p);
+    return { text: buf.toString('utf8'), size: buf.length };
+  });
+  ipcMain.handle('c51-write-text', (_event, value, text) => {
+    const p = onlyPath(value);
+    if (!p) throw new Error('缺少文件路径');
+    fs.writeFileSync(p, String(text == null ? '' : text), 'utf8');
+    return true;
+  });
+  ipcMain.handle('c51-mkdir', (_event, value) => {
+    const p = onlyPath(value);
+    if (!p) throw new Error('缺少目录路径');
+    fs.mkdirSync(p, { recursive: true });
+    return true;
+  });
   ipcMain.handle('c51-open-project', async (event) => {
     const win = windowForEvent(event);
     if (!win) return null;
