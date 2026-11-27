@@ -2235,6 +2235,16 @@
       });
     });
   }
+  function idbGet(k) {
+    return idbOpen().then(function (db) {
+      return new Promise(function (res, rej) {
+        var t = db.transaction('kv', 'readonly');
+        var r = t.objectStore('kv').get(k);
+        r.onsuccess = function () { res(r.result); };
+        r.onerror = function () { rej(r.error); };
+      });
+    });
+  }
   function idbDel(k) {
     return idbOpen().then(function (db) {
       return new Promise(function (res) {
@@ -2366,10 +2376,18 @@
   }
 
   function restoreDir() {
-    /* 启动不自动恢复上次的磁盘文件夹：避免把某个目录“固定”在软件/网页里。
-       想读写磁盘文件时，用户自己点「打开文件夹」；这里顺手把旧句柄清掉。 */
+    /* 启动时自动接上上次的磁盘文件夹：有完整权限就直接读，否则留一个「重新连接」入口。
+       想彻底不挂任何文件夹，点工程树底部的「断开」回到浏览器内工程。 */
     if (!FS.supported) { updateFsUi(); return Promise.resolve(); }
-    return idbDel(FS_DB_KEY).catch(function () {}).then(function () { updateFsUi(); });
+    return idbGet(FS_DB_KEY).then(function (h) {
+      if (!h) { updateFsUi(); return; }
+      return h.queryPermission({ mode: 'readwrite' }).then(function (perm) {
+        if (perm === 'granted') return attachDir(h);
+        FS.pending = h;
+        updateFsUi();
+        log('上次打开的文件夹「' + h.name + '」还在，点左上角「重新连接 ' + h.name + '」继续编辑磁盘文件。', 'dim');
+      });
+    }).catch(function () { updateFsUi(); });
   }
 
   /* ---------------- 磁盘：写 ---------------- */
