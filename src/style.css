@@ -3072,7 +3072,12 @@ html.ios .board-tip {
 }
 html.ios .board-tip.on { background: var(--accent-soft); border-color: transparent; color: var(--ink); }
 html.ios .board-panel.board-full { background: var(--panel); border-color: var(--line); }
-html.ios .corner { border-color: var(--accent); border-width: 2px; border-radius: 7px; }
+html.ios .corner {
+  border-color: #fff;
+  border-width: 2px;
+  border-radius: 7px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .22), 0 2px 8px rgba(0, 0, 0, .16);
+}
 html.ios .reticle-label { color: var(--ink); font: 500 11.5px var(--sans); }
 
 html.ios .ports { gap: 8px; padding: 13px 14px 4px; }
@@ -3284,7 +3289,7 @@ html.ios.light .proj-open { color: #000; }
 html.ios.light .proj-open:hover { color: var(--accent); }
 html.ios.light .quickbar { background: #fff; }
 html.ios.light .board-tip { color: var(--muted); }
-html.ios.light .corner { border-color: var(--accent); }
+html.ios.light .corner { border-color: #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, .26), 0 2px 8px rgba(0, 0, 0, .14); }
 html.ios.light .reticle-label { color: #000; }
 html.ios.light .status { color: var(--muted); }
 html.ios.light .status.running { color: #000; }
