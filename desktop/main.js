@@ -106,11 +106,9 @@ function registerWindowIpc() {
   });
 
   ipcMain.handle('c51-last-dir', () => {
+    /* 只认用户自己打开过的文件夹；第一次装的人应该是干净的首屏，不猜任何路径 */
     const saved = onlyPath(readConfig().lastDir);
-    if (saved && fs.existsSync(saved)) return saved;
-    /* 第一次用：如果 D:\江协库 在，就直接挂上，省掉选择这一步 */
-    const fallback = 'D:\\江协库';
-    return process.platform === 'win32' && fs.existsSync(fallback) ? fallback : '';
+    return saved && fs.existsSync(saved) ? saved : '';
   });
   ipcMain.handle('c51-set-last-dir', (_event, value) => {
     const dir = onlyPath(value);

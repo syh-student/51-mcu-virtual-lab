@@ -3595,33 +3595,92 @@ void keys_scan()
     return chain.then(function () { return { files: files, missing: missing }; });
   }
 
-  function importKeilProject(file) {
+  /* 一步导入：只让用户选一次文件夹，剩下的自动做——
+     先在文件夹里找 .uvprojx / .uvproj（Keil 工程），找不到再找 .c51proj.json。 */
+  function findProjectFile(dir) {
+    var it = dir.values();
+    var hits = { uvprojx: [], uvproj: [], json: [] };
+    return new Promise(function (resolve) {
+      (function step() {
+        it.next().then(function (r) {
+          if (r.done) {
+            var pick = hits.uvprojx[0] || hits.uvproj[0] || hits.json[0];
+            resolve(pick || null);
+            return;
+          }
+          var e = r.value;
+          if (e.kind === 'file') {
+            var n = String(e.name || '');
+            if (/\.uvprojx$/i.test(n)) hits.uvprojx.push(e);
+            else if (/\.uvproj$/i.test(n)) hits.uvproj.push(e);
+            else if (/\.json$/i.test(n)) hits.json.push(e);
+          }
+          step();
+        }).catch(function () { resolve(null); });
+      })();
+    });
+  }
+
+  function importProjectByFolder() {
     if (!FS.supported) {
-      log('Keil 工程导入需要 Edge / Chrome，并且不要在预览面板的 iframe 里运行。', 'err');
+      log('打开工程需要 Edge / Chrome，并且不要在预览面板的 iframe 里运行。', 'err');
       return;
     }
-    var read = file.text ? file.text() : new Promise(function (res, rej) {
-      var fr = new FileReader();
-      fr.onload = function () { res(String(fr.result == null ? '' : fr.result)); };
-      fr.onerror = function () { rej(fr.error); };
-      fr.readAsText(file, 'utf-8');
+    chooseFolder().then(function (dir) {
+      if (!dir) return null;
+      return findProjectFile(dir).then(function (found) {
+        if (!found) {
+          log('「' + dir.name + '」里没找到 Keil 工程文件（project.uvproj / .uvprojx），也没有 .c51proj.json。'
+            + 'Keil 的工程文件通常和 user、library 这两个文件夹放在同一层。'
+            + '如果只是想读写源码，点左上角「打开文件夹」选它就行。', 'err');
+          return null;
+        }
+        log('在「' + dir.name + '」里找到 ' + found.name + '，正在读源码…', 'dim');
+        return found.getFile().then(function (f) { return f.text(); }).then(function (text) {
+          if (/\.json$/i.test(found.name)) return importProjectText(text, found.name);
+          return importKeilText(text, found.name, dir);
+        });
+      });
+    }).catch(function (e) {
+      if (e && e.name === 'AbortError') return;
+      log('打开工程失败：' + (e && e.message ? e.message : e), 'err');
     });
-    read.then(function (text) {
-      var parsed = parseKeilProject(text);
-      if (!parsed.files.length) {
-        log('这个 Keil 工程里没有找到 .c / .h / .inc 文件。', 'err');
-        return;
-      }
-      log('检测到 Keil 工程：' + parsed.files.length + ' 个源码文件。接下来选择它所在的文件夹。', 'dim');
-      return askModal('选择 Keil 工程目录', {
-        msg: 'Keil 工程只记录文件路径，源码还在磁盘上。请选择 project.uvproj 所在的工程根目录。',
-        input: false, ok: '选择文件夹'
-      }).then(function (yes) {
-        if (!yes) return null;
-        return chooseFolder();
-      }).then(function (dir) {
-        if (!dir) return null;
-        return readKeilFiles(dir, parsed.files);
+  }
+
+  function importProjectText(text, fileName) {
+    var data;
+    try {
+      data = JSON.parse(String(text || ''));
+    } catch (e) {
+      log('工程文件不是合法的 JSON，已跳过。', 'err');
+      return null;
+    }
+    if (!data || data.format !== 'c51lab-project' || !Array.isArray(data.files) || !data.files.length) {
+      log('这不是本工具导出的工程文件。', 'err');
+      return null;
+    }
+    return askModal('打开工程', {
+      msg: '会替换当前工程（现在有 ' + project.files.length + ' 个文件），没存过的改动会丢。继续？',
+      input: false, ok: '打开'
+    }).then(function (yes) {
+      if (!yes) return;
+      applyProjectData(data, fileName);
+    });
+  }
+
+  function importKeilText(text, projName, dir) {
+    var parsed = parseKeilProject(text);
+    if (!parsed.files.length) {
+      log('这个 Keil 工程里没有找到 .c / .h / .inc 文件。', 'err');
+      return null;
+    }
+    var pickDir = dir ? Promise.resolve(dir) : askModal('选择 Keil 工程目录', {
+      msg: 'Keil 工程只记录文件路径，源码还在磁盘上。请选择 project.uvproj 所在的工程根目录。',
+      input: false, ok: '选择文件夹'
+    }).then(function (yes) { return yes ? chooseFolder() : null; });
+    return pickDir.then(function (d) {
+        if (!d) return null;
+        return readKeilFiles(d, parsed.files);
       }).then(function (r) {
           if (!r) return null;
           if (!r.files.length) {
@@ -3630,7 +3689,7 @@ void keys_scan()
           }
           var data = {
             format: 'c51lab-project',
-            name: String(file.name || 'Keil 工程').replace(/\.uvprojx?$/i, ''),
+            name: String(projName || 'Keil 工程').replace(/\.uvprojx?$/i, ''),
             files: r.files.map(function (f) { return { path: f.path, content: f.content }; }),
             folders: keilFolders(parsed.files),
             folderGroup: {},
@@ -3657,10 +3716,26 @@ void keys_scan()
           if (r.missing.length) msg += '\n另外这些文件没读到：' + r.missing.slice(0, 6).join('、');
           return askModal('导入 Keil 工程', { msg: msg, input: false, ok: '导入' }).then(function (yes) {
             if (!yes) return;
-            applyProjectData(data, file.name);
+            applyProjectData(data, projName);
             log('已导入 Keil 工程「' + data.name + '」：' + r.files.length + ' 个文件。导入的是快照，改完不会写回 Keil 文件；要写回请用「打开文件夹」。', 'ok');
           });
         });
+  }
+
+  function importKeilProject(file) {
+    if (!FS.supported) {
+      log('Keil 工程导入需要 Edge / Chrome，并且不要在预览面板的 iframe 里运行。', 'err');
+      return;
+    }
+    var read = file.text ? file.text() : new Promise(function (res, rej) {
+      var fr = new FileReader();
+      fr.onload = function () { res(String(fr.result == null ? '' : fr.result)); };
+      fr.onerror = function () { rej(fr.error); };
+      fr.readAsText(file, 'utf-8');
+    });
+    read.then(function (text) {
+      log('检测到 Keil 工程：' + file.name + '，接下来选择它所在的文件夹。', 'dim');
+      return importKeilText(text, file.name, null);
     }).catch(function (e) {
       if (e && e.name === 'AbortError') return;
       log('导入 Keil 工程失败：' + (e && e.message ? e.message : e), 'err');
@@ -3671,26 +3746,7 @@ void keys_scan()
     if (!file) return;
     if (/\.uvprojx?$/i.test(file.name || '')) { importKeilProject(file); return; }
     var rd = new FileReader();
-    rd.onload = function () {
-      var data;
-      try {
-        data = JSON.parse(String(rd.result == null ? '' : rd.result));
-      } catch (e) {
-        log('工程文件不是合法的 JSON。', 'err');
-        return;
-      }
-      if (!data || data.format !== 'c51lab-project' || !Array.isArray(data.files) || !data.files.length) {
-        log('这不是本工具导出的工程文件。', 'err');
-        return;
-      }
-      askModal('打开工程', {
-        msg: '会替换当前工程（现在有 ' + project.files.length + ' 个文件），没存过的改动会丢。继续？',
-        input: false, ok: '打开'
-      }).then(function (yes) {
-        if (!yes) return;
-        applyProjectData(data, file.name);
-      });
-    };
+    rd.onload = function () { importProjectText(String(rd.result == null ? '' : rd.result), file.name); };
     rd.onerror = function () { log('读取工程文件失败。', 'err'); };
     rd.readAsText(file, 'utf-8');
   }
@@ -4447,18 +4503,8 @@ void keys_scan()
   window.addEventListener('resize', closeSrcMenu);
   if ($('btn-keil-demo')) $('btn-keil-demo').onclick = function () { createLibraryDemo(); };
   if ($('btn-load-proj')) $('btn-load-proj').onclick = function () {
-    if (window.c51Desktop && window.c51Desktop.openProjectFile) {
-      window.c51Desktop.openProjectFile().then(function (res) {
-        if (!res) return;
-        var file = new File([res.text], res.name, { type: 'application/json' });
-        importProjectFile(file);
-      }).catch(function (e) {
-        log('打开工程失败：' + (e && e.message ? e.message : e), 'err');
-      });
-      return;
-    }
-    var inp = $('proj-input');
-    if (inp) inp.click();
+    /* 一步到位：只选一次文件夹，程序自己在里面找 Keil 工程文件或 c51proj.json */
+    importProjectByFolder();
   };
   if ($('proj-input')) $('proj-input').onchange = function () {
     importProjectFile(this.files && this.files[0]);
@@ -4481,7 +4527,14 @@ void keys_scan()
       });
     });
     tree.addEventListener('drop', function (e) {
-      if (e && e.dataTransfer && e.dataTransfer.files) importFiles(e.dataTransfer.files);
+      var files = e && e.dataTransfer && e.dataTransfer.files;
+      if (!files || !files.length) return;
+      /* 拖进来的是工程文件（.uvproj / .json）就按工程打开，其余按源码导入 */
+      if (files.length === 1 && /\.(uvprojx?|c51proj\.json|json)$/i.test(files[0].name || '')) {
+        importProjectFile(files[0]);
+        return;
+      }
+      importFiles(files);
     });
   })();
 
