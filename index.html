@@ -1149,6 +1149,8 @@ main {
   color: rgba(var(--fg-rgb), .5);
   border-top: 1px solid var(--line-soft);
 }
+/* 文字已挪到编辑器状态栏，只剩「断开」按钮，没内容时不要留空行 */
+.proj-stat[hidden] { display: none; }
 .proj-stat span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .linky {
   appearance: none;
@@ -1553,6 +1555,14 @@ html.light .src-menu .sep { background: rgba(20, 30, 40, .1); }
   color: var(--faint);
   white-space: nowrap;
   overflow: hidden;
+}
+/* 工程落盘状态：靠右显示，带括号，前缀「磁盘 / 浏览器内」一眼能分 */
+.editor-fs {
+  margin-left: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgba(var(--fg-rgb), .42);
 }
 
 /* 编译输出 */
@@ -3781,8 +3791,7 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
             <div class="proj-tree" id="proj-tree"></div>
             <div class="proj-tree" id="outline" hidden></div>
 
-            <div class="proj-stat">
-              <span id="proj-stat-text">浏览器内工程 · 不写盘</span>
+            <div class="proj-stat" id="proj-stat" hidden>
               <button id="btn-close-dir" class="linky" type="button" title="断开磁盘文件夹，回到浏览器内工程" hidden>断开</button>
             </div>
 
@@ -3813,6 +3822,7 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
           <span>UTF-8</span>
           <span id="vtime">0 ms</span>
           <span id="steps">0 条语句</span>
+          <span id="fs-note" class="editor-fs">（浏览器内工程 · 不写盘）</span>
         </div>
       </div>
 
@@ -11104,8 +11114,8 @@ void keys_scan()
 
   /* ---------------- 状态栏 / 工程树开关 ---------------- */
   function setStat(text) {
-    var el = $('proj-stat-text');
-    if (el) el.textContent = text || '';
+    var el = $('fs-note');
+    if (el) el.textContent = text ? '（' + text + '）' : '';
   }
   function renderStat() {
     var n = dirtyCount();
@@ -11149,6 +11159,8 @@ void keys_scan()
     var cd = $('btn-close-dir');
     if (cd) cd.hidden = !on && !FS.pending;
     if (cd && FS.pending && !on) cd.textContent = '忘记';
+    var st = $('proj-stat');
+    if (st) st.hidden = !(on || FS.pending);
     var sel = $('ex-select');
     if (sel) {
       sel.disabled = on;

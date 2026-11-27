@@ -1126,6 +1126,8 @@ main {
   color: rgba(var(--fg-rgb), .5);
   border-top: 1px solid var(--line-soft);
 }
+/* 文字已挪到编辑器状态栏，只剩「断开」按钮，没内容时不要留空行 */
+.proj-stat[hidden] { display: none; }
 .proj-stat span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .linky {
   appearance: none;
@@ -1530,6 +1532,14 @@ html.light .src-menu .sep { background: rgba(20, 30, 40, .1); }
   color: var(--faint);
   white-space: nowrap;
   overflow: hidden;
+}
+/* 工程落盘状态：靠右显示，带括号，前缀「磁盘 / 浏览器内」一眼能分 */
+.editor-fs {
+  margin-left: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgba(var(--fg-rgb), .42);
 }
 
 /* 编译输出 */

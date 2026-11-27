@@ -4132,8 +4132,8 @@ void keys_scan()
 
   /* ---------------- 状态栏 / 工程树开关 ---------------- */
   function setStat(text) {
-    var el = $('proj-stat-text');
-    if (el) el.textContent = text || '';
+    var el = $('fs-note');
+    if (el) el.textContent = text ? '（' + text + '）' : '';
   }
   function renderStat() {
     var n = dirtyCount();
@@ -4177,6 +4177,8 @@ void keys_scan()
     var cd = $('btn-close-dir');
     if (cd) cd.hidden = !on && !FS.pending;
     if (cd && FS.pending && !on) cd.textContent = '忘记';
+    var st = $('proj-stat');
+    if (st) st.hidden = !(on || FS.pending);
     var sel = $('ex-select');
     if (sel) {
       sel.disabled = on;
