@@ -3986,6 +3986,19 @@ void keys_scan()
     log('实验报告已导出（Markdown，含代码、诊断和运行状态），总结部分记得自己补。', 'ok');
   };
 
+  /* 报告按钮也先确认一句，避免误点直接生成文件 */
+  (function () {
+    var run = $('btn-report') && $('btn-report').onclick;
+    if (!run) return;
+    $('btn-report').onclick = function () {
+      askModal('导出实验报告', {
+        msg: '按当前 ' + project.files.length + ' 个源文件、最近的编译诊断和运行状态生成一份 Markdown 报告'
+          + (vm ? '' : '（现在还没运行过，报告里「运行观察」那一段会是空的）') + '。继续？',
+        input: false, ok: '生成报告'
+      }).then(function (yes) { if (yes) run(); });
+    };
+  })();
+
   /* ---------------- 浅色 / 深色主题 ---------------- */
   function setTheme(light) {
     try {
@@ -4488,8 +4501,20 @@ void keys_scan()
     importFiles(this.files);
     this.value = '';
   };
-  if ($('btn-export')) $('btn-export').onclick = function () { exportZip(); };
-  if ($('btn-save-proj')) $('btn-save-proj').onclick = function () { exportProjectFile(); };
+  /* 「存工程」「导出」都先问一句，避免点错就把文件写出去 */
+  function confirmThen(run, title, msg, ok) {
+    return function () {
+      askModal(title, { msg: msg(), input: false, ok: ok }).then(function (yes) { if (yes) run(); });
+    };
+  }
+  if ($('btn-export')) $('btn-export').onclick = confirmThen(exportZip, '导出源码 ZIP', function () {
+    return '把当前工程 ' + project.files.length + ' 个源码文件打包成 zip 下载。'
+      + 'zip 里只有 .c / .h，不含 Keil 工程文件，换电脑后要在 Keil 里新建工程再加入这些文件。继续？';
+  }, '导出');
+  if ($('btn-save-proj')) $('btn-save-proj').onclick = confirmThen(exportProjectFile, '存工程文件', function () {
+    return '把当前工程（' + project.files.length + ' 个文件，含 Keil 分组结构）存成一个 .c51proj.json 文件，'
+      + '之后可以在别的电脑上重新打开。继续？';
+  }, '存为文件');
 
   /* 来源徽标：点开小菜单（另存 / 导出 / 回到例程） */
   if ($('src-badge')) {
