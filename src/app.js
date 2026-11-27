@@ -4354,8 +4354,17 @@ void keys_scan()
     var rf = $('btn-refresh');
     if (rf) rf.hidden = !on;
     var cd = $('btn-close-dir');
-    if (cd) cd.hidden = !on && !FS.pending;
-    if (cd && FS.pending && !on) cd.textContent = '忘记';
+    if (cd) {
+      cd.hidden = !on && !FS.pending;
+      /* 连着磁盘时叫「断开」，只记住没连上时才叫「忘记」；两个状态来回切要各自把文字换回来 */
+      if (on) {
+        cd.textContent = '断开';
+        if (cd.setAttribute) cd.setAttribute('title', '断开磁盘文件夹，回到程序内工程');
+      } else if (FS.pending) {
+        cd.textContent = '忘记';
+        if (cd.setAttribute) cd.setAttribute('title', '忘掉上次的文件夹，下次启动不再自动连接');
+      }
+    }
     var st = $('proj-stat');
     if (st) st.hidden = !(on || FS.pending);
     var sel = $('ex-select');
