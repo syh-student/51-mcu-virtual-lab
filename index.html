@@ -3468,7 +3468,7 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
   </div>
   <div class="head-right">
     <span class="head-note">例程 01—15 · 离线可用</span>
-    <span class="build-tag" id="build-tag">构建 11-27 09:10</span>
+    <span class="build-tag" id="build-tag">构建 11-27 09:30</span>
     <span id="status" class="status">已停止</span>
   </div>
 </header>
@@ -7933,7 +7933,6 @@ void main()
       }
     }
     function draw() {
-      var v = Math.min(1, Math.abs(s.vx) / 650);
       blob.style.width = s.w.toFixed(2) + 'px';
       /* 方块滑块：只做横向平移，不再叠液态形变（斜切 / 拉伸 / 水泡鼓包），圆角固定 */
       blob.style.transform = 'translate3d(' + s.x.toFixed(2) + 'px,0,0)';

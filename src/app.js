@@ -1139,7 +1139,6 @@
       }
     }
     function draw() {
-      var v = Math.min(1, Math.abs(s.vx) / 650);
       blob.style.width = s.w.toFixed(2) + 'px';
       /* 方块滑块：只做横向平移，不再叠液态形变（斜切 / 拉伸 / 水泡鼓包），圆角固定 */
       blob.style.transform = 'translate3d(' + s.x.toFixed(2) + 'px,0,0)';
