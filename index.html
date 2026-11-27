@@ -12235,6 +12235,29 @@ void keys_scan()
     el.textContent = '行 ' + line + '，列 ' + col;
     paintMarks();
   }
+  /* 回车自动缩进 / Tab / 注释都走 applyEdit，按键的默认动作被 preventDefault，
+     浏览器不会像普通输入那样把光标自动滚进视野，所以按光标所在行手动滚一次 */
+  function ensureCaretVisible() {
+    var upto = codeEl.value.slice(0, codeEl.selectionStart);
+    var lineNo = upto.split('\n').length;
+    /* 测试环境的 DOM 桩没有 getComputedStyle，退回到和 CSS 一致的 12px */
+    var padTop = 12, padBottom = 12;
+    if (typeof window.getComputedStyle === 'function') {
+      var cs = window.getComputedStyle(codeEl);
+      padTop = parseFloat(cs.paddingTop) || 0;
+      padBottom = parseFloat(cs.paddingBottom) || 0;
+    }
+    var lineTop = padTop + (lineNo - 1) * LINE_H;
+    var lineBottom = lineTop + LINE_H;
+    var viewTop = codeEl.scrollTop;
+    var viewBottom = viewTop + codeEl.clientHeight - padBottom;
+    if (lineBottom > viewBottom) {
+      codeEl.scrollTop = viewTop + (lineBottom - viewBottom);
+    } else if (lineTop < viewTop + padTop) {
+      codeEl.scrollTop = Math.max(0, lineTop - padTop);
+    }
+    syncCodeScroll();
+  }
   function gotoFileLine(file, n) {
     if (file && file !== project.active) openFile(file);
     gotoLine(n);
@@ -13664,6 +13687,7 @@ void keys_scan()
     if (f) f.content = codeEl.value;
     histRecord();
     refreshGutter(); paintCode(); saveCode(); updateCursor();
+    ensureCaretVisible();
     markCodeChanged();
     /* 暂停时改代码会把当前行标记一起重建掉，补回来（运行中下一帧也会自己补） */
     if (state === 'running' || state === 'paused') markLine(vmLocalLine());
@@ -13941,6 +13965,7 @@ void keys_scan()
     if (f) f.content = v;
     histRecord();
     refreshGutter(); paintCode(); saveCode(); updateCursor();
+    ensureCaretVisible();
     markCodeChanged();
   }
   codeEl.addEventListener('keydown', function (e) {
