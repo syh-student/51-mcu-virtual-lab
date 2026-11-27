@@ -983,8 +983,8 @@ html.ios.light .pin-stage, html.ios.light .eda-stage { color-scheme: dark; }
   if (embedded) document.documentElement.classList.add('embed');
   var theme = null;
   try { theme = new URLSearchParams(location.search).get('theme'); } catch (e) { /* 忽略 */ }
-  var systemLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
-  if (theme === 'light' || (!theme && systemLight)) document.documentElement.classList.add('light');
+  /* 默认深色；只有父页面明确传浅色（或用户手动切到浅色）时才用浅色 */
+  if (theme === 'light') document.documentElement.classList.add('light');
 })();
 window.addEventListener('message', function (e) {
   if (window.self !== window.top && e.source !== window.parent) return;
@@ -1006,7 +1006,7 @@ window.addEventListener('message', function (e) {
   </div>
   <div class="head-right">
     <span class="head-note">电阻电容电感 · 二极管三极管 · 电路定理</span>
-    <span class="build-tag" id="build-tag">构建 11-27 18:32</span>
+    <span class="build-tag" id="build-tag">构建 11-27 18:59</span>
   </div>
 </header>
 

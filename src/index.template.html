@@ -25,10 +25,10 @@
 </style>
 <link rel="manifest" href="manifest.webmanifest">
 <script>
-/* 主题要在第一帧之前应用：首次启动跟随系统，之后尊重用户选择 */
+/* 主题要在第一帧之前应用：默认深色，不再跟随系统；用户手动切换后尊重其选择 */
 try {
   var savedTheme = localStorage.getItem('c51.theme');
-  if (savedTheme === 'light' || (!savedTheme && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches)) {
+  if (savedTheme === 'light') {
     document.documentElement.classList.add('light');
   }
 } catch (e) {}
