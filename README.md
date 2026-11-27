@@ -55,8 +55,8 @@
 
 | 版本 | 文件 | 特点 |
 | --- | --- | --- |
-| 免安装绿色版 | `dist/51Lab-1.2.3-win-x64.exe` | 双击即用，不写注册表；首次启动会解压到临时目录，约 111 MB |
-| 安装版 | `dist/51Lab-Setup-1.2.3-x64.exe` | 可选安装目录、创建桌面快捷方式、可从"应用和功能"卸载，约 122 MB |
+| 免安装绿色版 | `dist/51Lab-1.2.4-win-x64.exe` | 双击即用，不写注册表；首次启动会解压到临时目录，约 111 MB |
+| 安装版 | `dist/51Lab-Setup-1.2.4-x64.exe` | 可选安装目录、创建桌面快捷方式、可从"应用和功能"卸载，约 122 MB |
 
 - 桌面版仍然是**离线**的：`index.html`、`hardware.html`、虚拟机和例程都在安装包里，不联网也能运行。
 - 文件选择器（"打开文件夹 / 磁盘工程"）在 Electron 里可用，权限只给本地文件选择，不开放 Node API。
@@ -75,8 +75,8 @@
 ```bash
 npm install
 npm run desktop          # 开发模式，直接开 Electron 窗口
-npm run dist:portable    # 生成免安装版：dist/51Lab-1.2.3-win-x64.exe
-npm run dist:installer   # 生成安装版：dist/51Lab-Setup-1.2.3-x64.exe
+npm run dist:portable    # 生成免安装版：dist/51Lab-1.2.4-win-x64.exe
+npm run dist:installer   # 生成安装版：dist/51Lab-Setup-1.2.4-x64.exe
 ```
 
 > `dist/` 已在 `.gitignore` 里，构建产物不提交到仓库；发布时通过 GitHub Release 上传这两个 exe。
