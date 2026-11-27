@@ -8644,7 +8644,13 @@ void main()
     if (project && project.fs && FS.name) {
       return { kind: 'dir', label: '文件夹', name: FS.name, full: FS.name, file: false };
     }
-    if (curExample) return { kind: 'example' };
+    if (curExample) {
+      /* 记住了上次的文件夹但没连上：徽标仍要出现，才有地方「重新连接 / 忘记」 */
+      if (FS.pending) {
+        return { kind: 'pending', label: '未连接', name: FS.pending.name, full: FS.pending.name, file: false };
+      }
+      return { kind: 'example' };
+    }
     var full = (project && (project.fileName || project.name)) || '未命名工程';
     return {
       kind: 'proj',
@@ -8659,19 +8665,22 @@ void main()
     var wrap = $('ex-wrap'), badge = $('src-badge');
     if (!wrap || !badge) return;
     var info = sourceInfo();
-    var isEx = info.kind === 'example';
+    /* pending 时编辑器里放的是例程，例程下拉要继续可用，所以两者都算「例程态」 */
+    var isEx = info.kind === 'example' || info.kind === 'pending';
     wrap.hidden = !isEx;
-    badge.hidden = isEx;
-    if (isEx) { closeSrcMenu(); return; }
+    badge.hidden = info.kind === 'example';
+    if (info.kind === 'example') { closeSrcMenu(); return; }
     var ico = $('src-ico'), kind = $('src-kind'), name = $('src-name');
-    if (ico) ico.innerHTML = SRC_ICONS[info.kind === 'dir' ? 'dir' : 'proj'];
+    if (ico) ico.innerHTML = SRC_ICONS[info.kind === 'proj' ? 'proj' : 'dir'];
     if (kind) kind.textContent = info.label;
     if (name) name.textContent = info.name;
     badge.title = info.kind === 'dir'
       ? '已连接磁盘文件夹「' + info.full + '」，点开可保存或断开'
-      : (info.file
-        ? '当前工程文件「' + info.full + '」，点开可另存、导出或回到例程'
-        : '浏览器内工程「' + info.full + '」，点开可存为工程文件、导出或回到例程');
+      : (info.kind === 'pending'
+        ? '上次打开过「' + info.full + '」，当前还没连上；点开可重新连接或忘记'
+        : (info.file
+          ? '当前工程文件「' + info.full + '」，点开可另存、导出或回到例程'
+          : '浏览器内工程「' + info.full + '」，点开可存为工程文件、导出或回到例程'));
     if ($('src-menu') && !$('src-menu').hidden) paintSrcMenu();
   }
 
@@ -8683,15 +8692,20 @@ void main()
         { id: 'fs-close', label: '断开文件夹，回到例程' }
       ];
     }
-    var list = [
+    /* 记住了上次文件夹但没连上：菜单只做「重新连接 / 忘记」两件事 */
+    if (FS.pending) {
+      return [
+        { id: 'fs-reconnect', label: '重新连接「' + FS.pending.name + '」' },
+        { sep: true },
+        { id: 'fs-forget', label: '忘记上次的文件夹' }
+      ];
+    }
+    return [
       { id: 'proj-save', label: '存为工程文件（另存为）' },
       { id: 'proj-zip', label: '导出源码 ZIP' },
       { sep: true },
       { id: 'proj-close', label: '关闭工程，回到例程' }
     ];
-    /* 记住了上次文件夹但没连上：在同一菜单里提供「忘记」入口 */
-    if (FS.pending) list.push({ id: 'fs-forget', label: '忘记上次的文件夹' });
-    return list;
   }
 
   function paintSrcMenu() {
@@ -8748,6 +8762,7 @@ void main()
       return;
     }
     if (id === 'fs-close') { disconnectFS(); return; }
+    if (id === 'fs-reconnect') { requestReconnect(); return; }
     if (id === 'fs-forget') { forgetPending(); return; }
   }
 
