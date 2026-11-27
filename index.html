@@ -9217,16 +9217,6 @@ void main()
       });
     });
   }
-  function idbGet(k) {
-    return idbOpen().then(function (db) {
-      return new Promise(function (res, rej) {
-        var t = db.transaction('kv', 'readonly');
-        var r = t.objectStore('kv').get(k);
-        r.onsuccess = function () { res(r.result); };
-        r.onerror = function () { rej(r.error); };
-      });
-    });
-  }
   function idbDel(k) {
     return idbOpen().then(function (db) {
       return new Promise(function (res) {
@@ -9311,7 +9301,9 @@ void main()
       try { idbSet(FS_DB_KEY, dir).catch(function () {}); } catch (e) {}
       log('已连接文件夹「' + dir.name + '」：读到 ' + out.files.length + ' 个文件、' + out.folders.length + ' 个目录。改动点「保存」或 Ctrl+S 写回磁盘。', 'ok');
       if (!out.files.length) {
-        log('这个文件夹里没找到 .c / .h 之类的源码（Objects、Listings、.git 等目录会自动跳过）。', 'dim');
+        log('这个文件夹里没找到 .c / .h 源码。Keil 工程通常把源码放在 user/、library/ 这些子目录里，'
+          + 'Objects、Listings 是编译产物会自动跳过。如果你刚点进了工程内部，请退到上一级、选中整个工程文件夹'
+          + '（例如 D:\\江协库）再打开一次；也可以直接用「开工程」选里面的 .uvproj。', 'dim');
       }
     }).catch(function (e) {
       FS.busy = false;
@@ -9356,16 +9348,10 @@ void main()
   }
 
   function restoreDir() {
+    /* 启动不自动恢复上次的磁盘文件夹：避免把某个目录“固定”在软件/网页里。
+       想读写磁盘文件时，用户自己点「打开文件夹」；这里顺手把旧句柄清掉。 */
     if (!FS.supported) { updateFsUi(); return Promise.resolve(); }
-    return idbGet(FS_DB_KEY).then(function (h) {
-      if (!h) { updateFsUi(); return; }
-      return h.queryPermission({ mode: 'readwrite' }).then(function (perm) {
-        if (perm === 'granted') return attachDir(h);
-        FS.pending = h;
-        updateFsUi();
-        log('上次打开的文件夹「' + h.name + '」还在，点左上角「重新连接 ' + h.name + '」继续编辑磁盘文件。', 'dim');
-      });
-    }).catch(function () { updateFsUi(); });
+    return idbDel(FS_DB_KEY).catch(function () {}).then(function () { updateFsUi(); });
   }
 
   /* ---------------- 磁盘：写 ---------------- */
