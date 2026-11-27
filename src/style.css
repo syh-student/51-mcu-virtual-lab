@@ -1975,6 +1975,13 @@ body.zoomed .appbar { display: none; }
   .scope-scroll { height: min(58vh, 460px); }
 }
 
+/* 761~900px：导航加控件刚好超宽，提前换行避免横向溢出 */
+@media (max-width: 900px) and (min-width: 761px) {
+  .appbar { flex-wrap: wrap; row-gap: 10px; }
+  .appbar .sp { display: none; }
+  .controls { width: 100%; justify-content: center; }
+}
+
 @media (max-width: 760px) {
   .page-head { padding: 14px 14px 8px; flex-wrap: wrap; gap: 8px; }
   .appbar { flex-wrap: wrap; gap: 10px; padding: 0 12px 10px; }

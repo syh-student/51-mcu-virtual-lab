@@ -1529,6 +1529,10 @@
   function normPath(p) {
     return String(p || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '').replace(/\/{2,}/g, '/').trim();
   }
+  /* 名字里不允许出现 . / .. 段：桌面版按真实路径拼接，这种段会跑到工程目录外面 */
+  function hasUnsafeSeg(p) {
+    return normPath(p).split('/').some(function (s) { return s === '.' || s === '..'; });
+  }
   function cmpName(a, b) {
     return String(a).localeCompare(String(b), 'zh-Hans-CN', { numeric: true, sensitivity: 'base' });
   }
@@ -2216,9 +2220,9 @@
 
   /* ---------------- 新建文件：先选类型，再填名字和分组 ---------------- */
   var ITEM_TYPES = [
-    { ext: 'c', label: 'C 源文件（.c）', def: 'new.c' },
-    { ext: 'h', label: '头文件（.h）', def: 'new.h' },
-    { ext: 'txt', label: '文本文件（.txt）', def: 'note.txt' }
+    { ext: 'c', label: 'C 源文件（.c）', short: 'C 源文件', def: 'new.c' },
+    { ext: 'h', label: '头文件（.h）', short: '头文件', def: 'new.h' },
+    { ext: 'txt', label: '文本文件（.txt）', short: '文本文件', def: 'note.txt' }
   ];
   var itemExt = 'c';
 
@@ -2244,7 +2248,8 @@
   function setItemType(ext) {
     var t = ITEM_TYPES.filter(function (x) { return x.ext === ext; })[0] || ITEM_TYPES[0];
     itemExt = t.ext;
-    if ($('item-type-name')) $('item-type-name').value = t.label;
+    /* 只读类型框较窄，用短文案，避免“（.c）”被截断 */
+    if ($('item-type-name')) $('item-type-name').value = t.short || t.label;
     var nm = $('item-name');
     if (nm) nm.value = t.def;
     var list = $('item-types');
@@ -2284,6 +2289,7 @@
     var raw = $('item-name') ? String($('item-name').value || '').trim() : '';
     if (!raw) { itemMsg('请填文件名'); return; }
     var path = normPath(raw);
+    if (hasUnsafeSeg(path)) { itemMsg('名字里不能有 . 或 .. 段'); return; }
     var m = /\.[a-z0-9]+$/i.exec(path);
     if (!m) path += '.' + itemExt;
     else if (m[0].toLowerCase() !== '.' + itemExt) {
@@ -3189,6 +3195,7 @@ void keys_scan()
       .then(function (v) {
         var np = normPath(v);
         if (!np || np === path) return;
+        if (hasUnsafeSeg(np)) { log('名字里不能有 . 或 .. 段', 'err'); return; }
         if (fileOf(np)) { log('已经有同名文件：' + np, 'err'); return; }
         var f = fileOf(path);
         if (!f) return;
@@ -3231,6 +3238,7 @@ void keys_scan()
       .then(function (v) {
         var np = normPath(v);
         if (!np || np === path) return;
+        if (hasUnsafeSeg(np)) { log('名字里不能有 . 或 .. 段', 'err'); return; }
         var inside = project.files.filter(function (f) { return f.path.indexOf(path + '/') === 0; });
         var remap = function (p) { return p.indexOf(path + '/') === 0 ? np + p.slice(path.length) : p; };
         var apply = function () {
@@ -4495,6 +4503,7 @@ void keys_scan()
     }).then(function (v) {
       var p = normPath(v);
       if (!p) return;
+      if (hasUnsafeSeg(p)) { log('文件夹名字里不能有 . 或 .. 段', 'err'); return; }
       if (project.folders.indexOf(p) >= 0) { log('已经有同名文件夹：' + p + '/', 'err'); return; }
       createFolder(p, g ? g.name : '');
     });
@@ -5522,7 +5531,10 @@ void keys_scan()
       if (f && f.vars) for (var k in f.vars) { if (k) rows.push([k, f.vars[k]]); }
       for (var g in vm.globals) { if (g) rows.push([g, vm.globals[g]]); }
     }
+    /* 手动 Watch 的当前值也要进签名：只改 SFR/端口的程序里局部变量不变，
+       不带上这部分会让 Watch 行停在首次渲染的旧值上 */
     var sig = (vm ? 'run' : 'none') + '#' + watchExprs.join(',') + '#'
+      + watchExprs.map(function (n) { return n + '=' + watchValueOf(n); }).join('|') + '#'
       + rows.map(function (r) { return r[0] + '=' + fmtVal(r[1]); }).join('|');
     if (sig === watchSig) return;
     watchSig = sig;
@@ -6845,6 +6857,11 @@ void keys_scan()
     (C51.builtinNames || []).forEach(function (n) { put(n, 'fn', '内置'); });
     (C51.sfrNames || []).forEach(function (n) { put(n, 'reg', 'SFR'); });
     (C51.bitNames || []).forEach(function (n) { put(n, 'reg', '位'); });
+    /* P0~P3 端口与 Pn_b 位名由 VM 直接识别，但不在 sfr/bit 名单里，补全要能给出 */
+    ['P0', 'P1', 'P2', 'P3'].forEach(function (n) {
+      put(n, 'reg', '端口');
+      for (var b = 0; b < 8; b++) put(n + '_' + b, 'reg', '端口位');
+    });
     project.files.forEach(function (f) {
       var re = /#\s*define\s+([A-Za-z_]\w*)/g, m;
       while ((m = re.exec(String(f.content || '')))) put(m[1], 'mac', '#define');

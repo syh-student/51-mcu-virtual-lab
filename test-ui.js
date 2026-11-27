@@ -430,7 +430,7 @@ try {
   registry['btn-new-file'].onclick();
   expect('新建对话框已打开',
     registry['dlg-new'].className.indexOf('on') >= 0, true);
-  expect('默认类型是 C 源文件', registry['item-type-name'].value, 'C 源文件（.c）');
+  expect('默认类型是 C 源文件', registry['item-type-name'].value, 'C 源文件');
   expect('默认文件名是 new.c', registry['item-name'].value, 'new.c');
 
   registry['item-name'].value = 'led.c';
