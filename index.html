@@ -1138,20 +1138,6 @@ main {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.proj-stat {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 10px 2px;
-  font-size: 9.5px;
-  line-height: 1.5;
-  color: rgba(var(--fg-rgb), .5);
-  border-top: 1px solid var(--line-soft);
-}
-/* 文字已挪到编辑器状态栏，只剩「断开」按钮，没内容时不要留空行 */
-.proj-stat[hidden] { display: none; }
-.proj-stat span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .linky {
   appearance: none;
   flex: none;
@@ -2329,7 +2315,6 @@ html.light #board svg { filter: drop-shadow(0 16px 34px rgba(16, 24, 40, .18)); 
 .proj-h .pn { font-size: 11px; }
 .p-row { font-size: 12px; }
 .proj-tip { font-size: 10px; }
-.proj-stat { font-size: 10px; }
 .proj-acts button, .proj-f button { font-size: 10px; }
 .editor-foot { font-size: 10.5px; padding: 8px 14px; }
 #hl, #code { font-size: 13px; }
@@ -2947,12 +2932,6 @@ html.ios .p-row.dir .ico { color: var(--faint); }
 html.ios .p-row .cnt { color: var(--faint); font: 9.5px var(--sans); }
 html.ios .p-row .dirty { background: var(--warn); box-shadow: none; }
 html.ios .p-row .x:hover { background: var(--err); color: #fff; }
-html.ios .proj-stat {
-  padding: 8px 12px 4px;
-  border-top: .5px solid var(--line-soft);
-  color: var(--faint);
-  font-size: 10.5px;
-}
 html.ios .proj-f { gap: 4px; padding: 8px 10px 10px; }
 html.ios .proj-f button { color: var(--accent); background: transparent; }
 html.ios .proj-f button:hover { background: var(--accent-soft); }
@@ -3790,10 +3769,6 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
 
             <div class="proj-tree" id="proj-tree"></div>
             <div class="proj-tree" id="outline" hidden></div>
-
-            <div class="proj-stat" id="proj-stat" hidden>
-              <button id="btn-close-dir" class="linky" type="button" title="断开磁盘文件夹，回到浏览器内工程" hidden>断开</button>
-            </div>
 
             <div class="proj-f">
               <button id="btn-save" type="button" title="把所有改动写回磁盘（Ctrl + S）" hidden>保存</button>
@@ -8708,12 +8683,15 @@ void main()
         { id: 'fs-close', label: '断开文件夹，回到例程' }
       ];
     }
-    return [
+    var list = [
       { id: 'proj-save', label: '存为工程文件（另存为）' },
       { id: 'proj-zip', label: '导出源码 ZIP' },
       { sep: true },
       { id: 'proj-close', label: '关闭工程，回到例程' }
     ];
+    /* 记住了上次文件夹但没连上：在同一菜单里提供「忘记」入口 */
+    if (FS.pending) list.push({ id: 'fs-forget', label: '忘记上次的文件夹' });
+    return list;
   }
 
   function paintSrcMenu() {
@@ -8770,6 +8748,7 @@ void main()
       return;
     }
     if (id === 'fs-close') { disconnectFS(); return; }
+    if (id === 'fs-forget') { forgetPending(); return; }
   }
 
   function closeProject() {
@@ -11348,25 +11327,11 @@ void keys_scan()
     }
     var rf = $('btn-refresh');
     if (rf) rf.hidden = !on;
-    var cd = $('btn-close-dir');
-    if (cd) {
-      cd.hidden = !on && !FS.pending;
-      /* 连着磁盘时叫「断开」，只记住没连上时才叫「忘记」；两个状态来回切要各自把文字换回来 */
-      if (on) {
-        cd.textContent = '断开';
-        if (cd.setAttribute) cd.setAttribute('title', '断开磁盘文件夹，回到程序内工程');
-      } else if (FS.pending) {
-        cd.textContent = '忘记';
-        if (cd.setAttribute) cd.setAttribute('title', '忘掉上次的文件夹，下次启动不再自动连接');
-      }
-    }
-    var st = $('proj-stat');
-    if (st) st.hidden = !(on || FS.pending);
     var sel = $('ex-select');
     if (sel) {
       sel.disabled = on;
       if (sel.parentNode && sel.parentNode.setAttribute) {
-        sel.parentNode.setAttribute('title', on ? '已连接磁盘文件夹，先「断开」才能载入讲义例程' : '从讲义载入例程');
+        sel.parentNode.setAttribute('title', on ? '已连接磁盘文件夹，先在顶部「文件夹」菜单里断开才能载入讲义例程' : '从讲义载入例程');
       }
     }
     updateFsDot();
@@ -11430,15 +11395,14 @@ void keys_scan()
     }
     go();
   };
-  if ($('btn-close-dir')) $('btn-close-dir').onclick = function () {
-    if (FS.pending && !project.fs) {
-      FS.pending = null;
-      updateFsUi();
-      log('已忘记上次的文件夹。', 'dim');
-      return;
-    }
-    disconnectFS();
-  };
+  /* 「忘记上次的文件夹」入口已移到顶部「文件夹」徽标下拉菜单 */
+  function forgetPending() {
+    if (!(FS.pending && !(project && project.fs))) return;
+    FS.pending = null;
+    try { idbDel(FS_DB_KEY).catch(function () {}); } catch (e) {}
+    updateFsUi();
+    log('已忘记上次的文件夹，下次启动不会再自动连接。', 'dim');
+  }
 
   function disconnectFS() {
     var n = dirtyCount();

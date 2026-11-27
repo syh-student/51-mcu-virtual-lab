@@ -1726,12 +1726,15 @@
         { id: 'fs-close', label: '断开文件夹，回到例程' }
       ];
     }
-    return [
+    var list = [
       { id: 'proj-save', label: '存为工程文件（另存为）' },
       { id: 'proj-zip', label: '导出源码 ZIP' },
       { sep: true },
       { id: 'proj-close', label: '关闭工程，回到例程' }
     ];
+    /* 记住了上次文件夹但没连上：在同一菜单里提供「忘记」入口 */
+    if (FS.pending) list.push({ id: 'fs-forget', label: '忘记上次的文件夹' });
+    return list;
   }
 
   function paintSrcMenu() {
@@ -1788,6 +1791,7 @@
       return;
     }
     if (id === 'fs-close') { disconnectFS(); return; }
+    if (id === 'fs-forget') { forgetPending(); return; }
   }
 
   function closeProject() {
@@ -4366,25 +4370,11 @@ void keys_scan()
     }
     var rf = $('btn-refresh');
     if (rf) rf.hidden = !on;
-    var cd = $('btn-close-dir');
-    if (cd) {
-      cd.hidden = !on && !FS.pending;
-      /* 连着磁盘时叫「断开」，只记住没连上时才叫「忘记」；两个状态来回切要各自把文字换回来 */
-      if (on) {
-        cd.textContent = '断开';
-        if (cd.setAttribute) cd.setAttribute('title', '断开磁盘文件夹，回到程序内工程');
-      } else if (FS.pending) {
-        cd.textContent = '忘记';
-        if (cd.setAttribute) cd.setAttribute('title', '忘掉上次的文件夹，下次启动不再自动连接');
-      }
-    }
-    var st = $('proj-stat');
-    if (st) st.hidden = !(on || FS.pending);
     var sel = $('ex-select');
     if (sel) {
       sel.disabled = on;
       if (sel.parentNode && sel.parentNode.setAttribute) {
-        sel.parentNode.setAttribute('title', on ? '已连接磁盘文件夹，先「断开」才能载入讲义例程' : '从讲义载入例程');
+        sel.parentNode.setAttribute('title', on ? '已连接磁盘文件夹，先在顶部「文件夹」菜单里断开才能载入讲义例程' : '从讲义载入例程');
       }
     }
     updateFsDot();
@@ -4448,15 +4438,14 @@ void keys_scan()
     }
     go();
   };
-  if ($('btn-close-dir')) $('btn-close-dir').onclick = function () {
-    if (FS.pending && !project.fs) {
-      FS.pending = null;
-      updateFsUi();
-      log('已忘记上次的文件夹。', 'dim');
-      return;
-    }
-    disconnectFS();
-  };
+  /* 「忘记上次的文件夹」入口已移到顶部「文件夹」徽标下拉菜单 */
+  function forgetPending() {
+    if (!(FS.pending && !(project && project.fs))) return;
+    FS.pending = null;
+    try { idbDel(FS_DB_KEY).catch(function () {}); } catch (e) {}
+    updateFsUi();
+    log('已忘记上次的文件夹，下次启动不会再自动连接。', 'dim');
+  }
 
   function disconnectFS() {
     var n = dirtyCount();
