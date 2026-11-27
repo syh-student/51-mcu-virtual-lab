@@ -18,5 +18,11 @@ contextBridge.exposeInMainWorld('c51Desktop', {
     const listener = (_event, state) => callback(state);
     ipcRenderer.on('c51-window-state', listener);
     return () => ipcRenderer.removeListener('c51-window-state', listener);
+  },
+  onDownload: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const listener = (_event, info) => callback(info);
+    ipcRenderer.on('c51-download', listener);
+    return () => ipcRenderer.removeListener('c51-download', listener);
   }
 });

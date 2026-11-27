@@ -3609,6 +3609,14 @@ void keys_scan()
       window.c51Desktop.getWindowState().then(paint).catch(function () {});
     }
     if (window.c51Desktop.onWindowState) window.c51Desktop.onWindowState(paint);
+    /* 桌面版导出直接写到「下载」文件夹，完成后在这里告诉用户落在哪 */
+    if (window.c51Desktop.onDownload) {
+      window.c51Desktop.onDownload(function (info) {
+        if (!info || !info.name) return;
+        if (info.ok) log('已保存到「下载」文件夹：' + info.name, 'dim');
+        else log('「' + info.name + '」没有保存成功，可以再导出一次。', 'warn');
+      });
+    }
     paint({ maximized: false });
   }
 

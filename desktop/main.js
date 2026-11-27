@@ -153,6 +153,44 @@ function isAppUrl(url) {
   }
 }
 
+/* 导出的时序图/CSV 和网页版保持一致：直接落到「下载」文件夹，不弹另存为。
+   重名时自动加序号，避免覆盖用户上一次导出的文件。 */
+function uniqueSavePath(dir, name) {
+  const ext = path.extname(name);
+  const base = path.basename(name, ext) || 'export';
+  let candidate = path.join(dir, base + ext);
+  let index = 2;
+  while (fs.existsSync(candidate) && index < 100) {
+    candidate = path.join(dir, base + ' (' + index + ')' + ext);
+    index += 1;
+  }
+  return candidate;
+}
+
+function registerDownloads() {
+  session.defaultSession.on('will-download', (event, item) => {
+    let name = '导出文件';
+    try {
+      name = String(item.getFilename() || name).replace(/[\\/:*?"<>|]/g, '_').slice(0, 120) || name;
+      const dir = app.getPath('downloads');
+      fs.mkdirSync(dir, { recursive: true });
+      item.setSavePath(uniqueSavePath(dir, name));
+    } catch (err) {
+      /* 设置失败就退回 Electron 默认行为，不影响导出 */
+    }
+    item.once('done', (_event, state) => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      try {
+        mainWindow.webContents.send('c51-download', {
+          ok: state === 'completed',
+          name,
+          path: item.getSavePath()
+        });
+      } catch (err) { /* 页面正在关闭时忽略 */ }
+    });
+  });
+}
+
 function createWindow() {
   const bounds = initialBounds();
   const winOptions = {
@@ -222,6 +260,7 @@ if (!gotSingleInstanceLock) {
       callback(permission === 'fileSystem' || permission === 'clipboard-read' || permission === 'clipboard-sanitized-write');
     });
     registerWindowIpc();
+    registerDownloads();
     createWindow();
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
