@@ -259,6 +259,10 @@ if (!gotSingleInstanceLock) {
     session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
       callback(permission === 'fileSystem' || permission === 'clipboard-read' || permission === 'clipboard-sanitized-write');
     });
+    /* 桌面版记住上次的文件夹后，重启要能直接续上，不再让用户点一次「重新连接」 */
+    session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
+      return permission === 'fileSystem';
+    });
     registerWindowIpc();
     registerDownloads();
     createWindow();
