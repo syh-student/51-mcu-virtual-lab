@@ -77,12 +77,12 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
 
 <header class="page-head">
   <div class="brand">
-    <b>51 单片机</b><i></i><span>虚拟实验台</span>
-    <em>STC89C52RC · 12 MHz</em>
+    <b>51 单片机</b>
   </div>
   <div class="head-right">
-    <span class="head-note">例程 01—15 · 离线可用</span>
-    <span class="build-tag" id="build-tag">__BUILD__</span>
+    <button id="btn-share" class="head-btn" type="button" title="复制带工程的分享链接">分享</button>
+    <button id="btn-keys" class="head-btn" type="button" title="快捷键一览" aria-label="查看快捷键">?</button>
+    <button id="btn-theme" class="head-btn" type="button" title="切换浅色 / 深色主题" aria-label="切换浅色或深色主题">◐</button>
     <span id="status" class="status">已停止</span>
   </div>
 </header>
@@ -91,10 +91,21 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
   <nav class="capsule" id="capsule" aria-label="页面导航">
     <span class="hover-pill" aria-hidden="true"></span>
     <span class="blob" aria-hidden="true"></span>
-    <button class="nav-item" type="button" data-page="code" aria-current="page">写代码</button>
-    <button class="nav-item" type="button" data-page="board">开发板</button>
-    <button class="nav-item" type="button" data-page="scope">时序图</button>
-    <button class="nav-item" type="button" data-page="notes">讲义</button>
+    <span class="nav-split">
+      <button class="nav-item" type="button" data-page="code" aria-current="page">IDE</button>
+      <button class="nav-caret" type="button" data-menu="code" aria-expanded="false" aria-label="IDE 下面的页面">▾</button>
+      <div class="nav-menu" id="nav-menu-code" hidden>
+        <button class="nav-sub" type="button" data-page="notes" data-parent="code">讲义</button>
+      </div>
+    </span>
+    <span class="nav-split">
+      <button class="nav-item" type="button" data-page="board">开发板</button>
+      <button class="nav-caret" type="button" data-menu="board" aria-expanded="false" aria-label="开发板下面的页面">▾</button>
+      <div class="nav-menu" id="nav-menu-board" hidden>
+        <button class="nav-sub" type="button" data-page="scope" data-parent="board">时序图</button>
+      </div>
+    </span>
+    <button class="nav-item" type="button" data-page="circuit">电路实验台</button>
   </nav>
   <div class="sp"></div>
   <div class="controls">
@@ -169,15 +180,17 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
           </button>
           <div class="tabs" id="tabs" role="tablist" aria-label="打开的文件"></div>
           <span class="sp"></span>
-          <label class="sel">
+          <label class="sel" id="ex-wrap">
             <select id="ex-select" aria-label="选择讲义例程"></select>
           </label>
+          <button id="src-badge" class="src-badge" type="button" hidden aria-haspopup="menu" aria-expanded="false" title="当前打开的内容">
+            <span class="src-ico" id="src-ico" aria-hidden="true"></span>
+            <span class="src-kind" id="src-kind">工程</span>
+            <span class="src-name" id="src-name"></span>
+            <span class="src-caret" aria-hidden="true"></span>
+          </button>
           <button id="btn-restore" class="ghost" title="还原成讲义原始代码">还原</button>
           <button id="btn-format" class="ghost" title="缩进改 4 空格、清行尾空白">整理</button>
-          <button id="btn-snap" class="ghost" title="工程快照：把当前工程存到浏览器里，随时可以恢复">快照</button>
-          <button id="btn-share" class="ghost" title="复制带工程的分享链接">分享</button>
-          <button id="btn-theme" class="ghost" type="button" title="切换浅色 / 深色主题" aria-label="切换浅色或深色主题">◐</button>
-          <button id="btn-keys" class="ghost" title="快捷键一览" aria-label="查看快捷键">?</button>
         </div>
 
         <div class="findbar" id="findbar" hidden>
@@ -225,8 +238,6 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
               <span id="proj-stat-text">浏览器内工程 · 不写盘</span>
               <button id="btn-close-dir" class="linky" type="button" title="断开磁盘文件夹，回到浏览器内工程" hidden>断开</button>
             </div>
-
-            <div class="proj-src">示例来源：江协科技《51 单片机入门教程 · 2020 版》</div>
 
             <div class="proj-f">
               <button id="btn-save" type="button" title="把所有改动写回磁盘（Ctrl + S）" hidden>保存</button>
@@ -303,19 +314,8 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
         <button type="button" role="tab" data-view="native" class="on">功能板</button>
         <button type="button" role="tab" data-view="pin">引脚板</button>
       </div>
-      <div class="hw-menu" id="hw-menu">
-        <button class="hw-menu-btn" id="hw-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">
-          <b id="hw-menu-label">硬件工具</b><span>▾</span>
-        </button>
-        <div class="hw-menu-pop" id="hw-menu-pop" hidden>
-          <button type="button" data-view="lab">电路实验台</button>
-          <button type="button" data-view="eda">画板模拟</button>
-          <button type="button" data-view="calc">参数计算器</button>
-          <button type="button" data-view="quiz">自测练习</button>
-        </div>
-      </div>
       <span class="sp"></span>
-      <span class="hint" id="board-view-hint">功能板 · 运行当前工程</span>
+      <span class="hint" id="board-view-hint">运行当前工程，看板子反应</span>
       <div class="pin-cap-note" id="pin-cap-note" hidden>
         <span id="pin-cap-text"></span>
         <button type="button" id="pin-cap-back">切到功能板</button>
@@ -361,6 +361,23 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
     </div>
   </section>
 
+  <!-- ==================== 页面 3：电路实验台（实验台 / 画板模拟 / 参数计算器 / 自测练习） ==================== -->
+  <section class="page page-circuit" id="page-circuit">
+    <div class="circuit-bar">
+      <div class="seg seg-sm" id="circuit-tabs" role="tablist" aria-label="电路实验台工具">
+        <button type="button" role="tab" data-view="lab" class="on">电路实验台</button>
+        <button type="button" role="tab" data-view="eda">画板模拟</button>
+        <button type="button" role="tab" data-view="calc">参数计算器</button>
+        <button type="button" role="tab" data-view="quiz">自测练习</button>
+      </div>
+      <span class="sp"></span>
+      <span class="hint" id="circuit-hint">搭电路 · 看现象 · 不运行代码</span>
+    </div>
+    <div class="hw-view" id="lab-hw-view">
+      <iframe id="lab-frame" title="51 单片机电路实验台" loading="lazy"></iframe>
+    </div>
+  </section>
+
   <!-- ==================== 页面 3：时序图 ==================== -->
   <section class="page page-scope" id="page-scope">
     <div class="panel scope-panel">
@@ -400,7 +417,6 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
           <button id="btn-scope-png" class="ghost" type="button" title="把当前波形存成图片">导出 PNG</button>
           <button id="btn-scope-csv" class="ghost" type="button" title="把本次运行的全部电平变化存成表格">导出 CSV</button>
         </span>
-        <span>相当于 Keil 的 Logic Analyzer</span>
       </div>
     </div>
   </section>
@@ -521,7 +537,6 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
       <kbd>Q W E R …</kbd><span>开发板页：4×4 矩阵键盘（QWER / ASDF / ZXCV / 1234）</span>
       <kbd>Esc</kbd><span>关闭查找栏 / 退出全屏看板</span>
     </div>
-    <p class="dlg-note">示例来源：江协科技《51 单片机入门教程 · 2020 版》。版权归原作者所有；本实验台的示例为虚拟硬件适配版本。</p>
     <div class="dlg-f">
       <button id="keys-close" class="ghost" type="button">关闭</button>
     </div>
@@ -554,6 +569,8 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
   <span class="ios-toast-ic" aria-hidden="true">✓</span>
   <span class="ios-toast-text" id="ios-toast-text"></span>
 </div>
+
+<div class="src-menu" id="src-menu" role="menu" aria-label="当前工程的操作" hidden></div>
 
 <div class="update-toast" id="update-toast" hidden>
   <span class="update-text">新版本已准备好，刷新后启用。</span>

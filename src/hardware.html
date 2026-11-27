@@ -146,7 +146,7 @@ main { position: relative; z-index: 1; flex: 1; min-height: 0; width: 100%; max-
 .pal-item:hover { background: rgba(255,255,255,.09); border-color: var(--line); transform: translateY(-1px); }
 .pal-item svg { display: block; margin: 0 auto 3px; width: 30px; height: 20px; }
 .lib-tip {
-  margin-top: 6px; padding: 10px; border-radius: 10px; background: rgba(120,200,255,.06);
+  margin: 6px 0 16px; padding: 10px; border-radius: 10px; background: rgba(120,200,255,.06);
   border: 1px solid rgba(120,200,255,.14); font-size: 9.5px; color: rgba(246,241,234,.5); line-height: 1.7;
 }
 .lib-tip b { display: block; color: rgba(246,241,234,.75); margin-bottom: 3px; font-size: 10px; }
@@ -1037,13 +1037,13 @@ window.addEventListener('message', function (e) {
             <div class="lib-title">预置电路（课程例子）</div>
             <div class="presets" id="presets"></div>
           </div>
+          <div class="lib-tip" id="lib-tip">
+            <b>怎么连线</b>
+            <span>一个引脚拖到另一个引脚就能连线；单击导线选中、Delete 删除（Alt+单击直接删）。滚轮缩放，空格 + 拖动平移。</span>
+          </div>
           <div class="lib-section">
             <div class="lib-title">点一下放到画布</div>
             <div class="palette" id="palette"></div>
-          </div>
-          <div class="lib-tip" id="lib-tip">
-            <b>怎么连线</b>
-            <span>从一个引脚拖到另一个引脚即可连线，也可以点一个引脚再点另一个；单击已有导线可选中，按 Delete 删除（Alt+单击直接删）。滚轮缩放，空格 + 拖动平移画布。</span>
           </div>
         </div>
       </aside>

@@ -167,10 +167,6 @@ html.desktop .page-head { display: none; }
 .dm-btn:hover, .dm-btn.on { color: #e7ecf3; background: rgba(255, 255, 255, .08); }
 .dm-spacer { flex: 1; }
 .dt-status-slot { display: flex; align-items: center; gap: 12px; flex: none; min-width: 0; }
-.dt-status-slot .build-tag {
-  color: rgba(231, 236, 243, .4);
-  border-left-color: rgba(255, 255, 255, .12);
-}
 .dt-status-slot .status {
   color: rgba(231, 236, 243, .66);
   border-color: rgba(255, 255, 255, .1);
@@ -220,23 +216,28 @@ html.desktop .appbar { padding-top: 7px; }
 }
 .brand { display: flex; align-items: baseline; gap: 10px; }
 .brand b { font-size: 13.5px; font-weight: 600; letter-spacing: .02em; }
-.brand i { font-style: normal; width: 14px; height: 1px; background: rgba(var(--fg-rgb), .22); transform: translateY(-4px); }
-.brand span { font-size: 9.5px; letter-spacing: .18em; color: var(--muted); }
-.brand em {
-  font-style: normal;
-  font-family: var(--mono);
-  font-size: 9.5px;
-  letter-spacing: .12em;
-  color: var(--faint);
-  padding-left: 4px;
-}
 .head-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
-.head-note { font-size: 9.5px; letter-spacing: .18em; color: var(--faint); white-space: nowrap; }
-.build-tag {
-  font-family: var(--mono); font-size: 9px; letter-spacing: .04em;
-  color: rgba(var(--fg-rgb), .42); white-space: nowrap;
-  border-left: 1px solid rgba(var(--fg-rgb), .12); padding-left: 10px;
+.head-btn {
+  appearance: none;
+  border: 1px solid rgba(var(--fg-rgb), .1);
+  background: rgba(var(--fg-rgb), .04);
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 10.5px;
+  line-height: 1;
+  letter-spacing: .02em;
+  padding: 5px 9px;
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color .2s var(--ease), background .2s var(--ease), border-color .2s var(--ease);
 }
+.head-btn:hover {
+  color: var(--ink);
+  background: rgba(var(--fg-rgb), .08);
+  border-color: rgba(var(--fg-rgb), .2);
+}
+.head-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .status {
   display: inline-flex;
@@ -290,8 +291,6 @@ html.desktop .appbar { padding-top: 7px; }
   border-radius: 8px;
   background: var(--panel);
   box-shadow: 0 20px 50px rgba(0, 0, 0, .3), inset 0 1px 0 rgba(var(--fg-rgb), .035);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
 }
 .nav-item {
   position: relative;
@@ -317,6 +316,68 @@ html.desktop .appbar { padding-top: 7px; }
 html.light .nav-item.on { color: #ffffff; }
 .nav-item.ink { color: var(--accent-ink); }
 .nav-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* 导航层级：一级按钮 + 下拉箭头 + 子页面菜单 */
+.nav-split { position: relative; display: inline-flex; align-items: center; }
+.nav-split .nav-item { padding-right: 3px; }
+.nav-caret {
+  position: relative;
+  z-index: 3;
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 6px 8px 6px 2px;
+  color: rgba(var(--fg-rgb), .5);
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color .2s var(--ease), transform .2s var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+.nav-caret:hover { color: rgba(var(--fg-rgb), .85); }
+.nav-caret[aria-expanded="true"] { color: var(--accent); transform: rotate(180deg); }
+.nav-caret:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.nav-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 30;
+  min-width: 118px;
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: 8px;
+  background: #262a35;
+  box-shadow: 0 22px 46px rgba(0, 0, 0, .6);
+}
+html.light .nav-menu {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, .12);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, .16), 0 0 0 1px rgba(0, 0, 0, .04);
+}
+.nav-menu[hidden] { display: none; }
+.nav-sub {
+  appearance: none;
+  border: 0;
+  background: none;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 5px;
+  font-family: var(--sans);
+  font-size: 11.5px;
+  letter-spacing: .02em;
+  color: rgba(255, 255, 255, .72);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background .2s var(--ease), color .2s var(--ease);
+}
+html.light .nav-sub { color: rgba(0, 0, 0, .68); }
+html.light .nav-sub:hover { color: rgba(0, 0, 0, .88); }
+.nav-sub:hover { background: rgba(255, 255, 255, .09); color: #fff; }
+.nav-sub[aria-current="page"] { color: var(--accent); }
+.nav-sub:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .hover-pill, .blob {
   position: absolute;
@@ -455,6 +516,10 @@ main {
 }
 .page { display: none; height: 100%; min-height: 0; }
 .page.active { display: grid; gap: 14px; grid-template-rows: minmax(0, 1fr); }
+.page.page-circuit.active { grid-template-rows: auto minmax(0, 1fr); }
+.circuit-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.circuit-bar .hint { font-size: 10.5px; color: var(--muted); }
+#page-circuit .hw-view { display: block; }
 
 /* 写代码：左编辑器 / 右开发板。
    工程树展开时左栏略宽一点，把树占掉的宽度补回来——
@@ -828,17 +893,24 @@ main {
 
 /* ---------------- 编辑器 ---------------- */
 .editor-panel { flex: 1 1 auto; min-height: 0; }
-/* 文件标签：一个工程可以有多个 .c / .h，标签横排可滚动 */
+/* 文件标签：一个工程可以有多个 .c / .h；多了横向滚动，也能按住拖动 */
 .tabs {
   display: flex;
   align-items: center;
   gap: 2px;
+  flex: 0 1 auto;
   min-width: 0;
-  max-width: 46%;
+  max-width: calc(100% - 268px);
   overflow-x: auto;
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--fg-rgb), .22) transparent;
+  cursor: grab;
 }
-.tabs::-webkit-scrollbar { display: none; }
+.tabs.dragging { cursor: grabbing; }
+.tabs::-webkit-scrollbar { height: 4px; }
+.tabs::-webkit-scrollbar-track { background: transparent; }
+.tabs::-webkit-scrollbar-thumb { background: rgba(var(--fg-rgb), .18); border-radius: 2px; }
+.tabs::-webkit-scrollbar-thumb:hover { background: rgba(var(--fg-rgb), .3); }
 .tab {
   appearance: none;
   border: 0;
@@ -881,12 +953,21 @@ main {
 
 .editor-panel.tree-off .proj { display: none; }
 .ghost.icon {
-  padding: 5px 7px;
-  border-radius: 9px;
-  color: rgba(var(--fg-rgb), .45);
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(var(--fg-rgb), .42);
 }
-.ghost.icon svg { width: 13px; height: 13px; display: block; }
-.ghost.icon.on { color: var(--ink); background: rgba(var(--fg-rgb), .1); }
+.ghost.icon svg { width: 14px; height: 14px; display: block; }
+.ghost.icon:hover { background: rgba(var(--fg-rgb), .07); color: var(--ink); }
+.ghost.icon.on { color: rgba(var(--fg-rgb), .86); background: transparent; }
+.editor-panel .panel-h .ghost.icon { width: 26px; height: 26px; padding: 0; }
 
 /* ---------------- 工程树 ---------------- */
 .editor-body { flex: 1; min-height: 0; display: flex; }
@@ -1058,20 +1139,10 @@ main {
   padding: 7px 10px 2px;
   font-size: 9.5px;
   line-height: 1.5;
-  color: rgba(var(--fg-rgb), .42);
+  color: rgba(var(--fg-rgb), .5);
   border-top: 1px solid var(--line-soft);
 }
 .proj-stat span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.proj-src {
-  flex: none;
-  padding: 5px 10px 0;
-  font-size: 9px;
-  line-height: 1.5;
-  color: rgba(var(--fg-rgb), .38);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 .linky {
   appearance: none;
   flex: none;
@@ -1217,14 +1288,6 @@ main {
   background: rgba(var(--fg-rgb), .05);
   white-space: nowrap;
 }
-.dlg-note {
-  margin: 12px 0 0;
-  padding-top: 10px;
-  border-top: 1px solid var(--line-soft);
-  font-size: 10px;
-  line-height: 1.6;
-  color: rgba(var(--fg-rgb), .42);
-}
 .sel { position: relative; display: inline-flex; }
 .sel select {
   appearance: none;
@@ -1256,6 +1319,89 @@ main {
   pointer-events: none;
 }
 .sel select option { background: #1b1512; color: var(--ink); }
+
+/* 当前来源徽标：例程下拉与它二选一，不同时出现 */
+.sel[hidden], .src-badge[hidden] { display: none !important; }
+.src-badge {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  max-width: 220px;
+  height: 24px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 10.5px;
+  letter-spacing: .04em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .22s var(--ease), color .22s var(--ease), border-color .22s var(--ease);
+}
+.src-badge:hover { color: var(--ink); border-color: rgba(var(--fg-rgb), .18); }
+.src-badge:focus-visible { outline: 1px solid rgba(var(--fg-rgb), .4); outline-offset: 2px; }
+.src-badge .src-ico { flex: none; display: inline-flex; align-items: center; color: rgba(var(--fg-rgb), .5); }
+.src-badge .src-ico svg { width: 12px; height: 12px; }
+.src-badge .src-kind { flex: none; color: rgba(var(--fg-rgb), .42); font-size: 9.5px; letter-spacing: .1em; }
+.src-badge .src-name {
+  min-width: 0;
+  max-width: 132px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.src-badge .src-caret {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  margin: 0 1px 0 2px;
+  border-right: 1px solid rgba(var(--fg-rgb), .5);
+  border-bottom: 1px solid rgba(var(--fg-rgb), .5);
+  transform: translateY(-1px) rotate(45deg);
+}
+
+.src-menu {
+  position: fixed;
+  z-index: 70;
+  min-width: 200px;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: 12px;
+  background: #262a35;
+  box-shadow: 0 22px 46px rgba(0, 0, 0, .6);
+}
+.src-menu[hidden] { display: none; }
+.src-menu button {
+  appearance: none;
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(244, 246, 250, .9);
+  font-family: var(--sans);
+  font-size: 11.5px;
+  letter-spacing: .02em;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.src-menu button:hover { background: rgba(255, 255, 255, .075); }
+.src-menu .sep { height: 1px; margin: 5px 6px; background: rgba(255, 255, 255, .12); }
+html.light .src-menu {
+  background: #fff;
+  border-color: rgba(0, 0, 0, .14);
+  box-shadow: 0 18px 40px rgba(20, 30, 40, .2);
+}
+html.light .src-menu button { color: var(--ink); }
+html.light .src-menu button:hover { background: rgba(20, 30, 40, .06); }
+html.light .src-menu .sep { background: rgba(20, 30, 40, .1); }
 
 .editor-wrap {
   flex: 1;
@@ -1818,6 +1964,8 @@ body.zoomed .appbar { display: none; }
 /* 中等宽度：给文件标签腾地方，免得三个标签就挤掉按钮 */
 @media (max-width: 1380px) {
   .editor-panel .sel select { max-width: 148px; }
+  .editor-panel .src-badge { max-width: 150px; }
+  .editor-panel .src-badge .src-name { max-width: 78px; }
   .editor-panel .panel-h .ghost { padding: 5px 9px; font-size: 10px; }
   .tabs { max-width: 52%; }
 }
@@ -1836,8 +1984,8 @@ body.zoomed .appbar { display: none; }
   .slot > .panel { height: auto; }
   .board-stage { height: min(58vh, 520px); flex: none; }
   #board svg { height: 100%; width: 100%; }
-  .editor-panel .sel { display: none; }   /* 单栏时例程下拉让位给文件标签 */
-  .tabs { flex: 1 1 auto; max-width: none; }
+  /* 窄屏也保留「当前来源」控件：例程下拉 / 工程徽标都得看得见 */
+  .tabs { flex: 1 1 auto; min-width: 110px; max-width: none; }
   .side { gap: 12px; }
   .watch-panel { height: auto; max-height: 160px; }
   .console-panel { height: 150px; flex: none; }
@@ -1849,10 +1997,10 @@ body.zoomed .appbar { display: none; }
 
 @media (max-width: 760px) {
   .page-head { padding: 14px 14px 8px; flex-wrap: wrap; gap: 8px; }
-  .head-note { display: none; }
   .appbar { flex-wrap: wrap; gap: 10px; padding: 0 12px 10px; }
   .appbar .sp { display: none; }
-  .capsule { width: 100%; justify-content: space-between; }
+  .capsule { width: auto; justify-content: flex-start; }
+  .tabs { flex: 1 1 auto; max-width: none; }
   .nav-item { padding: 7px 10px; font-size: 11.5px; }
   .controls { width: 100%; justify-content: center; }
   main { padding: 0 12px 12px; }
@@ -1879,7 +2027,6 @@ body.zoomed .appbar { display: none; }
   .quickbar::-webkit-scrollbar { display: none; }
   .qb-go { display: none; }
   /* 真窄屏兜底：顶部信息收掉，导航和控件允许换行/横滚，别把按钮挤出屏幕 */
-  .build-tag { display: none; }
   .capsule { overflow-x: auto; scrollbar-width: none; }
   .capsule::-webkit-scrollbar { display: none; }
   .controls { flex-wrap: wrap; row-gap: 8px; }
@@ -1888,7 +2035,6 @@ body.zoomed .appbar { display: none; }
 }
 
 @media (max-width: 420px) {
-  .brand em { display: none; }
   .brand { gap: 8px; white-space: nowrap; }
   .quickbar { flex-wrap: wrap; row-gap: 3px; }
   .quickbar .sp { display: none; }
@@ -2113,7 +2259,7 @@ html.light .marks i.focus { background: rgba(36, 56, 68, .05); }
 .sfr-bit.one { box-shadow: 0 0 6px rgba(63, 154, 214, .36); }
 
 /* 所有读数统一 tabular 等宽，数值变化时不抖动 */
-.bit, .hexval, .sfr-hex, .sfr-name, #vtime, #steps, .build-tag,
+.bit, .hexval, .sfr-hex, .sfr-name, #vtime, #steps,
 .w-val, .port-row, .snap-time, .status, .hint { font-variant-numeric: tabular-nums; }
 
 /* 卡片标题：索引弱化、标题提亮，形成统一的“设备面板”抬头 */
@@ -2148,10 +2294,7 @@ html.light #board svg { filter: drop-shadow(0 16px 34px rgba(16, 24, 40, .18)); 
 /* ---- 1. 字号阶梯：正文与元信息不再低于 10px ---- */
 .qb-tag, .qb-step, .qb-sep { flex: none; white-space: nowrap; }
 .brand b { font-size: 14px; }
-.brand span, .brand em { font-size: 10px; }
 .status { font-size: 10px; letter-spacing: .12em; padding: 4px 12px; }
-.head-note { font-size: 10px; }
-.build-tag { font-size: 10px; }
 .nav-item { font-size: 12px; padding: 6px 18px; }
 .speed { font-size: 10px; }
 .speed b { font-size: 11px; }
@@ -2450,15 +2593,6 @@ html.ios .dm-head {
 /* ---- 页头（网页端保留） ---- */
 html.ios .page-head { padding: 13px clamp(16px, 2vw, 32px) 4px; }
 html.ios .brand b { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
-html.ios .brand span { font-size: 11.5px; letter-spacing: 0; }
-html.ios .brand em { font-family: var(--sans); font-size: 11px; letter-spacing: 0; }
-html.ios .head-note { font-size: 10.5px; letter-spacing: 0; }
-html.ios .build-tag {
-  font-family: var(--sans);
-  font-size: 10.5px;
-  letter-spacing: 0;
-  border-left: .5px solid var(--line);
-}
 html.ios .status {
   min-height: 24px;
   padding: 0 10px;
@@ -2628,15 +2762,15 @@ html.ios .ghost:hover {
   border-color: transparent;
 }
 html.ios .ghost.icon {
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   padding: 0;
-  border-radius: 9px;
-  background: var(--control);
+  border-radius: 6px;
+  background: transparent;
   color: var(--muted);
 }
-html.ios .ghost.icon:hover { background: var(--accent-soft); color: var(--accent); }
-html.ios .ghost.icon.on { background: var(--accent-soft); color: var(--accent); }
+html.ios .ghost.icon:hover { background: rgba(var(--fg-rgb), .07); color: var(--ink); }
+html.ios .ghost.icon.on { background: transparent; color: rgba(var(--fg-rgb), .86); }
 html.ios .mini {
   width: 28px;
   height: 28px;
@@ -2689,6 +2823,22 @@ html.ios .sel select {
 html.ios .sel select:hover { border: 0; background: var(--accent-soft); }
 html.ios .sel::after { border-color: var(--muted); }
 html.ios .sel select option { background: var(--panel); color: var(--ink); }
+html.ios .src-badge {
+  max-width: 200px;
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--control);
+  color: var(--ink);
+  font: 11.5px var(--sans);
+  letter-spacing: 0;
+}
+html.ios .src-badge:hover { background: var(--accent-soft); }
+html.ios .src-badge .src-kind { display: none; }
+html.ios .src-badge .src-name { max-width: 150px; }
+html.ios .src-badge .src-ico { color: var(--accent); }
+html.ios .src-badge .src-caret { border-color: var(--muted); }
 
 /* ---- 文件标签 / 查找条 ---- */
 html.ios .tabs { gap: 3px; }
@@ -2786,7 +2936,6 @@ html.ios .proj-stat {
   color: var(--faint);
   font-size: 10.5px;
 }
-html.ios .proj-src { padding: 6px 12px 0; color: var(--faint); font-size: 10px; }
 html.ios .proj-f { gap: 4px; padding: 8px 10px 10px; }
 html.ios .proj-f button { color: var(--accent); background: transparent; }
 html.ios .proj-f button:hover { background: var(--accent-soft); }
@@ -3120,7 +3269,6 @@ html.ios .keys kbd {
   color: var(--ink);
   font: 11px var(--mono);
 }
-html.ios .dlg-note { border-top: .5px solid var(--line-soft); color: var(--faint); font-size: 11px; }
 html.ios .ac { padding: 5px; font: 11.5px var(--mono); }
 html.ios .ac-item { padding: 5px 8px; border-radius: 8px; color: var(--ink); }
 html.ios .ac-item.on { background: var(--accent-soft); color: var(--accent); }
@@ -3463,12 +3611,12 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
 
 <header class="page-head">
   <div class="brand">
-    <b>51 单片机</b><i></i><span>虚拟实验台</span>
-    <em>STC89C52RC · 12 MHz</em>
+    <b>51 单片机</b>
   </div>
   <div class="head-right">
-    <span class="head-note">例程 01—15 · 离线可用</span>
-    <span class="build-tag" id="build-tag">构建 11-27 09:59</span>
+    <button id="btn-share" class="head-btn" type="button" title="复制带工程的分享链接">分享</button>
+    <button id="btn-keys" class="head-btn" type="button" title="快捷键一览" aria-label="查看快捷键">?</button>
+    <button id="btn-theme" class="head-btn" type="button" title="切换浅色 / 深色主题" aria-label="切换浅色或深色主题">◐</button>
     <span id="status" class="status">已停止</span>
   </div>
 </header>
@@ -3477,10 +3625,21 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
   <nav class="capsule" id="capsule" aria-label="页面导航">
     <span class="hover-pill" aria-hidden="true"></span>
     <span class="blob" aria-hidden="true"></span>
-    <button class="nav-item" type="button" data-page="code" aria-current="page">写代码</button>
-    <button class="nav-item" type="button" data-page="board">开发板</button>
-    <button class="nav-item" type="button" data-page="scope">时序图</button>
-    <button class="nav-item" type="button" data-page="notes">讲义</button>
+    <span class="nav-split">
+      <button class="nav-item" type="button" data-page="code" aria-current="page">IDE</button>
+      <button class="nav-caret" type="button" data-menu="code" aria-expanded="false" aria-label="IDE 下面的页面">▾</button>
+      <div class="nav-menu" id="nav-menu-code" hidden>
+        <button class="nav-sub" type="button" data-page="notes" data-parent="code">讲义</button>
+      </div>
+    </span>
+    <span class="nav-split">
+      <button class="nav-item" type="button" data-page="board">开发板</button>
+      <button class="nav-caret" type="button" data-menu="board" aria-expanded="false" aria-label="开发板下面的页面">▾</button>
+      <div class="nav-menu" id="nav-menu-board" hidden>
+        <button class="nav-sub" type="button" data-page="scope" data-parent="board">时序图</button>
+      </div>
+    </span>
+    <button class="nav-item" type="button" data-page="circuit">电路实验台</button>
   </nav>
   <div class="sp"></div>
   <div class="controls">
@@ -3555,15 +3714,17 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
           </button>
           <div class="tabs" id="tabs" role="tablist" aria-label="打开的文件"></div>
           <span class="sp"></span>
-          <label class="sel">
+          <label class="sel" id="ex-wrap">
             <select id="ex-select" aria-label="选择讲义例程"></select>
           </label>
+          <button id="src-badge" class="src-badge" type="button" hidden aria-haspopup="menu" aria-expanded="false" title="当前打开的内容">
+            <span class="src-ico" id="src-ico" aria-hidden="true"></span>
+            <span class="src-kind" id="src-kind">工程</span>
+            <span class="src-name" id="src-name"></span>
+            <span class="src-caret" aria-hidden="true"></span>
+          </button>
           <button id="btn-restore" class="ghost" title="还原成讲义原始代码">还原</button>
           <button id="btn-format" class="ghost" title="缩进改 4 空格、清行尾空白">整理</button>
-          <button id="btn-snap" class="ghost" title="工程快照：把当前工程存到浏览器里，随时可以恢复">快照</button>
-          <button id="btn-share" class="ghost" title="复制带工程的分享链接">分享</button>
-          <button id="btn-theme" class="ghost" type="button" title="切换浅色 / 深色主题" aria-label="切换浅色或深色主题">◐</button>
-          <button id="btn-keys" class="ghost" title="快捷键一览" aria-label="查看快捷键">?</button>
         </div>
 
         <div class="findbar" id="findbar" hidden>
@@ -3611,8 +3772,6 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
               <span id="proj-stat-text">浏览器内工程 · 不写盘</span>
               <button id="btn-close-dir" class="linky" type="button" title="断开磁盘文件夹，回到浏览器内工程" hidden>断开</button>
             </div>
-
-            <div class="proj-src">示例来源：江协科技《51 单片机入门教程 · 2020 版》</div>
 
             <div class="proj-f">
               <button id="btn-save" type="button" title="把所有改动写回磁盘（Ctrl + S）" hidden>保存</button>
@@ -3689,19 +3848,8 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
         <button type="button" role="tab" data-view="native" class="on">功能板</button>
         <button type="button" role="tab" data-view="pin">引脚板</button>
       </div>
-      <div class="hw-menu" id="hw-menu">
-        <button class="hw-menu-btn" id="hw-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">
-          <b id="hw-menu-label">硬件工具</b><span>▾</span>
-        </button>
-        <div class="hw-menu-pop" id="hw-menu-pop" hidden>
-          <button type="button" data-view="lab">电路实验台</button>
-          <button type="button" data-view="eda">画板模拟</button>
-          <button type="button" data-view="calc">参数计算器</button>
-          <button type="button" data-view="quiz">自测练习</button>
-        </div>
-      </div>
       <span class="sp"></span>
-      <span class="hint" id="board-view-hint">功能板 · 运行当前工程</span>
+      <span class="hint" id="board-view-hint">运行当前工程，看板子反应</span>
       <div class="pin-cap-note" id="pin-cap-note" hidden>
         <span id="pin-cap-text"></span>
         <button type="button" id="pin-cap-back">切到功能板</button>
@@ -3747,6 +3895,23 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
     </div>
   </section>
 
+  <!-- ==================== 页面 3：电路实验台（实验台 / 画板模拟 / 参数计算器 / 自测练习） ==================== -->
+  <section class="page page-circuit" id="page-circuit">
+    <div class="circuit-bar">
+      <div class="seg seg-sm" id="circuit-tabs" role="tablist" aria-label="电路实验台工具">
+        <button type="button" role="tab" data-view="lab" class="on">电路实验台</button>
+        <button type="button" role="tab" data-view="eda">画板模拟</button>
+        <button type="button" role="tab" data-view="calc">参数计算器</button>
+        <button type="button" role="tab" data-view="quiz">自测练习</button>
+      </div>
+      <span class="sp"></span>
+      <span class="hint" id="circuit-hint">搭电路 · 看现象 · 不运行代码</span>
+    </div>
+    <div class="hw-view" id="lab-hw-view">
+      <iframe id="lab-frame" title="51 单片机电路实验台" loading="lazy"></iframe>
+    </div>
+  </section>
+
   <!-- ==================== 页面 3：时序图 ==================== -->
   <section class="page page-scope" id="page-scope">
     <div class="panel scope-panel">
@@ -3786,7 +3951,6 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
           <button id="btn-scope-png" class="ghost" type="button" title="把当前波形存成图片">导出 PNG</button>
           <button id="btn-scope-csv" class="ghost" type="button" title="把本次运行的全部电平变化存成表格">导出 CSV</button>
         </span>
-        <span>相当于 Keil 的 Logic Analyzer</span>
       </div>
     </div>
   </section>
@@ -3907,7 +4071,6 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
       <kbd>Q W E R …</kbd><span>开发板页：4×4 矩阵键盘（QWER / ASDF / ZXCV / 1234）</span>
       <kbd>Esc</kbd><span>关闭查找栏 / 退出全屏看板</span>
     </div>
-    <p class="dlg-note">示例来源：江协科技《51 单片机入门教程 · 2020 版》。版权归原作者所有；本实验台的示例为虚拟硬件适配版本。</p>
     <div class="dlg-f">
       <button id="keys-close" class="ghost" type="button">关闭</button>
     </div>
@@ -6686,6 +6849,8 @@ void main()
   <span class="ios-toast-text" id="ios-toast-text"></span>
 </div>
 
+<div class="src-menu" id="src-menu" role="menu" aria-label="当前工程的操作" hidden></div>
+
 <div class="update-toast" id="update-toast" hidden>
   <span class="update-text">新版本已准备好，刷新后启用。</span>
   <button type="button" id="update-now">刷新</button>
@@ -7643,7 +7808,7 @@ void main()
      分层同 ui-studies：capsule 玻璃容器 → hover-pill 灰色悬停底（即时跟随）
      → blob 白色主指示块（阻尼弹簧追赶，速度驱动液态形变）→ 文字层反色
   ---------------------------------------------------------------- */
-  var PAGE_ORDER = ['code', 'board', 'scope', 'notes'];
+  var PAGE_ORDER = ['code', 'board', 'circuit', 'scope', 'notes'];
   var curPage = 'code';
   var capsuleGo = null;   /* 由 initCapsule 注入：把白色滑块移到对应页面 */
 
@@ -7664,6 +7829,7 @@ void main()
       pauseHardwareView();
       if (boardView !== 'native') updateButtons();
     }
+    if (name === 'circuit') ensureCircuitFrame();
     if (name === 'scope') { autoSpan(); drawScope(); }
     if (name === 'code') { refreshGutter(); paintCode(); syncCodeScroll(); }
     if (name === 'notes') updateFade();
@@ -7677,17 +7843,30 @@ void main()
     }
   }
 
-  /* ==================== 开发板视图：功能板 / 引脚板 / 硬件工具 ==================== */
-  var boardView = 'native';
+  /* ==================== 开发板页视图：功能板 / 引脚板 ==================== */
+  var boardView = 'native';   /* native = 3D 功能板；pin = 引脚板（iframe） */
   var hwReady = false, hwWanted = 'pindemo', pinState = 'stopped', hwHintTimer = 0;
   var BOARD_VIEW_KEY = 'mcu51.boardview.v1';
   var boardViewRestored = false;
-  var TOOL_LABELS = { lab: '电路实验台', eda: '画板模拟', calc: '参数计算器', quiz: '自测练习' };
 
+  /* ==================== 电路实验台页：整屏 iframe + 页内工具条 ==================== */
+  var TOOL_LABELS = { lab: '电路实验台', eda: '画板模拟', calc: '参数计算器', quiz: '自测练习' };
+  var HW_TOOL_KEY = 'mcu51.hwtool.v1';
+  var hwTool = 'lab';
+  var labReady = false;
+  function readSavedHwTool() {
+    try {
+      var v = localStorage.getItem(HW_TOOL_KEY);
+      return TOOL_LABELS[v] ? v : 'lab';
+    } catch (e) { return 'lab'; }
+  }
+  function saveHwTool(v) {
+    try { localStorage.setItem(HW_TOOL_KEY, v); } catch (e) {}
+  }
   function readSavedBoardView() {
     try {
       var v = localStorage.getItem(BOARD_VIEW_KEY);
-      return ['native', 'pin', 'lab', 'eda', 'calc', 'quiz'].indexOf(v) >= 0 ? v : 'native';
+      return v === 'pin' ? 'pin' : 'native';
     } catch (e) { return 'native'; }
   }
   function saveBoardView(v) {
@@ -7699,18 +7878,6 @@ void main()
       var on = btns[i].getAttribute('data-view') === view;
       btns[i].classList.toggle('on', on);
       btns[i].setAttribute('aria-selected', on ? 'true' : 'false');
-    }
-    var pop = $('hw-menu-pop'), label = $('hw-menu-label'), btn = $('hw-menu-btn');
-    if (pop) {
-      var items = pop.querySelectorAll('button[data-view]');
-      for (var j = 0; j < items.length; j++) {
-        items[j].classList.toggle('on', items[j].getAttribute('data-view') === view);
-      }
-    }
-    if (btn && label) {
-      var tool = !!TOOL_LABELS[view];
-      btn.classList.toggle('on', tool);
-      label.textContent = tool ? TOOL_LABELS[view] : '硬件工具';
     }
   }
   function pinGaps(text) {
@@ -7742,7 +7909,12 @@ void main()
     if (!fr || !fr.contentWindow || !hwReady) return false;
     try { fr.contentWindow.postMessage(msg, '*'); return true; } catch (e) { return false; }
   }
-  function hwViewName(v) { return v === 'pin' ? 'pindemo' : v; }
+  function labFrame() { return $('lab-frame'); }
+  function postLab(msg) {
+    var fr = labFrame();
+    if (!fr || !fr.contentWindow || !labReady) return false;
+    try { fr.contentWindow.postMessage(msg, '*'); return true; } catch (e) { return false; }
+  }
   function hex2(v) {
     if (v == null || !isFinite(v)) return '--';
     var s = (v & 0xFF).toString(16).toUpperCase();
@@ -7773,45 +7945,74 @@ void main()
     updatePinCapNote(s.text);
     return s;
   }
-  function loadHwFrame(view) {
+  function loadHwFrame() {
     var fr = boardHwFrame();
     if (!fr) return;
     if (!fr.getAttribute('src')) {
       var theme = document.documentElement.classList.contains('light') ? 'light' : 'dark';
-      fr.src = 'hardware.html?theme=' + theme + '#' + hwViewName(view);
+      fr.src = 'hardware.html?theme=' + theme + '#pindemo';
     }
   }
   function pauseHardwareView() {
     if (pinState === 'running') postHw({ type: 'hw:pause' });
   }
+  /* ---------- 电路实验台（一级页） ---------- */
+  function updateCircuitTabs(view) {
+    var tabs = $('circuit-tabs');
+    if (!tabs) return;
+    var btns = tabs.querySelectorAll('button[data-view]');
+    for (var i = 0; i < btns.length; i++) {
+      var on = btns[i].getAttribute('data-view') === view;
+      btns[i].classList.toggle('on', on);
+      btns[i].setAttribute('aria-selected', on ? 'true' : 'false');
+    }
+    var h = $('circuit-hint');
+    if (h) h.textContent = (TOOL_LABELS[view] || '电路实验台') + (view === 'lab' ? ' · 搭电路 / 看现象' : ' · 不运行代码');
+  }
+  function ensureCircuitFrame() {
+    var fr = labFrame();
+    if (!fr) return;
+    if (!fr.getAttribute('src')) {
+      var theme = document.documentElement.classList.contains('light') ? 'light' : 'dark';
+      fr.src = 'hardware.html?theme=' + theme + '#' + hwTool;
+    }
+  }
+  function setCircuitTool(view) {
+    if (!TOOL_LABELS[view]) view = 'lab';
+    hwTool = view;
+    saveHwTool(view);
+    updateCircuitTabs(view);
+    if (curPage !== 'circuit') setPage('circuit');
+    ensureCircuitFrame();
+    if (labReady) postLab({ type: 'hw:view', view: view });
+  }
+
   function setBoardView(view) {
     var page = $('page-board');
     if (!page) return;
-    if (view !== 'native' && view !== 'pin' && !TOOL_LABELS[view]) view = 'native';
+    /* 链接或旧菜单里还可能传来工具视图，统一转去一级页「电路实验台」 */
+    if (TOOL_LABELS[view]) { setCircuitTool(view); return; }
+    if (view !== 'pin') view = 'native';
     if (view !== 'pin' && pinState === 'running') postHw({ type: 'hw:pause' });
     boardView = view;
     saveBoardView(view);
-    page.classList.toggle('hw-mode', view !== 'native');
+    page.classList.toggle('hw-mode', view === 'pin');
     updateBoardViewUI(view);
     var box = $('pin-cap-note');
     if (view !== 'pin' && box) box.hidden = true;
     if (view === 'native') {
-      setBoardHint('功能板 · 运行当前工程');
+      setBoardHint('运行当前工程，看板子反应');
       updateButtons();
       forceRender = true;
       return;
     }
     closeZoom();
     if (curPage !== 'board') setPage('board');
-    loadHwFrame(view);
-    hwWanted = hwViewName(view);
+    loadHwFrame();
+    hwWanted = 'pindemo';
     if (hwReady) postHw({ type: 'hw:view', view: hwWanted });
-    if (view === 'pin') {
-      setBoardHint('引脚板 · 已停止');
-      sendPinCode();
-    } else {
-      setBoardHint('硬件工具 · 不运行代码');
-    }
+    setBoardHint('引脚板 · 已停止');
+    sendPinCode();
   }
   function hwRun() {
     if (boardView !== 'pin') { setBoardHint('这个视图不运行代码', true); return; }
@@ -7821,38 +8022,23 @@ void main()
   }
   (function initBoardViewTabs() {
     var tabs = $('board-view-tabs');
-    var menuBtn = $('hw-menu-btn'), pop = $('hw-menu-pop');
-    function closeMenu() {
-      if (pop) pop.hidden = true;
-      if (menuBtn) menuBtn.setAttribute('aria-expanded', 'false');
-    }
     if (tabs) {
       tabs.addEventListener('click', function (e) {
         var b = e.target && e.target.closest ? e.target.closest('button[data-view]') : null;
         if (b) setBoardView(b.getAttribute('data-view'));
       });
     }
-    if (menuBtn && pop) {
-      menuBtn.addEventListener('click', function (e) {
-        e.stopPropagation();
-        pop.hidden = !pop.hidden;
-        menuBtn.setAttribute('aria-expanded', pop.hidden ? 'false' : 'true');
-      });
-      pop.addEventListener('click', function (e) {
+    var labTabs = $('circuit-tabs');
+    if (labTabs) {
+      labTabs.addEventListener('click', function (e) {
         var b = e.target && e.target.closest ? e.target.closest('button[data-view]') : null;
-        if (b) { closeMenu(); setBoardView(b.getAttribute('data-view')); }
-      });
-      document.addEventListener('click', function (e) {
-        if (pop.hidden) return;
-        if (pop.contains(e.target) || menuBtn.contains(e.target)) return;
-        closeMenu();
-      });
-      document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape' && !pop.hidden) closeMenu();
+        if (b) setCircuitTool(b.getAttribute('data-view'));
       });
     }
     var back = $('pin-cap-back');
     if (back) back.addEventListener('click', function () { setBoardView('native'); });
+    hwTool = readSavedHwTool();
+    updateCircuitTabs(hwTool);
     updateBoardViewUI(boardView);
   })();
 
@@ -7874,15 +8060,25 @@ void main()
     $('quickbar-go').onclick = function () { closeQuick(); setPage('board'); };
   })();
 
-  /* 硬件页 → 主应用 */
+  /* 硬件页（引脚板 / 电路实验台两个 iframe）→ 主应用 */
   window.addEventListener('message', function (e) {
     var fr = boardHwFrame();
-    if (!fr || !fr.contentWindow || e.source !== fr.contentWindow) return;
+    var lab = labFrame();
+    var light = document.documentElement.classList.contains('light');
     var d = e.data || {};
+    if (lab && lab.contentWindow && e.source === lab.contentWindow) {
+      if (d.type === 'hw:ready') {
+        labReady = true;
+        postLab({ type: 'hw:view', view: hwTool });
+        postLab({ type: 'hw:theme', light: light });
+      }
+      return;
+    }
+    if (!fr || !fr.contentWindow || e.source !== fr.contentWindow) return;
     if (d.type === 'hw:ready') {
       hwReady = true;
       postHw({ type: 'hw:view', view: hwWanted });
-      postHw({ type: 'hw:theme', light: document.documentElement.classList.contains('light') });
+      postHw({ type: 'hw:theme', light: light });
       if (boardView === 'pin') sendPinCode();
       return;
     }
@@ -7913,15 +8109,20 @@ void main()
     var hoverPill = cap.querySelector('.hover-pill');
     if (!blob || !hoverPill) return;
 
+    /* 二级页面挂在哪一级下：讲义 → IDE，时序图 → 开发板 */
+    var PARENT_OF = { notes: 'code', scope: 'board' };
+    function parentOf(name) { return PARENT_OF[name] || name; }
+    var pageOfItem = items.map(function (it) { return it.dataset ? it.dataset.page : ''; });
+
     var active = 0, hover = -1;
     var s = { x: 0, w: 0, vx: 0, vw: 0 };
     var raf = 0, last = 0;
     var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     function itemRect(i) {
-      var w = items[i].offsetWidth || 0;
-      var x = items[i].offsetLeft || 0;
-      return { x: x, w: w };
+      var box = cap.getBoundingClientRect();
+      var r = items[i].getBoundingClientRect();
+      return { x: r.left - box.left - cap.clientLeft, w: r.width };
     }
     /* 色块中心接近某项中心时把该项文字翻成深色，避免只盖住半个字 */
     function paintLabels() {
@@ -7934,7 +8135,6 @@ void main()
     }
     function draw() {
       blob.style.width = s.w.toFixed(2) + 'px';
-      /* 方块滑块：只做横向平移，不再叠液态形变（斜切 / 拉伸 / 水泡鼓包），圆角固定 */
       blob.style.transform = 'translate3d(' + s.x.toFixed(2) + 'px,0,0)';
       blob.style.setProperty('--lead', '100%');
       blob.style.setProperty('--bulge', '0');
@@ -7947,10 +8147,15 @@ void main()
       s.x = r.x; s.w = r.w; s.vx = 0; s.vw = 0;
       draw();
     }
-    function markCurrent(i) {
+    function markCurrent(i, subName) {
       for (var k = 0; k < items.length; k++) {
         if (k === i) items[k].setAttribute('aria-current', 'page');
         else items[k].removeAttribute('aria-current');
+      }
+      var subs = document.querySelectorAll('.nav-sub');
+      for (var j = 0; j < subs.length; j++) {
+        if (subName && subs[j].dataset && subs[j].dataset.page === subName) subs[j].setAttribute('aria-current', 'page');
+        else subs[j].removeAttribute('aria-current');
       }
     }
     function placeHover(i) {
@@ -7981,37 +8186,100 @@ void main()
       if (!raf) { last = (window.performance && performance.now) ? performance.now() : Date.now(); raf = requestAnimationFrame(tick); }
     }
 
+    /* ---- 下拉菜单：caret 展开二级，点二级整屏切页。菜单挂到 body，避免被导航容器裁剪 ---- */
+    function caretOf(split) { return split && split.querySelector ? split.querySelector('.nav-caret') : null; }
+    var menuPairs = [];
+    function closeMenus(except) {
+      for (var i = 0; i < menuPairs.length; i++) {
+        var p = menuPairs[i];
+        if (except && p.menu === except) continue;
+        p.menu.hidden = true;
+        p.caret.setAttribute('aria-expanded', 'false');
+      }
+    }
+    function placeMenu(pair) {
+      var r = pair.split.getBoundingClientRect();
+      pair.menu.style.left = Math.round(r.left) + 'px';
+      pair.menu.style.top = Math.round(r.bottom + 6) + 'px';
+      pair.menu.style.minWidth = Math.max(132, Math.round(r.width)) + 'px';
+    }
+    Array.prototype.forEach.call(cap.querySelectorAll('.nav-split'), function (split) {
+      var caret = caretOf(split);
+      var menu = split.querySelector('.nav-menu');
+      if (!caret || !menu) return;
+      document.body.appendChild(menu);
+      var pair = { split: split, caret: caret, menu: menu };
+      menuPairs.push(pair);
+      caret.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var willOpen = menu.hidden;
+        closeMenus(menu);
+        if (willOpen) placeMenu(pair);
+        menu.hidden = !willOpen;
+        caret.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+      });
+      menu.addEventListener('click', function (e) {
+        var b = e.target && e.target.closest ? e.target.closest('.nav-sub') : null;
+        if (!b) return;
+        e.stopPropagation();
+        var name = b.dataset.page;
+        closeMenus();
+        var idx = pageOfItem.indexOf(parentOf(name));
+        if (idx >= 0) {
+          active = idx; hover = idx;
+          placeHover(idx);
+          snap(idx);
+          markCurrent(idx, name);
+        }
+        setPage(name);
+      });
+    });
+    document.addEventListener('click', function (e) {
+      var t = e.target;
+      if (!t || !cap.contains(t)) { closeMenus(); return; }
+      if (!(t.closest && t.closest('.nav-split'))) closeMenus();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeMenus();
+    });
+
     items.forEach(function (item, i) {
-      item.addEventListener('pointerenter', function () { hover = i; placeHover(i); wake(); });
+      var zone = (item.closest && item.closest('.nav-split')) || item;
+      zone.addEventListener('pointerenter', function () { hover = i; placeHover(i); wake(); });
       item.addEventListener('focus', function () { hover = i; placeHover(i); wake(); });
       item.addEventListener('click', function () {
+        closeMenus();
         active = i;
         hover = i;
         placeHover(i);
-        markCurrent(i);
+        markCurrent(i, null);
         setPage(item.dataset.page);
         wake();
       });
     });
     cap.addEventListener('pointerleave', function () { hover = -1; placeHover(-1); wake(); });
     window.addEventListener('resize', function () {
+      closeMenus();
       if (hover < 0) snap(active); else { placeHover(hover); wake(); }
     });
 
     capsuleGo = function (name) {
+      var parent = parentOf(name);
+      var subName = name !== parent ? name : null;
       for (var i = 0; i < items.length; i++) {
-        if (items[i].dataset && items[i].dataset.page === name) {
+        if (pageOfItem[i] === parent) {
           active = i;
           hover = -1;
           placeHover(-1);
-          markCurrent(i);
+          markCurrent(i, subName);
           snap(i);
+          closeMenus();
           return;
         }
       }
     };
 
-    markCurrent(active);
+    markCurrent(active, null);
     snap(active);
     requestAnimationFrame(function () { snap(active); });
   })();
@@ -8098,6 +8366,7 @@ void main()
      path 一律用 / 分隔，相对文件夹根。
   ============================================================== */
   var PROJ_PREFIX = 'c51lab.project.v1.';
+  var LAST_EX_KEY = 'c51lab.lastExample.v1';
   var TREE_KEY = 'c51lab.tree.v1';
   var TREE_MOBILE_KEY = 'c51lab.tree.mobile.v1';
   var FS_DB_KEY = 'c51lab.dir.v1';
@@ -8250,6 +8519,157 @@ void main()
   }
 
   /* ---------------- 标签页 ---------------- */
+  function syncRestoreBtn() {
+    var b = $('btn-restore');
+    if (!b) return;
+    /* 「还原」只对讲义例程有意义：自己开的工程、分享工程、文件夹工程都不显示 */
+    b.style.display = (curExample && !(project && project.fs)) ? '' : 'none';
+  }
+
+  /* ---------------- 当前来源：例程下拉 / 工程徽标，二选一 --------------
+     讲义例程  → 下拉（可换例程）
+     打开的工程、分享工程 → 「工程 · 名字」徽标，点开可另存 / 导出 / 回到例程
+     磁盘文件夹 → 「文件夹 · 名字」徽标，点开可保存 / 断开
+     三态互斥，永远不会同时出现。
+  ==================================================================== */
+  var SRC_ICONS = {
+    proj: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"><path d="M3.6 2.4h5.4l3 3v8.2H3.6z"/><path d="M9 2.6v3h3"/></svg>',
+    dir: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M2.2 4.4h4l1.3 1.6h6.3v7.2H2.2z"/></svg>'
+  };
+
+  function lastExampleId() {
+    try { return window.localStorage.getItem(LAST_EX_KEY) || 'led-on'; } catch (e) { return 'led-on'; }
+  }
+
+  function shortFileName(s) {
+    return String(s || '')
+      .replace(/\.(c51proj\.)?json$/i, '')
+      .replace(/\.uvprojx?$/i, '');
+  }
+
+  function sourceInfo() {
+    if (project && project.fs && FS.name) {
+      return { kind: 'dir', label: '文件夹', name: FS.name, full: FS.name, file: false };
+    }
+    if (curExample) return { kind: 'example' };
+    var full = (project && (project.fileName || project.name)) || '未命名工程';
+    return {
+      kind: 'proj',
+      label: '工程',
+      name: shortFileName(full) || full,
+      full: full,
+      file: !!(project && project.fileName)
+    };
+  }
+
+  function syncSourceUi() {
+    var wrap = $('ex-wrap'), badge = $('src-badge');
+    if (!wrap || !badge) return;
+    var info = sourceInfo();
+    var isEx = info.kind === 'example';
+    wrap.hidden = !isEx;
+    badge.hidden = isEx;
+    if (isEx) { closeSrcMenu(); return; }
+    var ico = $('src-ico'), kind = $('src-kind'), name = $('src-name');
+    if (ico) ico.innerHTML = SRC_ICONS[info.kind === 'dir' ? 'dir' : 'proj'];
+    if (kind) kind.textContent = info.label;
+    if (name) name.textContent = info.name;
+    badge.title = info.kind === 'dir'
+      ? '已连接磁盘文件夹「' + info.full + '」，点开可保存或断开'
+      : (info.file
+        ? '当前工程文件「' + info.full + '」，点开可另存、导出或回到例程'
+        : '浏览器内工程「' + info.full + '」，点开可存为工程文件、导出或回到例程');
+    if ($('src-menu') && !$('src-menu').hidden) paintSrcMenu();
+  }
+
+  function srcMenuActions() {
+    if (project && project.fs) {
+      return [
+        { id: 'fs-save', label: '保存到磁盘' },
+        { sep: true },
+        { id: 'fs-close', label: '断开文件夹，回到例程' }
+      ];
+    }
+    return [
+      { id: 'proj-save', label: '存为工程文件（另存为）' },
+      { id: 'proj-zip', label: '导出源码 ZIP' },
+      { sep: true },
+      { id: 'proj-close', label: '关闭工程，回到例程' }
+    ];
+  }
+
+  function paintSrcMenu() {
+    var menu = $('src-menu');
+    if (!menu) return;
+    menu.innerHTML = '';
+    srcMenuActions().forEach(function (it) {
+      if (it.sep) {
+        var s = document.createElement('div');
+        s.className = 'sep';
+        menu.appendChild(s);
+        return;
+      }
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('role', 'menuitem');
+      b.textContent = it.label;
+      b.addEventListener('click', function () { runSrcAction(it.id); });
+      menu.appendChild(b);
+    });
+  }
+
+  function placeSrcMenu() {
+    var badge = $('src-badge'), menu = $('src-menu');
+    if (!badge || !menu || menu.hidden) return;
+    var r = badge.getBoundingClientRect();
+    var w = menu.offsetWidth || 200;
+    menu.style.left = Math.round(Math.max(8, Math.min(r.left, window.innerWidth - w - 8))) + 'px';
+    menu.style.top = Math.round(r.bottom + 6) + 'px';
+  }
+
+  function openSrcMenu() {
+    var menu = $('src-menu'), badge = $('src-badge');
+    if (!menu || !badge) return;
+    paintSrcMenu();
+    menu.hidden = false;
+    placeSrcMenu();
+    badge.setAttribute('aria-expanded', 'true');
+  }
+
+  function closeSrcMenu() {
+    var menu = $('src-menu'), badge = $('src-badge');
+    if (menu) menu.hidden = true;
+    if (badge) badge.setAttribute('aria-expanded', 'false');
+  }
+
+  function runSrcAction(id) {
+    closeSrcMenu();
+    if (id === 'proj-save') { exportProjectFile(); return; }
+    if (id === 'proj-zip') { exportZip(); return; }
+    if (id === 'proj-close') { closeProject(); return; }
+    if (id === 'fs-save') {
+      if ($('btn-save')) $('btn-save').click();
+      return;
+    }
+    if (id === 'fs-close') { disconnectFS(); return; }
+  }
+
+  function closeProject() {
+    if (project && project.fs) { disconnectFS(); return; }
+    if (curExample) return;
+    askModal('关闭工程', {
+      msg: '「' + ((project && project.name) || '当前工程')
+        + '」只存在浏览器里，关闭后要重新打开工程文件才能回来；建议先「存为工程文件」。',
+      input: false, ok: '关闭'
+    }).then(function (yes) {
+      if (!yes) return;
+      loadExample(lastExampleId());
+      /* 关掉后别让刷新又把工程捡回来：清掉 free 存档（确认框里已提示过要重新打开工程文件） */
+      try { window.localStorage.removeItem(PROJ_PREFIX + 'free'); } catch (e) {}
+      log('已关闭工程，回到讲义例程。', 'dim');
+    });
+  }
+
   function renderTabs() {
     var host = $('tabs');
     if (!host) return;
@@ -8278,7 +8698,59 @@ void main()
       host.appendChild(b);
     });
     syncDesktopTitle();
+    syncRestoreBtn();
+    syncSourceUi();
   }
+
+  /* 文件标签多了：滚轮横滚 + 按住拖动；拖过阈值就不触发切换，避免拖完跳文件 */
+  (function initTabScroll() {
+    var host = $('tabs');
+    if (!host || !host.addEventListener) return;
+    host.addEventListener('wheel', function (e) {
+      if (host.scrollWidth <= host.clientWidth) return;
+      var d = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+      if (!d) return;
+      e.preventDefault();
+      host.scrollLeft += d;
+    }, { passive: false });
+
+    var down = false, moved = false, startX = 0, startLeft = 0, pid = null;
+    host.addEventListener('pointerdown', function (e) {
+      if (e.button !== 0 || host.scrollWidth <= host.clientWidth) return;
+      down = true;
+      moved = false;
+      startX = e.clientX;
+      startLeft = host.scrollLeft;
+      pid = e.pointerId;
+    });
+    host.addEventListener('pointermove', function (e) {
+      if (!down) return;
+      var dx = e.clientX - startX;
+      if (!moved && Math.abs(dx) > 4) {
+        moved = true;
+        host.classList.add('dragging');
+        if (host.setPointerCapture && pid != null) {
+          try { host.setPointerCapture(pid); } catch (err) { /* 忽略 */ }
+        }
+      }
+      if (moved) {
+        host.scrollLeft = startLeft - dx;
+        e.preventDefault();
+      }
+    });
+    function endDrag() {
+      if (!down) return;
+      down = false;
+      pid = null;
+      host.classList.remove('dragging');
+      if (moved) setTimeout(function () { moved = false; }, 0);
+    }
+    host.addEventListener('pointerup', endDrag);
+    host.addEventListener('pointercancel', endDrag);
+    host.addEventListener('click', function (e) {
+      if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; }
+    }, true);
+  })();
 
   function openFile(path) {
     var f = fileOf(path);
@@ -8974,7 +9446,7 @@ void main()
     flushSave();
     curExample = null;
     project = {
-      name: '江协科技教程 · 库函数示例',
+      name: '多文件库函数示例',
       folders: ['user', 'library'],
       folderGroup: { user: 'User', library: 'Library' },
       open: ['user/main.c', 'library/led.c', 'library/display.c', 'library/key.c'],
@@ -9281,7 +9753,7 @@ void keys_scan()
     saveProject();
     build();
     updateFsUi();
-    log('已生成江协科技教程风格示例：user/main.c 调用 library 里的 disled / display / keyscan；来源：江协科技《51 单片机入门教程 · 2020 版》。', 'ok');
+    log('已生成多文件示例：user/main.c 调用 library 里的 disled / display / keyscan。', 'ok');
   }
 
   /* ---------------- 增删改：磁盘模式会同步到磁盘 ---------------- */
@@ -9846,6 +10318,9 @@ void keys_scan()
         if (!res || res.canceled) return;
         if (res.error) { log('存工程失败：' + res.error, 'err'); return; }
         log('已存工程文件：' + res.filePath + '（' + project.files.length + ' 个文件）', 'ok');
+        /* 存完就把徽标换成刚保存的真实文件名 */
+        project.fileName = res.filePath ? String(res.filePath).split(/[\\/]/).pop() : fileName;
+        syncSourceUi();
         showToast('工程文件已保存');
       }).catch(function (e) {
         log('存工程失败：' + (e && e.message ? e.message : e), 'err');
@@ -9863,6 +10338,8 @@ void keys_scan()
       if (document.body && a.parentNode) document.body.removeChild(a);
       setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) {} }, 5000);
       log('已存工程文件：' + a.download + '（' + project.files.length + ' 个文件）', 'ok');
+      project.fileName = a.download;
+      syncSourceUi();
       showToast('工程文件已下载');
     } catch (e) {
       log('存工程失败：' + (e && e.message ? e.message : e), 'err');
@@ -9971,9 +10448,9 @@ void keys_scan()
         log('这个 Keil 工程里没有找到 .c / .h / .inc 文件。', 'err');
         return;
       }
-      log('检测到 Keil 工程：' + parsed.files.length + ' 个源码文件。接下来选择它所在的文件夹（例如 D:\\江协库）。', 'dim');
+      log('检测到 Keil 工程：' + parsed.files.length + ' 个源码文件。接下来选择它所在的文件夹。', 'dim');
       return askModal('选择 Keil 工程目录', {
-        msg: 'Keil 工程只记录文件路径，源码还在磁盘上。请选择 project.uvproj 所在的工程根目录（例如 D:\\江协库）。',
+        msg: 'Keil 工程只记录文件路径，源码还在磁盘上。请选择 project.uvproj 所在的工程根目录。',
         input: false, ok: '选择文件夹'
       }).then(function (yes) {
         if (!yes) return null;
@@ -10016,7 +10493,7 @@ void keys_scan()
           if (r.missing.length) msg += '\n另外这些文件没读到：' + r.missing.slice(0, 6).join('、');
           return askModal('导入 Keil 工程', { msg: msg, input: false, ok: '导入' }).then(function (yes) {
             if (!yes) return;
-            applyProjectData(data);
+            applyProjectData(data, file.name);
             log('已导入 Keil 工程「' + data.name + '」：' + r.files.length + ' 个文件。导入的是快照，改完不会写回 Keil 文件；要写回请用「打开文件夹」。', 'ok');
           });
         });
@@ -10047,7 +10524,7 @@ void keys_scan()
         input: false, ok: '打开'
       }).then(function (yes) {
         if (!yes) return;
-        applyProjectData(data);
+        applyProjectData(data, file.name);
       });
     };
     rd.onerror = function () { log('读取工程文件失败。', 'err'); };
@@ -10055,7 +10532,7 @@ void keys_scan()
   }
 
   /* 把工程 JSON 应用到当前工作区：开工程文件、恢复快照共用 */
-  function applyProjectData(data) {
+  function applyProjectData(data, fileName) {
     if (!data || typeof data !== 'object') {
       log('工程数据不是有效对象。', 'err');
       return false;
@@ -10089,8 +10566,11 @@ void keys_scan()
     }
     /* 替换工程前先把待写的内容落盘，避免 300ms 的存档定时器把新工程写到旧键 */
     flushSave();
+    var baseName = fileName ? (shortFileName(String(fileName)) || String(fileName)) : '';
     project = {
-      name: data.name || '导入的工程',
+      name: baseName || data.name || '导入的工程',
+      /* 真实文件名：打开 .c51proj.json / .uvprojx 时带上，徽标按它显示 */
+      fileName: fileName ? String(fileName) : (typeof data.fileName === 'string' ? data.fileName : ''),
       files: files,
       folders: folders,
       folderGroup: folderGroup,
@@ -10296,6 +10776,7 @@ void keys_scan()
     var meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', light ? '#f2f2f7' : '#000000');
     postHw({ type: 'hw:theme', light: light });
+    postLab({ type: 'hw:theme', light: light });
   }
   if ($('btn-theme')) $('btn-theme').onclick = function () {
     var light = !document.documentElement.classList.contains('light');
@@ -10434,10 +10915,10 @@ void keys_scan()
 
   function initDesktopMenu() {
     if (!isDesktopShell) return;
+    var themeBtn = $('btn-theme');
+    if (themeBtn) themeBtn.hidden = true;
     var slot = $('dt-status-slot'), status = $('status');
-    var build = document.querySelector('.build-tag');
     if (slot) {
-      if (build) slot.appendChild(build);
       if (status) slot.appendChild(status);
     }
 
@@ -10450,10 +10931,12 @@ void keys_scan()
         { label: '打开文件夹…', action: 'open-dir' },
         { label: '打开工程文件…', action: 'open-proj' },
         { label: '保存工程文件', action: 'save-proj' },
+        { label: '关闭工程，回到例程', action: 'close-proj' },
         { sep: true },
         { label: '新建文件', action: 'new-file' },
         { label: '导出源码 ZIP', action: 'export' },
         { label: '导出实验报告', action: 'report' },
+        { label: '复制分享链接', action: 'share' },
         { sep: true },
         { label: '退出应用', action: 'quit' }
       ],
@@ -10464,10 +10947,11 @@ void keys_scan()
         { label: '查找 / 替换', action: 'find', key: 'Ctrl+F' }
       ],
       view: [
-        { label: '写代码', action: 'page-code' },
+        { label: 'IDE（写代码）', action: 'page-code' },
+        { label: '　讲义', action: 'page-notes' },
         { label: '开发板', action: 'page-board' },
-        { label: '时序图', action: 'page-scope' },
-        { label: '讲义', action: 'page-notes' },
+        { label: '　时序图', action: 'page-scope' },
+        { label: '电路实验台', action: 'page-circuit' },
         { sep: true },
         { label: '显示 / 隐藏工程树', action: 'tree' },
         { label: '切换浅色 / 深色主题', action: 'theme' }
@@ -10509,6 +10993,7 @@ void keys_scan()
       if (action === 'find') { openFind(); return; }
       if (action === 'page-code') { setPage('code'); return; }
       if (action === 'page-board') { setPage('board'); return; }
+      if (action === 'page-circuit') { setPage('circuit'); return; }
       if (action === 'page-scope') { setPage('scope'); return; }
       if (action === 'page-notes') { setPage('notes'); return; }
       if (action === 'tree') {
@@ -10516,6 +11001,7 @@ void keys_scan()
         applyTree(!(panel && panel.classList && panel.classList.contains('tree-off')));
         return;
       }
+      if (action === 'close-proj') { closeProject(); return; }
       if (action === 'quit') { window.close(); return; }
       if (action === 'about') {
         showDesktopAbout();
@@ -10528,6 +11014,7 @@ void keys_scan()
         'new-file': 'btn-new-file',
         'export': 'btn-export',
         'report': 'btn-report',
+        'share': 'btn-share',
         'theme': 'btn-theme',
         'keys': 'btn-keys',
         'run': 'btn-run',
@@ -10658,6 +11145,7 @@ void keys_scan()
     }
     updateFsDot();
     renderStat();
+    syncSourceUi();
   }
 
   function isNarrowLayout() {
@@ -10734,7 +11222,7 @@ void keys_scan()
       FS.pending = null;
       project.fs = false;
       try { idbDel(FS_DB_KEY).catch(function () {}); } catch (e) {}
-      loadExample(curExample ? curExample.id : 'led-on');
+      loadExample(curExample ? curExample.id : lastExampleId());
       updateFsUi();
       log('已断开磁盘文件夹，回到浏览器内工程（磁盘上的文件没动）。', 'dim');
     };
@@ -10770,6 +11258,26 @@ void keys_scan()
   };
   if ($('btn-export')) $('btn-export').onclick = function () { exportZip(); };
   if ($('btn-save-proj')) $('btn-save-proj').onclick = function () { exportProjectFile(); };
+
+  /* 来源徽标：点开小菜单（另存 / 导出 / 回到例程） */
+  if ($('src-badge')) {
+    $('src-badge').addEventListener('click', function () {
+      var m = $('src-menu');
+      if (m && m.hidden) openSrcMenu(); else closeSrcMenu();
+    });
+  }
+  document.addEventListener('click', function (e) {
+    var m = $('src-menu'), badge = $('src-badge');
+    if (!m || m.hidden) return;
+    var t = e.target;
+    if (badge && t && (badge === t || badge.contains(t))) return;
+    if (t && m.contains(t)) return;
+    closeSrcMenu();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeSrcMenu();
+  });
+  window.addEventListener('resize', closeSrcMenu);
   if ($('btn-keil-demo')) $('btn-keil-demo').onclick = function () { createLibraryDemo(); };
   if ($('btn-load-proj')) $('btn-load-proj').onclick = function () {
     if (window.c51Desktop && window.c51Desktop.openProjectFile) {
@@ -10832,6 +11340,7 @@ void keys_scan()
     /* 切换例程前先把待写的改动落到当前工程的键，避免定时器把旧内容写进新例程 */
     flushSave();
     curExample = ex;
+    try { window.localStorage.setItem(LAST_EX_KEY, ex.id); } catch (e) {}
     state = 'stopped';
     var saved = readProject(id);
     var mine = loadSaved(id);
@@ -13643,7 +14152,7 @@ void keys_scan()
   renderWatch();
   updateFsUi();
   restoreDir();
-  var pm = /page=(code|board|scope|notes)/.exec(hash);
+  var pm = /page=(code|board|circuit|scope|notes)/.exec(hash);
   if (pm) setPage(pm[1]);
   var pmatch = /[#&]p=([A-Za-z0-9_-]+)/.exec(hash);
   if (pmatch) {
@@ -13729,8 +14238,7 @@ void keys_scan()
     log('当前是只读分享模式：运行和调试都能用，编辑请先复制为自己的工程。', 'dim');
   }
 
-  var bt = $('build-tag');
-  log('已就绪' + (bt ? ' · ' + bt.textContent : ''), 'ok');
+  log('已就绪', 'ok');
   log('F5 运行 · F9 断点 · F11 单步 · Ctrl+F 查找', 'dim');
   log('例程在「讲义」，硬件实验在「开发板」，快捷键看右上角 ?', 'dim');
   requestAnimationFrame(frame);

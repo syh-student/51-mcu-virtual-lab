@@ -849,7 +849,7 @@
      分层同 ui-studies：capsule 玻璃容器 → hover-pill 灰色悬停底（即时跟随）
      → blob 白色主指示块（阻尼弹簧追赶，速度驱动液态形变）→ 文字层反色
   ---------------------------------------------------------------- */
-  var PAGE_ORDER = ['code', 'board', 'scope', 'notes'];
+  var PAGE_ORDER = ['code', 'board', 'circuit', 'scope', 'notes'];
   var curPage = 'code';
   var capsuleGo = null;   /* 由 initCapsule 注入：把白色滑块移到对应页面 */
 
@@ -870,6 +870,7 @@
       pauseHardwareView();
       if (boardView !== 'native') updateButtons();
     }
+    if (name === 'circuit') ensureCircuitFrame();
     if (name === 'scope') { autoSpan(); drawScope(); }
     if (name === 'code') { refreshGutter(); paintCode(); syncCodeScroll(); }
     if (name === 'notes') updateFade();
@@ -883,17 +884,30 @@
     }
   }
 
-  /* ==================== 开发板视图：功能板 / 引脚板 / 硬件工具 ==================== */
-  var boardView = 'native';
+  /* ==================== 开发板页视图：功能板 / 引脚板 ==================== */
+  var boardView = 'native';   /* native = 3D 功能板；pin = 引脚板（iframe） */
   var hwReady = false, hwWanted = 'pindemo', pinState = 'stopped', hwHintTimer = 0;
   var BOARD_VIEW_KEY = 'mcu51.boardview.v1';
   var boardViewRestored = false;
-  var TOOL_LABELS = { lab: '电路实验台', eda: '画板模拟', calc: '参数计算器', quiz: '自测练习' };
 
+  /* ==================== 电路实验台页：整屏 iframe + 页内工具条 ==================== */
+  var TOOL_LABELS = { lab: '电路实验台', eda: '画板模拟', calc: '参数计算器', quiz: '自测练习' };
+  var HW_TOOL_KEY = 'mcu51.hwtool.v1';
+  var hwTool = 'lab';
+  var labReady = false;
+  function readSavedHwTool() {
+    try {
+      var v = localStorage.getItem(HW_TOOL_KEY);
+      return TOOL_LABELS[v] ? v : 'lab';
+    } catch (e) { return 'lab'; }
+  }
+  function saveHwTool(v) {
+    try { localStorage.setItem(HW_TOOL_KEY, v); } catch (e) {}
+  }
   function readSavedBoardView() {
     try {
       var v = localStorage.getItem(BOARD_VIEW_KEY);
-      return ['native', 'pin', 'lab', 'eda', 'calc', 'quiz'].indexOf(v) >= 0 ? v : 'native';
+      return v === 'pin' ? 'pin' : 'native';
     } catch (e) { return 'native'; }
   }
   function saveBoardView(v) {
@@ -905,18 +919,6 @@
       var on = btns[i].getAttribute('data-view') === view;
       btns[i].classList.toggle('on', on);
       btns[i].setAttribute('aria-selected', on ? 'true' : 'false');
-    }
-    var pop = $('hw-menu-pop'), label = $('hw-menu-label'), btn = $('hw-menu-btn');
-    if (pop) {
-      var items = pop.querySelectorAll('button[data-view]');
-      for (var j = 0; j < items.length; j++) {
-        items[j].classList.toggle('on', items[j].getAttribute('data-view') === view);
-      }
-    }
-    if (btn && label) {
-      var tool = !!TOOL_LABELS[view];
-      btn.classList.toggle('on', tool);
-      label.textContent = tool ? TOOL_LABELS[view] : '硬件工具';
     }
   }
   function pinGaps(text) {
@@ -948,7 +950,12 @@
     if (!fr || !fr.contentWindow || !hwReady) return false;
     try { fr.contentWindow.postMessage(msg, '*'); return true; } catch (e) { return false; }
   }
-  function hwViewName(v) { return v === 'pin' ? 'pindemo' : v; }
+  function labFrame() { return $('lab-frame'); }
+  function postLab(msg) {
+    var fr = labFrame();
+    if (!fr || !fr.contentWindow || !labReady) return false;
+    try { fr.contentWindow.postMessage(msg, '*'); return true; } catch (e) { return false; }
+  }
   function hex2(v) {
     if (v == null || !isFinite(v)) return '--';
     var s = (v & 0xFF).toString(16).toUpperCase();
@@ -979,45 +986,74 @@
     updatePinCapNote(s.text);
     return s;
   }
-  function loadHwFrame(view) {
+  function loadHwFrame() {
     var fr = boardHwFrame();
     if (!fr) return;
     if (!fr.getAttribute('src')) {
       var theme = document.documentElement.classList.contains('light') ? 'light' : 'dark';
-      fr.src = 'hardware.html?theme=' + theme + '#' + hwViewName(view);
+      fr.src = 'hardware.html?theme=' + theme + '#pindemo';
     }
   }
   function pauseHardwareView() {
     if (pinState === 'running') postHw({ type: 'hw:pause' });
   }
+  /* ---------- 电路实验台（一级页） ---------- */
+  function updateCircuitTabs(view) {
+    var tabs = $('circuit-tabs');
+    if (!tabs) return;
+    var btns = tabs.querySelectorAll('button[data-view]');
+    for (var i = 0; i < btns.length; i++) {
+      var on = btns[i].getAttribute('data-view') === view;
+      btns[i].classList.toggle('on', on);
+      btns[i].setAttribute('aria-selected', on ? 'true' : 'false');
+    }
+    var h = $('circuit-hint');
+    if (h) h.textContent = (TOOL_LABELS[view] || '电路实验台') + (view === 'lab' ? ' · 搭电路 / 看现象' : ' · 不运行代码');
+  }
+  function ensureCircuitFrame() {
+    var fr = labFrame();
+    if (!fr) return;
+    if (!fr.getAttribute('src')) {
+      var theme = document.documentElement.classList.contains('light') ? 'light' : 'dark';
+      fr.src = 'hardware.html?theme=' + theme + '#' + hwTool;
+    }
+  }
+  function setCircuitTool(view) {
+    if (!TOOL_LABELS[view]) view = 'lab';
+    hwTool = view;
+    saveHwTool(view);
+    updateCircuitTabs(view);
+    if (curPage !== 'circuit') setPage('circuit');
+    ensureCircuitFrame();
+    if (labReady) postLab({ type: 'hw:view', view: view });
+  }
+
   function setBoardView(view) {
     var page = $('page-board');
     if (!page) return;
-    if (view !== 'native' && view !== 'pin' && !TOOL_LABELS[view]) view = 'native';
+    /* 链接或旧菜单里还可能传来工具视图，统一转去一级页「电路实验台」 */
+    if (TOOL_LABELS[view]) { setCircuitTool(view); return; }
+    if (view !== 'pin') view = 'native';
     if (view !== 'pin' && pinState === 'running') postHw({ type: 'hw:pause' });
     boardView = view;
     saveBoardView(view);
-    page.classList.toggle('hw-mode', view !== 'native');
+    page.classList.toggle('hw-mode', view === 'pin');
     updateBoardViewUI(view);
     var box = $('pin-cap-note');
     if (view !== 'pin' && box) box.hidden = true;
     if (view === 'native') {
-      setBoardHint('功能板 · 运行当前工程');
+      setBoardHint('运行当前工程，看板子反应');
       updateButtons();
       forceRender = true;
       return;
     }
     closeZoom();
     if (curPage !== 'board') setPage('board');
-    loadHwFrame(view);
-    hwWanted = hwViewName(view);
+    loadHwFrame();
+    hwWanted = 'pindemo';
     if (hwReady) postHw({ type: 'hw:view', view: hwWanted });
-    if (view === 'pin') {
-      setBoardHint('引脚板 · 已停止');
-      sendPinCode();
-    } else {
-      setBoardHint('硬件工具 · 不运行代码');
-    }
+    setBoardHint('引脚板 · 已停止');
+    sendPinCode();
   }
   function hwRun() {
     if (boardView !== 'pin') { setBoardHint('这个视图不运行代码', true); return; }
@@ -1027,38 +1063,23 @@
   }
   (function initBoardViewTabs() {
     var tabs = $('board-view-tabs');
-    var menuBtn = $('hw-menu-btn'), pop = $('hw-menu-pop');
-    function closeMenu() {
-      if (pop) pop.hidden = true;
-      if (menuBtn) menuBtn.setAttribute('aria-expanded', 'false');
-    }
     if (tabs) {
       tabs.addEventListener('click', function (e) {
         var b = e.target && e.target.closest ? e.target.closest('button[data-view]') : null;
         if (b) setBoardView(b.getAttribute('data-view'));
       });
     }
-    if (menuBtn && pop) {
-      menuBtn.addEventListener('click', function (e) {
-        e.stopPropagation();
-        pop.hidden = !pop.hidden;
-        menuBtn.setAttribute('aria-expanded', pop.hidden ? 'false' : 'true');
-      });
-      pop.addEventListener('click', function (e) {
+    var labTabs = $('circuit-tabs');
+    if (labTabs) {
+      labTabs.addEventListener('click', function (e) {
         var b = e.target && e.target.closest ? e.target.closest('button[data-view]') : null;
-        if (b) { closeMenu(); setBoardView(b.getAttribute('data-view')); }
-      });
-      document.addEventListener('click', function (e) {
-        if (pop.hidden) return;
-        if (pop.contains(e.target) || menuBtn.contains(e.target)) return;
-        closeMenu();
-      });
-      document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape' && !pop.hidden) closeMenu();
+        if (b) setCircuitTool(b.getAttribute('data-view'));
       });
     }
     var back = $('pin-cap-back');
     if (back) back.addEventListener('click', function () { setBoardView('native'); });
+    hwTool = readSavedHwTool();
+    updateCircuitTabs(hwTool);
     updateBoardViewUI(boardView);
   })();
 
@@ -1080,15 +1101,25 @@
     $('quickbar-go').onclick = function () { closeQuick(); setPage('board'); };
   })();
 
-  /* 硬件页 → 主应用 */
+  /* 硬件页（引脚板 / 电路实验台两个 iframe）→ 主应用 */
   window.addEventListener('message', function (e) {
     var fr = boardHwFrame();
-    if (!fr || !fr.contentWindow || e.source !== fr.contentWindow) return;
+    var lab = labFrame();
+    var light = document.documentElement.classList.contains('light');
     var d = e.data || {};
+    if (lab && lab.contentWindow && e.source === lab.contentWindow) {
+      if (d.type === 'hw:ready') {
+        labReady = true;
+        postLab({ type: 'hw:view', view: hwTool });
+        postLab({ type: 'hw:theme', light: light });
+      }
+      return;
+    }
+    if (!fr || !fr.contentWindow || e.source !== fr.contentWindow) return;
     if (d.type === 'hw:ready') {
       hwReady = true;
       postHw({ type: 'hw:view', view: hwWanted });
-      postHw({ type: 'hw:theme', light: document.documentElement.classList.contains('light') });
+      postHw({ type: 'hw:theme', light: light });
       if (boardView === 'pin') sendPinCode();
       return;
     }
@@ -1119,15 +1150,20 @@
     var hoverPill = cap.querySelector('.hover-pill');
     if (!blob || !hoverPill) return;
 
+    /* 二级页面挂在哪一级下：讲义 → IDE，时序图 → 开发板 */
+    var PARENT_OF = { notes: 'code', scope: 'board' };
+    function parentOf(name) { return PARENT_OF[name] || name; }
+    var pageOfItem = items.map(function (it) { return it.dataset ? it.dataset.page : ''; });
+
     var active = 0, hover = -1;
     var s = { x: 0, w: 0, vx: 0, vw: 0 };
     var raf = 0, last = 0;
     var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     function itemRect(i) {
-      var w = items[i].offsetWidth || 0;
-      var x = items[i].offsetLeft || 0;
-      return { x: x, w: w };
+      var box = cap.getBoundingClientRect();
+      var r = items[i].getBoundingClientRect();
+      return { x: r.left - box.left - cap.clientLeft, w: r.width };
     }
     /* 色块中心接近某项中心时把该项文字翻成深色，避免只盖住半个字 */
     function paintLabels() {
@@ -1140,7 +1176,6 @@
     }
     function draw() {
       blob.style.width = s.w.toFixed(2) + 'px';
-      /* 方块滑块：只做横向平移，不再叠液态形变（斜切 / 拉伸 / 水泡鼓包），圆角固定 */
       blob.style.transform = 'translate3d(' + s.x.toFixed(2) + 'px,0,0)';
       blob.style.setProperty('--lead', '100%');
       blob.style.setProperty('--bulge', '0');
@@ -1153,10 +1188,15 @@
       s.x = r.x; s.w = r.w; s.vx = 0; s.vw = 0;
       draw();
     }
-    function markCurrent(i) {
+    function markCurrent(i, subName) {
       for (var k = 0; k < items.length; k++) {
         if (k === i) items[k].setAttribute('aria-current', 'page');
         else items[k].removeAttribute('aria-current');
+      }
+      var subs = document.querySelectorAll('.nav-sub');
+      for (var j = 0; j < subs.length; j++) {
+        if (subName && subs[j].dataset && subs[j].dataset.page === subName) subs[j].setAttribute('aria-current', 'page');
+        else subs[j].removeAttribute('aria-current');
       }
     }
     function placeHover(i) {
@@ -1187,37 +1227,100 @@
       if (!raf) { last = (window.performance && performance.now) ? performance.now() : Date.now(); raf = requestAnimationFrame(tick); }
     }
 
+    /* ---- 下拉菜单：caret 展开二级，点二级整屏切页。菜单挂到 body，避免被导航容器裁剪 ---- */
+    function caretOf(split) { return split && split.querySelector ? split.querySelector('.nav-caret') : null; }
+    var menuPairs = [];
+    function closeMenus(except) {
+      for (var i = 0; i < menuPairs.length; i++) {
+        var p = menuPairs[i];
+        if (except && p.menu === except) continue;
+        p.menu.hidden = true;
+        p.caret.setAttribute('aria-expanded', 'false');
+      }
+    }
+    function placeMenu(pair) {
+      var r = pair.split.getBoundingClientRect();
+      pair.menu.style.left = Math.round(r.left) + 'px';
+      pair.menu.style.top = Math.round(r.bottom + 6) + 'px';
+      pair.menu.style.minWidth = Math.max(132, Math.round(r.width)) + 'px';
+    }
+    Array.prototype.forEach.call(cap.querySelectorAll('.nav-split'), function (split) {
+      var caret = caretOf(split);
+      var menu = split.querySelector('.nav-menu');
+      if (!caret || !menu) return;
+      document.body.appendChild(menu);
+      var pair = { split: split, caret: caret, menu: menu };
+      menuPairs.push(pair);
+      caret.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var willOpen = menu.hidden;
+        closeMenus(menu);
+        if (willOpen) placeMenu(pair);
+        menu.hidden = !willOpen;
+        caret.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+      });
+      menu.addEventListener('click', function (e) {
+        var b = e.target && e.target.closest ? e.target.closest('.nav-sub') : null;
+        if (!b) return;
+        e.stopPropagation();
+        var name = b.dataset.page;
+        closeMenus();
+        var idx = pageOfItem.indexOf(parentOf(name));
+        if (idx >= 0) {
+          active = idx; hover = idx;
+          placeHover(idx);
+          snap(idx);
+          markCurrent(idx, name);
+        }
+        setPage(name);
+      });
+    });
+    document.addEventListener('click', function (e) {
+      var t = e.target;
+      if (!t || !cap.contains(t)) { closeMenus(); return; }
+      if (!(t.closest && t.closest('.nav-split'))) closeMenus();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeMenus();
+    });
+
     items.forEach(function (item, i) {
-      item.addEventListener('pointerenter', function () { hover = i; placeHover(i); wake(); });
+      var zone = (item.closest && item.closest('.nav-split')) || item;
+      zone.addEventListener('pointerenter', function () { hover = i; placeHover(i); wake(); });
       item.addEventListener('focus', function () { hover = i; placeHover(i); wake(); });
       item.addEventListener('click', function () {
+        closeMenus();
         active = i;
         hover = i;
         placeHover(i);
-        markCurrent(i);
+        markCurrent(i, null);
         setPage(item.dataset.page);
         wake();
       });
     });
     cap.addEventListener('pointerleave', function () { hover = -1; placeHover(-1); wake(); });
     window.addEventListener('resize', function () {
+      closeMenus();
       if (hover < 0) snap(active); else { placeHover(hover); wake(); }
     });
 
     capsuleGo = function (name) {
+      var parent = parentOf(name);
+      var subName = name !== parent ? name : null;
       for (var i = 0; i < items.length; i++) {
-        if (items[i].dataset && items[i].dataset.page === name) {
+        if (pageOfItem[i] === parent) {
           active = i;
           hover = -1;
           placeHover(-1);
-          markCurrent(i);
+          markCurrent(i, subName);
           snap(i);
+          closeMenus();
           return;
         }
       }
     };
 
-    markCurrent(active);
+    markCurrent(active, null);
     snap(active);
     requestAnimationFrame(function () { snap(active); });
   })();
@@ -1304,6 +1407,7 @@
      path 一律用 / 分隔，相对文件夹根。
   ============================================================== */
   var PROJ_PREFIX = 'c51lab.project.v1.';
+  var LAST_EX_KEY = 'c51lab.lastExample.v1';
   var TREE_KEY = 'c51lab.tree.v1';
   var TREE_MOBILE_KEY = 'c51lab.tree.mobile.v1';
   var FS_DB_KEY = 'c51lab.dir.v1';
@@ -1456,6 +1560,157 @@
   }
 
   /* ---------------- 标签页 ---------------- */
+  function syncRestoreBtn() {
+    var b = $('btn-restore');
+    if (!b) return;
+    /* 「还原」只对讲义例程有意义：自己开的工程、分享工程、文件夹工程都不显示 */
+    b.style.display = (curExample && !(project && project.fs)) ? '' : 'none';
+  }
+
+  /* ---------------- 当前来源：例程下拉 / 工程徽标，二选一 --------------
+     讲义例程  → 下拉（可换例程）
+     打开的工程、分享工程 → 「工程 · 名字」徽标，点开可另存 / 导出 / 回到例程
+     磁盘文件夹 → 「文件夹 · 名字」徽标，点开可保存 / 断开
+     三态互斥，永远不会同时出现。
+  ==================================================================== */
+  var SRC_ICONS = {
+    proj: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"><path d="M3.6 2.4h5.4l3 3v8.2H3.6z"/><path d="M9 2.6v3h3"/></svg>',
+    dir: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M2.2 4.4h4l1.3 1.6h6.3v7.2H2.2z"/></svg>'
+  };
+
+  function lastExampleId() {
+    try { return window.localStorage.getItem(LAST_EX_KEY) || 'led-on'; } catch (e) { return 'led-on'; }
+  }
+
+  function shortFileName(s) {
+    return String(s || '')
+      .replace(/\.(c51proj\.)?json$/i, '')
+      .replace(/\.uvprojx?$/i, '');
+  }
+
+  function sourceInfo() {
+    if (project && project.fs && FS.name) {
+      return { kind: 'dir', label: '文件夹', name: FS.name, full: FS.name, file: false };
+    }
+    if (curExample) return { kind: 'example' };
+    var full = (project && (project.fileName || project.name)) || '未命名工程';
+    return {
+      kind: 'proj',
+      label: '工程',
+      name: shortFileName(full) || full,
+      full: full,
+      file: !!(project && project.fileName)
+    };
+  }
+
+  function syncSourceUi() {
+    var wrap = $('ex-wrap'), badge = $('src-badge');
+    if (!wrap || !badge) return;
+    var info = sourceInfo();
+    var isEx = info.kind === 'example';
+    wrap.hidden = !isEx;
+    badge.hidden = isEx;
+    if (isEx) { closeSrcMenu(); return; }
+    var ico = $('src-ico'), kind = $('src-kind'), name = $('src-name');
+    if (ico) ico.innerHTML = SRC_ICONS[info.kind === 'dir' ? 'dir' : 'proj'];
+    if (kind) kind.textContent = info.label;
+    if (name) name.textContent = info.name;
+    badge.title = info.kind === 'dir'
+      ? '已连接磁盘文件夹「' + info.full + '」，点开可保存或断开'
+      : (info.file
+        ? '当前工程文件「' + info.full + '」，点开可另存、导出或回到例程'
+        : '浏览器内工程「' + info.full + '」，点开可存为工程文件、导出或回到例程');
+    if ($('src-menu') && !$('src-menu').hidden) paintSrcMenu();
+  }
+
+  function srcMenuActions() {
+    if (project && project.fs) {
+      return [
+        { id: 'fs-save', label: '保存到磁盘' },
+        { sep: true },
+        { id: 'fs-close', label: '断开文件夹，回到例程' }
+      ];
+    }
+    return [
+      { id: 'proj-save', label: '存为工程文件（另存为）' },
+      { id: 'proj-zip', label: '导出源码 ZIP' },
+      { sep: true },
+      { id: 'proj-close', label: '关闭工程，回到例程' }
+    ];
+  }
+
+  function paintSrcMenu() {
+    var menu = $('src-menu');
+    if (!menu) return;
+    menu.innerHTML = '';
+    srcMenuActions().forEach(function (it) {
+      if (it.sep) {
+        var s = document.createElement('div');
+        s.className = 'sep';
+        menu.appendChild(s);
+        return;
+      }
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('role', 'menuitem');
+      b.textContent = it.label;
+      b.addEventListener('click', function () { runSrcAction(it.id); });
+      menu.appendChild(b);
+    });
+  }
+
+  function placeSrcMenu() {
+    var badge = $('src-badge'), menu = $('src-menu');
+    if (!badge || !menu || menu.hidden) return;
+    var r = badge.getBoundingClientRect();
+    var w = menu.offsetWidth || 200;
+    menu.style.left = Math.round(Math.max(8, Math.min(r.left, window.innerWidth - w - 8))) + 'px';
+    menu.style.top = Math.round(r.bottom + 6) + 'px';
+  }
+
+  function openSrcMenu() {
+    var menu = $('src-menu'), badge = $('src-badge');
+    if (!menu || !badge) return;
+    paintSrcMenu();
+    menu.hidden = false;
+    placeSrcMenu();
+    badge.setAttribute('aria-expanded', 'true');
+  }
+
+  function closeSrcMenu() {
+    var menu = $('src-menu'), badge = $('src-badge');
+    if (menu) menu.hidden = true;
+    if (badge) badge.setAttribute('aria-expanded', 'false');
+  }
+
+  function runSrcAction(id) {
+    closeSrcMenu();
+    if (id === 'proj-save') { exportProjectFile(); return; }
+    if (id === 'proj-zip') { exportZip(); return; }
+    if (id === 'proj-close') { closeProject(); return; }
+    if (id === 'fs-save') {
+      if ($('btn-save')) $('btn-save').click();
+      return;
+    }
+    if (id === 'fs-close') { disconnectFS(); return; }
+  }
+
+  function closeProject() {
+    if (project && project.fs) { disconnectFS(); return; }
+    if (curExample) return;
+    askModal('关闭工程', {
+      msg: '「' + ((project && project.name) || '当前工程')
+        + '」只存在浏览器里，关闭后要重新打开工程文件才能回来；建议先「存为工程文件」。',
+      input: false, ok: '关闭'
+    }).then(function (yes) {
+      if (!yes) return;
+      loadExample(lastExampleId());
+      /* 关掉后别让刷新又把工程捡回来：清掉 free 存档（确认框里已提示过要重新打开工程文件） */
+      try { window.localStorage.removeItem(PROJ_PREFIX + 'free'); } catch (e) {}
+      log('已关闭工程，回到讲义例程。', 'dim');
+    });
+  }
+
   function renderTabs() {
     var host = $('tabs');
     if (!host) return;
@@ -1484,7 +1739,59 @@
       host.appendChild(b);
     });
     syncDesktopTitle();
+    syncRestoreBtn();
+    syncSourceUi();
   }
+
+  /* 文件标签多了：滚轮横滚 + 按住拖动；拖过阈值就不触发切换，避免拖完跳文件 */
+  (function initTabScroll() {
+    var host = $('tabs');
+    if (!host || !host.addEventListener) return;
+    host.addEventListener('wheel', function (e) {
+      if (host.scrollWidth <= host.clientWidth) return;
+      var d = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+      if (!d) return;
+      e.preventDefault();
+      host.scrollLeft += d;
+    }, { passive: false });
+
+    var down = false, moved = false, startX = 0, startLeft = 0, pid = null;
+    host.addEventListener('pointerdown', function (e) {
+      if (e.button !== 0 || host.scrollWidth <= host.clientWidth) return;
+      down = true;
+      moved = false;
+      startX = e.clientX;
+      startLeft = host.scrollLeft;
+      pid = e.pointerId;
+    });
+    host.addEventListener('pointermove', function (e) {
+      if (!down) return;
+      var dx = e.clientX - startX;
+      if (!moved && Math.abs(dx) > 4) {
+        moved = true;
+        host.classList.add('dragging');
+        if (host.setPointerCapture && pid != null) {
+          try { host.setPointerCapture(pid); } catch (err) { /* 忽略 */ }
+        }
+      }
+      if (moved) {
+        host.scrollLeft = startLeft - dx;
+        e.preventDefault();
+      }
+    });
+    function endDrag() {
+      if (!down) return;
+      down = false;
+      pid = null;
+      host.classList.remove('dragging');
+      if (moved) setTimeout(function () { moved = false; }, 0);
+    }
+    host.addEventListener('pointerup', endDrag);
+    host.addEventListener('pointercancel', endDrag);
+    host.addEventListener('click', function (e) {
+      if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; }
+    }, true);
+  })();
 
   function openFile(path) {
     var f = fileOf(path);
@@ -2180,7 +2487,7 @@
     flushSave();
     curExample = null;
     project = {
-      name: '江协科技教程 · 库函数示例',
+      name: '多文件库函数示例',
       folders: ['user', 'library'],
       folderGroup: { user: 'User', library: 'Library' },
       open: ['user/main.c', 'library/led.c', 'library/display.c', 'library/key.c'],
@@ -2487,7 +2794,7 @@ void keys_scan()
     saveProject();
     build();
     updateFsUi();
-    log('已生成江协科技教程风格示例：user/main.c 调用 library 里的 disled / display / keyscan；来源：江协科技《51 单片机入门教程 · 2020 版》。', 'ok');
+    log('已生成多文件示例：user/main.c 调用 library 里的 disled / display / keyscan。', 'ok');
   }
 
   /* ---------------- 增删改：磁盘模式会同步到磁盘 ---------------- */
@@ -3052,6 +3359,9 @@ void keys_scan()
         if (!res || res.canceled) return;
         if (res.error) { log('存工程失败：' + res.error, 'err'); return; }
         log('已存工程文件：' + res.filePath + '（' + project.files.length + ' 个文件）', 'ok');
+        /* 存完就把徽标换成刚保存的真实文件名 */
+        project.fileName = res.filePath ? String(res.filePath).split(/[\\/]/).pop() : fileName;
+        syncSourceUi();
         showToast('工程文件已保存');
       }).catch(function (e) {
         log('存工程失败：' + (e && e.message ? e.message : e), 'err');
@@ -3069,6 +3379,8 @@ void keys_scan()
       if (document.body && a.parentNode) document.body.removeChild(a);
       setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) {} }, 5000);
       log('已存工程文件：' + a.download + '（' + project.files.length + ' 个文件）', 'ok');
+      project.fileName = a.download;
+      syncSourceUi();
       showToast('工程文件已下载');
     } catch (e) {
       log('存工程失败：' + (e && e.message ? e.message : e), 'err');
@@ -3177,9 +3489,9 @@ void keys_scan()
         log('这个 Keil 工程里没有找到 .c / .h / .inc 文件。', 'err');
         return;
       }
-      log('检测到 Keil 工程：' + parsed.files.length + ' 个源码文件。接下来选择它所在的文件夹（例如 D:\\江协库）。', 'dim');
+      log('检测到 Keil 工程：' + parsed.files.length + ' 个源码文件。接下来选择它所在的文件夹。', 'dim');
       return askModal('选择 Keil 工程目录', {
-        msg: 'Keil 工程只记录文件路径，源码还在磁盘上。请选择 project.uvproj 所在的工程根目录（例如 D:\\江协库）。',
+        msg: 'Keil 工程只记录文件路径，源码还在磁盘上。请选择 project.uvproj 所在的工程根目录。',
         input: false, ok: '选择文件夹'
       }).then(function (yes) {
         if (!yes) return null;
@@ -3222,7 +3534,7 @@ void keys_scan()
           if (r.missing.length) msg += '\n另外这些文件没读到：' + r.missing.slice(0, 6).join('、');
           return askModal('导入 Keil 工程', { msg: msg, input: false, ok: '导入' }).then(function (yes) {
             if (!yes) return;
-            applyProjectData(data);
+            applyProjectData(data, file.name);
             log('已导入 Keil 工程「' + data.name + '」：' + r.files.length + ' 个文件。导入的是快照，改完不会写回 Keil 文件；要写回请用「打开文件夹」。', 'ok');
           });
         });
@@ -3253,7 +3565,7 @@ void keys_scan()
         input: false, ok: '打开'
       }).then(function (yes) {
         if (!yes) return;
-        applyProjectData(data);
+        applyProjectData(data, file.name);
       });
     };
     rd.onerror = function () { log('读取工程文件失败。', 'err'); };
@@ -3261,7 +3573,7 @@ void keys_scan()
   }
 
   /* 把工程 JSON 应用到当前工作区：开工程文件、恢复快照共用 */
-  function applyProjectData(data) {
+  function applyProjectData(data, fileName) {
     if (!data || typeof data !== 'object') {
       log('工程数据不是有效对象。', 'err');
       return false;
@@ -3295,8 +3607,11 @@ void keys_scan()
     }
     /* 替换工程前先把待写的内容落盘，避免 300ms 的存档定时器把新工程写到旧键 */
     flushSave();
+    var baseName = fileName ? (shortFileName(String(fileName)) || String(fileName)) : '';
     project = {
-      name: data.name || '导入的工程',
+      name: baseName || data.name || '导入的工程',
+      /* 真实文件名：打开 .c51proj.json / .uvprojx 时带上，徽标按它显示 */
+      fileName: fileName ? String(fileName) : (typeof data.fileName === 'string' ? data.fileName : ''),
       files: files,
       folders: folders,
       folderGroup: folderGroup,
@@ -3502,6 +3817,7 @@ void keys_scan()
     var meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', light ? '#f2f2f7' : '#000000');
     postHw({ type: 'hw:theme', light: light });
+    postLab({ type: 'hw:theme', light: light });
   }
   if ($('btn-theme')) $('btn-theme').onclick = function () {
     var light = !document.documentElement.classList.contains('light');
@@ -3640,10 +3956,10 @@ void keys_scan()
 
   function initDesktopMenu() {
     if (!isDesktopShell) return;
+    var themeBtn = $('btn-theme');
+    if (themeBtn) themeBtn.hidden = true;
     var slot = $('dt-status-slot'), status = $('status');
-    var build = document.querySelector('.build-tag');
     if (slot) {
-      if (build) slot.appendChild(build);
       if (status) slot.appendChild(status);
     }
 
@@ -3656,10 +3972,12 @@ void keys_scan()
         { label: '打开文件夹…', action: 'open-dir' },
         { label: '打开工程文件…', action: 'open-proj' },
         { label: '保存工程文件', action: 'save-proj' },
+        { label: '关闭工程，回到例程', action: 'close-proj' },
         { sep: true },
         { label: '新建文件', action: 'new-file' },
         { label: '导出源码 ZIP', action: 'export' },
         { label: '导出实验报告', action: 'report' },
+        { label: '复制分享链接', action: 'share' },
         { sep: true },
         { label: '退出应用', action: 'quit' }
       ],
@@ -3670,10 +3988,11 @@ void keys_scan()
         { label: '查找 / 替换', action: 'find', key: 'Ctrl+F' }
       ],
       view: [
-        { label: '写代码', action: 'page-code' },
+        { label: 'IDE（写代码）', action: 'page-code' },
+        { label: '　讲义', action: 'page-notes' },
         { label: '开发板', action: 'page-board' },
-        { label: '时序图', action: 'page-scope' },
-        { label: '讲义', action: 'page-notes' },
+        { label: '　时序图', action: 'page-scope' },
+        { label: '电路实验台', action: 'page-circuit' },
         { sep: true },
         { label: '显示 / 隐藏工程树', action: 'tree' },
         { label: '切换浅色 / 深色主题', action: 'theme' }
@@ -3715,6 +4034,7 @@ void keys_scan()
       if (action === 'find') { openFind(); return; }
       if (action === 'page-code') { setPage('code'); return; }
       if (action === 'page-board') { setPage('board'); return; }
+      if (action === 'page-circuit') { setPage('circuit'); return; }
       if (action === 'page-scope') { setPage('scope'); return; }
       if (action === 'page-notes') { setPage('notes'); return; }
       if (action === 'tree') {
@@ -3722,6 +4042,7 @@ void keys_scan()
         applyTree(!(panel && panel.classList && panel.classList.contains('tree-off')));
         return;
       }
+      if (action === 'close-proj') { closeProject(); return; }
       if (action === 'quit') { window.close(); return; }
       if (action === 'about') {
         showDesktopAbout();
@@ -3734,6 +4055,7 @@ void keys_scan()
         'new-file': 'btn-new-file',
         'export': 'btn-export',
         'report': 'btn-report',
+        'share': 'btn-share',
         'theme': 'btn-theme',
         'keys': 'btn-keys',
         'run': 'btn-run',
@@ -3864,6 +4186,7 @@ void keys_scan()
     }
     updateFsDot();
     renderStat();
+    syncSourceUi();
   }
 
   function isNarrowLayout() {
@@ -3940,7 +4263,7 @@ void keys_scan()
       FS.pending = null;
       project.fs = false;
       try { idbDel(FS_DB_KEY).catch(function () {}); } catch (e) {}
-      loadExample(curExample ? curExample.id : 'led-on');
+      loadExample(curExample ? curExample.id : lastExampleId());
       updateFsUi();
       log('已断开磁盘文件夹，回到浏览器内工程（磁盘上的文件没动）。', 'dim');
     };
@@ -3976,6 +4299,26 @@ void keys_scan()
   };
   if ($('btn-export')) $('btn-export').onclick = function () { exportZip(); };
   if ($('btn-save-proj')) $('btn-save-proj').onclick = function () { exportProjectFile(); };
+
+  /* 来源徽标：点开小菜单（另存 / 导出 / 回到例程） */
+  if ($('src-badge')) {
+    $('src-badge').addEventListener('click', function () {
+      var m = $('src-menu');
+      if (m && m.hidden) openSrcMenu(); else closeSrcMenu();
+    });
+  }
+  document.addEventListener('click', function (e) {
+    var m = $('src-menu'), badge = $('src-badge');
+    if (!m || m.hidden) return;
+    var t = e.target;
+    if (badge && t && (badge === t || badge.contains(t))) return;
+    if (t && m.contains(t)) return;
+    closeSrcMenu();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeSrcMenu();
+  });
+  window.addEventListener('resize', closeSrcMenu);
   if ($('btn-keil-demo')) $('btn-keil-demo').onclick = function () { createLibraryDemo(); };
   if ($('btn-load-proj')) $('btn-load-proj').onclick = function () {
     if (window.c51Desktop && window.c51Desktop.openProjectFile) {
@@ -4038,6 +4381,7 @@ void keys_scan()
     /* 切换例程前先把待写的改动落到当前工程的键，避免定时器把旧内容写进新例程 */
     flushSave();
     curExample = ex;
+    try { window.localStorage.setItem(LAST_EX_KEY, ex.id); } catch (e) {}
     state = 'stopped';
     var saved = readProject(id);
     var mine = loadSaved(id);
@@ -6849,7 +7193,7 @@ void keys_scan()
   renderWatch();
   updateFsUi();
   restoreDir();
-  var pm = /page=(code|board|scope|notes)/.exec(hash);
+  var pm = /page=(code|board|circuit|scope|notes)/.exec(hash);
   if (pm) setPage(pm[1]);
   var pmatch = /[#&]p=([A-Za-z0-9_-]+)/.exec(hash);
   if (pmatch) {
@@ -6935,8 +7279,7 @@ void keys_scan()
     log('当前是只读分享模式：运行和调试都能用，编辑请先复制为自己的工程。', 'dim');
   }
 
-  var bt = $('build-tag');
-  log('已就绪' + (bt ? ' · ' + bt.textContent : ''), 'ok');
+  log('已就绪', 'ok');
   log('F5 运行 · F9 断点 · F11 单步 · Ctrl+F 查找', 'dim');
   log('例程在「讲义」，硬件实验在「开发板」，快捷键看右上角 ?', 'dim');
   requestAnimationFrame(frame);
