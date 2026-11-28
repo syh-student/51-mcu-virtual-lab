@@ -797,6 +797,45 @@
     });
   }
 
+  /* ---------------- 例程通关：达成目标后记到本地 ---------------- */
+  var PROGRESS_KEY = 'mcu51.progress.v1';
+  var exBtn = {}, exOption = {}, winState = {}, winTick = 0;
+
+  function readProgress() {
+    try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; } catch (e) { return {}; }
+  }
+  function paintProgress() {
+    var p = readProgress(), n = 0;
+    window.EXAMPLES.forEach(function (ex) {
+      if (p[ex.id]) n++;
+      var b = exBtn[ex.id];
+      if (b && b._ok) b._ok.hidden = !p[ex.id];
+      var o = exOption[ex.id];
+      if (o) o.textContent = (p[ex.id] ? '✓ ' : '') + o._base;
+    });
+    var hint = $('ex-progress');
+    if (hint) hint.textContent = '已通关 ' + n + ' / ' + window.EXAMPLES.length;
+  }
+  function markExampleDone(ex) {
+    var p = readProgress();
+    if (p[ex.id]) return;
+    p[ex.id] = Date.now();
+    try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); } catch (e) { /* 存不进去也不打断运行 */ }
+    paintProgress();
+    showToast('通关：' + ex.title);
+    log('通关「' + ex.title + '」——' + ex.win.desc, 'ok');
+  }
+  /* 每帧都问太浪费，三条语句才判一次；判定函数自己维护跨帧状态 */
+  function checkWin() {
+    if (!curExample || !curExample.win || !vm || !hw || winState.done) return;
+    if ((winTick++ % 3) !== 0) return;
+    var ok = false;
+    try { ok = !!curExample.win.test(vm, hw, winState); } catch (e) { ok = false; }
+    if (!ok) return;
+    winState.done = true;
+    markExampleDone(curExample);
+  }
+
   function buildExamples() {
     var host = $('ex-list');
     var sel = $('ex-select');
@@ -812,12 +851,21 @@
       t.textContent = ex.title;
       b.appendChild(n);
       b.appendChild(t);
+      var okMark = document.createElement('span');
+      okMark.className = 'ok';
+      okMark.textContent = '✓';
+      okMark.hidden = true;
+      b.appendChild(okMark);
+      b._ok = okMark;
+      exBtn[ex.id] = b;
       b.onclick = function () { requestExample(ex.id, false); };
       host.appendChild(b);
       if (sel) {
         var o = document.createElement('option');
         o.value = ex.id;
-        o.textContent = (i + 1 < 10 ? '0' : '') + (i + 1) + '  ' + ex.title;
+        o._base = (i + 1 < 10 ? '0' : '') + (i + 1) + '  ' + ex.title;
+        o.textContent = o._base;
+        exOption[ex.id] = o;
         sel.appendChild(o);
       }
     });
@@ -826,6 +874,7 @@
         if (this.value) requestExample(this.value, true);
       };
     }
+    paintProgress();
   }
 
   /* 讲义页「在编辑器打开」：当前例程在加载时已进编辑器，这里只负责切页聚焦 */
@@ -923,10 +972,8 @@
   }
   function pinGaps(text) {
     var gaps = [], t = text || '';
-    if (/#include\s*[<"](LCD|LCD1602|LCD12864)/i.test(t) || /\bLCD_[A-Za-z0-9_]*\s*\(/i.test(t)) gaps.push('LCD');
-    if (/\b(SBUF|SCON)\b/.test(t)) gaps.push('串口');
-    if (/\b(interrupt\s+\d|TMOD|TH0|TL0|TH1|TL1)\b/i.test(t)) gaps.push('定时器/中断');
-    if (/\bPic\s*\[/.test(t)) gaps.push('8×8 点阵');
+    /* 引脚板已有 LCD1602、串口、定时器/中断和点阵，只差 12864 的控制器 */
+    if (/LCD12864/i.test(t)) gaps.push('LCD12864');
     return gaps;
   }
   function updatePinCapNote(text) {
@@ -935,12 +982,8 @@
     if (boardView !== 'pin') { box.hidden = true; return; }
     var src = text != null ? text : currentSource().text;
     var gaps = pinGaps(src);
-    var multi = (project.files || []).filter(function (x) { return /\.c$/i.test(x.path); }).length > 1;
-    var parts = [];
-    if (gaps.length) parts.push('当前代码用到 ' + gaps.join('、') + '，引脚板不显示这部分');
-    if (multi) parts.push('多文件工程只运行当前文件');
-    if (!parts.length) { box.hidden = true; return; }
-    note.textContent = parts.join('；') + '。完整效果请用功能板。';
+    if (!gaps.length) { box.hidden = true; return; }
+    note.textContent = '当前代码用到 ' + gaps.join('、') + '，引脚板不显示这部分。完整效果请用功能板。';
     box.hidden = false;
   }
 
@@ -979,10 +1022,25 @@
     var text = (f.path === project.active && codeEl) ? codeEl.value : f.content;
     return { name: f.path, text: text };
   }
-  function sendPinCode() {
+  /* 引脚板那套解释器只吃单个文件：多文件工程先把工程压平成一份翻译单元，
+     压平后解析不过（例如 static 重名）再退回当前打开的文件。 */
+  function pinProgram() {
     var s = currentSource();
     if (!s) return null;
-    postHw({ type: 'hw:code', name: s.name, text: s.text });
+    var files = (project.files || []).filter(function (f) { return /\.(c|h|inc)$/i.test(f.path); });
+    if (files.length > 1 && typeof C51 !== 'undefined' && C51.flattenProject) {
+      try {
+        var flat = C51.flattenProject(project.files);
+        C51.parseUnit(flat);
+        return { name: '工程 · ' + files.length + ' 个文件', text: flat, merged: true };
+      } catch (e) { /* 退回当前文件 */ }
+    }
+    return s;
+  }
+  function sendPinCode() {
+    var s = pinProgram();
+    if (!s) return null;
+    postHw({ type: 'hw:code', name: s.name, text: s.text, merged: !!s.merged });
     updatePinCapNote(s.text);
     return s;
   }
@@ -5211,6 +5269,18 @@ void keys_scan()
   var hlEl = $('hl'), marksEl = $('marks');
   var errLine = 0;
   var LINE_H = 23;
+  /* 手机端正文放大到 16px 后行高变了，标记层和居中滚动都按实际行高来 */
+  function syncLineH() {
+    try {
+      var lh = parseFloat(window.getComputedStyle(codeEl).lineHeight);
+      if (lh > 0 && Math.abs(lh - LINE_H) > 0.1) {
+        LINE_H = lh;
+        paintMarks();
+        refreshGutter();
+      }
+    } catch (e) { /* 拿不到计算样式就保持 23 */ }
+  }
+  window.addEventListener('resize', syncLineH);
 
   var HL_KW = {}, HL_TY = {}, HL_REG = {};
   ('if else while for do switch case default break continue return sizeof typedef struct union enum '
@@ -6398,6 +6468,8 @@ void keys_scan()
       hw = C51HW.createHardware();
       hw.bounce.on = bounceOn;
       vm = new C51.VM('', hw, unit.ast);
+      winState = {};
+      winTick = 0;
       codeStale = false;
       rebuildBpKeys();
       hw.syncAll(vm);
@@ -7028,6 +7100,65 @@ void keys_scan()
     ensureCaretVisible();
     markCodeChanged();
   }
+
+  /* ---------------- 手机软键盘工具条 ----------------
+     按钮走和键盘同样的 applyEdit()，撤销栈、行号、着色都跟着更新。 */
+  (function initSoftkeys() {
+    var bar = $('softkeys');
+    if (!bar || !bar.addEventListener) return;
+    var PAIRS = {
+      tab: ['\t', 0], brace: ['{}', 1], paren: ['()', 1], quote: ['""', 1],
+      block: ['/* */', 3], line: ['// ', 0], semi: [';', 0]
+    };
+    function insert(text, back) {
+      var v = codeEl.value, s = codeEl.selectionStart, e = codeEl.selectionEnd;
+      applyEdit(v.slice(0, s) + text + v.slice(e), s + text.length - back);
+      if (codeEl.focus) codeEl.focus();
+    }
+    function caretMove(dx, dy) {
+      var v = codeEl.value, s = codeEl.selectionStart, e = codeEl.selectionEnd, pos;
+      if (s !== e) {
+        pos = dx < 0 ? s : e;
+      } else {
+        pos = s;
+        if (dx) pos = Math.max(0, Math.min(v.length, pos + dx));
+        if (dy) {
+          var lineStart = v.lastIndexOf('\n', pos - 1) + 1;
+          var col = pos - lineStart;
+          if (dy < 0) {
+            if (lineStart === 0) return;
+            var prevStart = v.lastIndexOf('\n', lineStart - 2) + 1;
+            pos = prevStart + Math.min(col, lineStart - 1 - prevStart);
+          } else {
+            var lineEnd = v.indexOf('\n', pos);
+            if (lineEnd < 0) return;
+            var nextStart = lineEnd + 1;
+            var nextEnd = v.indexOf('\n', nextStart);
+            if (nextEnd < 0) nextEnd = v.length;
+            pos = nextStart + Math.min(col, nextEnd - nextStart);
+          }
+        }
+      }
+      codeEl.selectionStart = codeEl.selectionEnd = pos;
+      if (codeEl.focus) codeEl.focus();
+      updateCursor();
+      ensureCaretVisible();
+    }
+    bar.addEventListener('click', function (e) {
+      var b = e.target && e.target.closest ? e.target.closest('button[data-soft]') : null;
+      if (!b) return;
+      e.preventDefault();
+      var k = b.getAttribute('data-soft');
+      if (k === 'undo') { histUndo(); if (codeEl.focus) codeEl.focus(); return; }
+      if (k === 'redo') { histRedo(); if (codeEl.focus) codeEl.focus(); return; }
+      if (k === 'left') { caretMove(-1, 0); return; }
+      if (k === 'right') { caretMove(1, 0); return; }
+      if (k === 'up') { caretMove(0, -1); return; }
+      if (k === 'down') { caretMove(0, 1); return; }
+      var p = PAIRS[k];
+      if (p) insert(p[0], p[1] || 0);
+    });
+  })();
   codeEl.addEventListener('keydown', function (e) {
     if (e.isComposing || e.keyCode === 229) return;
     if (e.key === 'Escape' && acEl && !acEl.hidden) {
@@ -7383,6 +7514,7 @@ void keys_scan()
     lastTs = ts;
     if (state === 'running' && vm && !vm.done) {
       var pr = vm.pump(3000, dt * speed, checkBp);
+      checkWin();
       if (pr.stopped) {
         state = 'paused';
         pausedAtBp = true;
@@ -7438,6 +7570,7 @@ void keys_scan()
   buildPorts();
   buildExamples();
   setPage('code');
+  syncLineH();
   var hash = (typeof location !== 'undefined' && location.hash) || '';
   var m = /ex=([\w-]+)/.exec(hash);
   var hasSharedProject = /[#&]p=[A-Za-z0-9_-]+/.test(hash);

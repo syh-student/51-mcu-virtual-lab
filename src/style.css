@@ -1897,6 +1897,8 @@ body.zoomed .appbar { display: none; }
   transition: color .24s var(--ease);
 }
 .ex-btn .t { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ex-btn .ok { flex: none; font-size: 11px; line-height: 1; color: var(--ok); }
+.ex-btn.active .ok { color: var(--ok-ink, #1d7a55); }
 .ex-btn:hover { background: var(--panel); color: rgba(var(--fg-rgb), .88); }
 .ex-btn.active { background: var(--white); color: var(--bg); }
 .ex-btn.active .n { color: rgba(6, 40, 61, .6); }
@@ -3538,5 +3540,55 @@ html.desktop:not(.ios) .page.active {
   html.desktop:not(.ios) .ios-toast.on { animation: none !important; }
   html.desktop:not(.ios) .ios-toast { opacity: 1; }
   html.desktop:not(.ios) .seg-blob { transition: none !important; }
+}
+
+/* ==========================================================================
+   手机编辑：软键盘工具条 + 16px 正文（避免 iOS 聚焦时自动放大整个页面）
+   ========================================================================== */
+.softkeys { display: none; }
+
+@media (max-width: 760px) {
+  .softkeys {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+    padding: 6px 10px;
+    border-top: 1px solid var(--line-soft);
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .softkeys::-webkit-scrollbar { display: none; }
+  .softkeys button {
+    flex: none;
+    min-width: 34px;
+    height: 30px;
+    padding: 0 9px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: var(--hover);
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 28px;
+    white-space: nowrap;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .softkeys button:active {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .softkeys .sk-sep { flex: none; width: 1px; height: 18px; background: var(--line); margin: 0 2px; }
+
+  /* 行高和字号要三层一起改：文本层、高亮层、行号层，否则光标和行号会错位。
+     iOS 皮肤里有一条 html.ios #code 的 12.5px，特异性比 #code 高，必须一起覆盖。 */
+  html #hl, html #code,
+  html.ios #hl, html.ios #code { font-size: 16px; line-height: 27px; }
+  html #gutter, html.ios #gutter { line-height: 27px; }
+  html #gutter div, html.ios #gutter div { height: 27px; }
+  .editor-panel { height: 430px; }
 }
 

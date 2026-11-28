@@ -1709,8 +1709,55 @@
     return new Parser(tokenize(preprocess(src))).parseProgram();
   }
 
+  /* 把整个工程压成一个翻译单元：工程内的头文件按包含顺序各展开一次，
+     源文件排在后面（main.c 最后）。引脚板那套精简解释器只认单个文件，
+     用这个函数喂它，就不必再复制一份工程级链接器。
+     它不做 static 改名、也不查重复定义，所以只适合教学规模的小工程；
+     调用方应先 parseUnit() 试一遍，解析失败就退回当前文件。 */
+  function flattenProject(files) {
+    var list = (files || []).filter(function (f) { return /\.(c|h|inc)$/i.test(f.path); });
+    var byPath = {}, byBase = {};
+    list.forEach(function (f) {
+      if (!/\.h$/i.test(f.path)) return;
+      byPath[f.path] = f;
+      var b = baseName(f.path).toLowerCase();
+      if (!byBase[b]) byBase[b] = f;
+    });
+    var out = [], seenH = {}, seenReg = {};
+    function emit(f) {
+      out.push('/* ===== ' + f.path + ' ===== */');
+      String(f.content == null ? '' : f.content).replace(/\r\n?/g, '\n').split('\n').forEach(function (row) {
+        var inc = /^\s*#\s*include\s*"([^"]+)"/.exec(row);
+        if (inc) {
+          var hit = byPath[inc[1]] || byBase[baseName(inc[1]).toLowerCase()];
+          if (hit) { emitHeader(hit, 0); return; }
+          out.push('');
+          return;
+        }
+        /* 头文件被多个 .c 包含时 sbit / sfr 会重复声明，按声明内容去重 */
+        var reg = /^\s*(?:sbit|sfr)\s+([^;]+);/.exec(row);
+        if (reg) {
+          var key = reg[1].replace(/\s+/g, '');
+          if (seenReg[key]) { out.push(''); return; }
+          seenReg[key] = 1;
+        }
+        out.push(row);
+      });
+    }
+    function emitHeader(h, depth) {
+      if (!h || depth > 8 || seenH[h.path]) return;
+      seenH[h.path] = 1;
+      emit(h);
+    }
+    list.filter(function (f) { return /\.h$/i.test(f.path); }).forEach(function (h) { emitHeader(h, 0); });
+    var srcs = list.filter(function (f) { return !/\.h$/i.test(f.path); });
+    srcs.sort(function (a, b) { return rankOf(a.path) - rankOf(b.path) || cmpName(a.path, b.path); });
+    srcs.forEach(function (f) { emit(f); });
+    return out.join('\n');
+  }
+
   return { VM: VM, VmError: VmError, preprocess: preprocess, tokenize: tokenize,
-           parseUnit: parseUnit, compileProject: compileProject,
+           parseUnit: parseUnit, compileProject: compileProject, flattenProject: flattenProject,
            builtinNames: Object.keys(BUILTINS),
            sfrNames: SFR_NAMES.slice(), bitNames: Object.keys(BIT_ALIAS) };
 });

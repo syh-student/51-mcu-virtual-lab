@@ -1,0 +1,65 @@
+flowchart LR
+  subgraph SRC["核心逻辑 src/"]
+    direction TB
+    A["app.js · 271 KB<br/>页面编排 · 编辑器<br/>工程 / 分享 / 导出"]
+    V["vm.js · 64 KB<br/>51 指令执行 · SFR · 时序 trace"]
+    H["hw.js · 9.5 KB<br/>元件 · 导线 · 引脚电压"]
+    G["diagnostics.js<br/>静态提醒 · 诊断建议"]
+    E["examples.js<br/>例程库"]
+  end
+
+  subgraph BUILD["构建管线"]
+    direction TB
+    B["build.py<br/>模板合成 + 内联"]
+    EB["electron-builder<br/>portable + nsis"]
+  end
+
+  subgraph PAGE["页面产物"]
+    direction TB
+    I["index.html<br/>写代码 · 开发板 · 时序图 · 讲义"]
+    HH["hardware.html<br/>电路实验台 iframe"]
+  end
+
+  subgraph SUP["桌面支撑"]
+    direction TB
+    M["main.js / preload.js<br/>窗口 · IPC · 导出落盘"]
+    SW["sw.js<br/>离线缓存 v13"]
+  end
+
+  subgraph SHIP["交付形态"]
+    direction TB
+    W["网页版<br/>GitHub Pages · PWA 离线"]
+    D["桌面版<br/>便携版 / 安装版"]
+  end
+
+  subgraph QA["质量与巡检"]
+    direction TB
+    T["npm test 五套<br/>链接 · 按键 · 冒烟<br/>诊断 · 持久化"]
+    PU["Puppeteer 巡检 / 截图"]
+  end
+
+  A --> B
+  B --> I
+  B --> HH
+  I -->|嵌入 iframe| HH
+  I --> W
+  SW --> W
+  M --> D
+  EB --> D
+  T -.-> A
+
+
+  classDef core fill:#14161b,stroke:#5ee7e7,color:#e7ecf2
+  classDef build fill:#121416,stroke:#4a545e,color:#c3ccd4
+  classDef page fill:#101a24,stroke:#3f9ad6,color:#dbeaf7
+  classDef ship fill:#0e2a2b,stroke:#5ee7e7,color:#c8fbfb
+  classDef support fill:#121416,stroke:#4a545e,color:#c3ccd4
+  classDef qa fill:#1a1610,stroke:#c9a227,color:#f0e2b8
+
+  class A,V,H,G,E core
+  class B,EB build
+  class I,HH page
+  class W,D ship
+  class M,SW support
+  class T,PU qa
+

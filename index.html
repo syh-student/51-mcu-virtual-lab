@@ -10,7 +10,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="51 单片机 · 虚拟实验台">
 <meta property="og:title" content="51 单片机 · 虚拟实验台">
-<meta property="og:description" content="写 C51、跑开发板、量时序，全在一个离线网页里。15 个配套例程，无需开发板与 Keil。">
+<meta property="og:description" content="写 C51、跑开发板、量时序，全在一个离线网页里。16 个配套例程，无需开发板与 Keil。">
 <meta property="og:url" content="https://syh-student.github.io/51-mcu-virtual-lab/">
 <meta property="og:image" content="https://syh-student.github.io/51-mcu-virtual-lab/docs/screenshots/board.png">
 <meta property="og:image:width" content="1440">
@@ -1920,6 +1920,8 @@ body.zoomed .appbar { display: none; }
   transition: color .24s var(--ease);
 }
 .ex-btn .t { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ex-btn .ok { flex: none; font-size: 11px; line-height: 1; color: var(--ok); }
+.ex-btn.active .ok { color: var(--ok-ink, #1d7a55); }
 .ex-btn:hover { background: var(--panel); color: rgba(var(--fg-rgb), .88); }
 .ex-btn.active { background: var(--white); color: var(--bg); }
 .ex-btn.active .n { color: rgba(6, 40, 61, .6); }
@@ -3563,6 +3565,56 @@ html.desktop:not(.ios) .page.active {
   html.desktop:not(.ios) .seg-blob { transition: none !important; }
 }
 
+/* ==========================================================================
+   手机编辑：软键盘工具条 + 16px 正文（避免 iOS 聚焦时自动放大整个页面）
+   ========================================================================== */
+.softkeys { display: none; }
+
+@media (max-width: 760px) {
+  .softkeys {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+    padding: 6px 10px;
+    border-top: 1px solid var(--line-soft);
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .softkeys::-webkit-scrollbar { display: none; }
+  .softkeys button {
+    flex: none;
+    min-width: 34px;
+    height: 30px;
+    padding: 0 9px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: var(--hover);
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 28px;
+    white-space: nowrap;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .softkeys button:active {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .softkeys .sk-sep { flex: none; width: 1px; height: 18px; background: var(--line); margin: 0 2px; }
+
+  /* 行高和字号要三层一起改：文本层、高亮层、行号层，否则光标和行号会错位。
+     iOS 皮肤里有一条 html.ios #code 的 12.5px，特异性比 #code 高，必须一起覆盖。 */
+  html #hl, html #code,
+  html.ios #hl, html.ios #code { font-size: 16px; line-height: 27px; }
+  html #gutter, html.ios #gutter { line-height: 27px; }
+  html #gutter div, html.ios #gutter div { height: 27px; }
+  .editor-panel { height: 430px; }
+}
+
 
 </style>
 <link rel="manifest" href="manifest.webmanifest">
@@ -3798,6 +3850,24 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
           </div>
         </div>
 
+        <div class="softkeys" id="softkeys" role="toolbar" aria-label="代码输入辅助键">
+          <button type="button" data-soft="tab">Tab</button>
+          <button type="button" data-soft="brace">{}</button>
+          <button type="button" data-soft="paren">()</button>
+          <button type="button" data-soft="quote">" "</button>
+          <button type="button" data-soft="semi">;</button>
+          <button type="button" data-soft="line">//</button>
+          <button type="button" data-soft="block">/* */</button>
+          <span class="sk-sep"></span>
+          <button type="button" data-soft="left" aria-label="光标左移">←</button>
+          <button type="button" data-soft="right" aria-label="光标右移">→</button>
+          <button type="button" data-soft="up" aria-label="光标上移">↑</button>
+          <button type="button" data-soft="down" aria-label="光标下移">↓</button>
+          <span class="sk-sep"></span>
+          <button type="button" data-soft="undo" aria-label="撤销">↶</button>
+          <button type="button" data-soft="redo" aria-label="重做">↷</button>
+        </div>
+
         <div class="editor-foot">
           <span id="cur-file">main.c</span>
           <span id="cur-line">行 1，列 1</span>
@@ -3966,6 +4036,7 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
       <div class="panel-h">
         <span class="idx">01</span><h2>讲义例程</h2>
         <span class="hint">点一条就能打开</span>
+        <span class="hint" id="ex-progress" title="在功能板或写代码页运行，达成例程目标后自动记录">已通关 0 / 16</span>
         <span class="sp"></span>
       </div>
       <div class="panel-b" id="notes-list">
@@ -5794,8 +5865,55 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
     return new Parser(tokenize(preprocess(src))).parseProgram();
   }
 
+  /* 把整个工程压成一个翻译单元：工程内的头文件按包含顺序各展开一次，
+     源文件排在后面（main.c 最后）。引脚板那套精简解释器只认单个文件，
+     用这个函数喂它，就不必再复制一份工程级链接器。
+     它不做 static 改名、也不查重复定义，所以只适合教学规模的小工程；
+     调用方应先 parseUnit() 试一遍，解析失败就退回当前文件。 */
+  function flattenProject(files) {
+    var list = (files || []).filter(function (f) { return /\.(c|h|inc)$/i.test(f.path); });
+    var byPath = {}, byBase = {};
+    list.forEach(function (f) {
+      if (!/\.h$/i.test(f.path)) return;
+      byPath[f.path] = f;
+      var b = baseName(f.path).toLowerCase();
+      if (!byBase[b]) byBase[b] = f;
+    });
+    var out = [], seenH = {}, seenReg = {};
+    function emit(f) {
+      out.push('/* ===== ' + f.path + ' ===== */');
+      String(f.content == null ? '' : f.content).replace(/\r\n?/g, '\n').split('\n').forEach(function (row) {
+        var inc = /^\s*#\s*include\s*"([^"]+)"/.exec(row);
+        if (inc) {
+          var hit = byPath[inc[1]] || byBase[baseName(inc[1]).toLowerCase()];
+          if (hit) { emitHeader(hit, 0); return; }
+          out.push('');
+          return;
+        }
+        /* 头文件被多个 .c 包含时 sbit / sfr 会重复声明，按声明内容去重 */
+        var reg = /^\s*(?:sbit|sfr)\s+([^;]+);/.exec(row);
+        if (reg) {
+          var key = reg[1].replace(/\s+/g, '');
+          if (seenReg[key]) { out.push(''); return; }
+          seenReg[key] = 1;
+        }
+        out.push(row);
+      });
+    }
+    function emitHeader(h, depth) {
+      if (!h || depth > 8 || seenH[h.path]) return;
+      seenH[h.path] = 1;
+      emit(h);
+    }
+    list.filter(function (f) { return /\.h$/i.test(f.path); }).forEach(function (h) { emitHeader(h, 0); });
+    var srcs = list.filter(function (f) { return !/\.h$/i.test(f.path); });
+    srcs.sort(function (a, b) { return rankOf(a.path) - rankOf(b.path) || cmpName(a.path, b.path); });
+    srcs.forEach(function (f) { emit(f); });
+    return out.join('\n');
+  }
+
   return { VM: VM, VmError: VmError, preprocess: preprocess, tokenize: tokenize,
-           parseUnit: parseUnit, compileProject: compileProject,
+           parseUnit: parseUnit, compileProject: compileProject, flattenProject: flattenProject,
            builtinNames: Object.keys(BUILTINS),
            sfrNames: SFR_NAMES.slice(), bitNames: Object.keys(BIT_ALIAS) };
 });
@@ -6056,6 +6174,7 @@ window.EXAMPLES = [
     title: '点亮第一个 LED',
     chapter: '端口输出与低电平点亮',
     goal: '运行后，开发板上 D1（P2.0）保持点亮，其余 7 个熄灭。',
+    win: { desc: 'D1 点亮、其余熄灭', test: function (vm) { return vm.ports.P2 === 0xFE; } },
     points: [
       '8 个 LED 接在 P2 口，写 0 输出低电平，LED 点亮；写 1 熄灭。',
       '0xFE 的二进制是 1111 1110，只有最低位是 0，所以只亮 D1。',
@@ -6079,6 +6198,11 @@ void main()
     title: 'LED 闪烁与软件延时',
     chapter: '闪烁与软件延时',
     goal: 'D1 以大约 1 秒为周期闪烁（亮 500 ms、灭 500 ms）。',
+    win: { desc: 'D1 完成一次亮—灭', test: function (vm, hw, st) {
+      var b = vm.ports.P2 & 1;
+      if (st.b0 !== b) { st.b0 = b; st.flips = (st.flips || 0) + 1; }
+      return (st.flips || 0) >= 3;
+    } },
     points: [
       '闪烁 = 亮—等—灭—等 的循环，Delay 负责"等"。',
       '讲义里的 Delay 靠双层空循环耗时，12 MHz 下约 1 ms 一轮。',
@@ -6119,6 +6243,14 @@ void main()
     title: '流水灯',
     chapter: '流水灯',
     goal: '亮点从 D1 依次移动到 D8，循环往复。',
+    win: { desc: '亮点走过 4 个以上位置', test: function (vm, hw, st) {
+      var v = vm.ports.P2, n = 0;
+      for (var i = 0; i < 8; i++) if (((v >> i) & 1) === 0) n++;
+      if (n !== 1) return false;
+      st.seen = st.seen || {};
+      st.seen[v] = 1;
+      return Object.keys(st.seen).length >= 4;
+    } },
     points: [
       '流水灯的本质：让"为 0 的那一位"在 8 位里循环移动。',
       '_crol_ 是循环左移，移出去的位会回到另一端；普通 << 会把位移丢。',
@@ -6147,6 +6279,13 @@ void main()
     title: '独立按键控制 LED',
     chapter: '独立按键与消抖',
     goal: '点住开发板上的 K1~K4，对应的 LED 亮起；松手后保持最后按下的那一路。',
+    win: { desc: '按 K1~K4 点亮对应的 LED', test: function (vm, hw, st) {
+      ['K1', 'K2', 'K3', 'K4'].forEach(function (k) { if (hw.keys[k] === 0) st.key = k; });
+      if (!st.key) return false;
+      var v = vm.ports.P2, n = 0;
+      for (var i = 0; i < 8; i++) if (((v >> i) & 1) === 0) n++;
+      return n === 1;
+    } },
     points: [
       'K1~K4 分别接 P3.1、P3.0、P3.2、P3.3，按下为低电平。',
       '消抖 = 读到低电平后 Delay(20) 再确认一次。',
@@ -6185,10 +6324,67 @@ void main()
 `
   },
   {
+    id: 'led-flow-key',
+    title: '流水灯 + 按键全亮',
+    chapter: '流水灯与按键组合',
+    goal: 'LED1~LED8 依次流水，每个 200ms；按住 K1 时 8 个灯全亮，松开后从 LED1 重新流水。',
+    win: { desc: '按住 K1，8 个灯全亮', test: function (vm, hw) {
+      return hw.keys.K1 === 0 && vm.ports.P2 === 0x00;
+    } },
+    points: [
+      '流水灯用 ~(1 << i) 让 0 在 P2 的 8 位里移动，低电平点亮。',
+      '把 200ms 拆成 200 个 1ms，按键才能及时响应；直接 Delay(200) 要等满 200ms 才全亮。',
+      '按住 K1 时 P2=0x00，8 个灯全亮；while (P3_1 == 0); 等松手，松手后重新开始。',
+      '这是阻塞式写法；想让按键和流水互不影响，可以改用定时器中断。'
+    ],
+    quiz: ['把内层 200 改成 20，流水速度会怎么变？', '如果松开后想从当前灯继续，而不是从 LED1 重来，代码该怎么改？'],
+    code: `#include <REGX52.H>
+
+sbit KEY = P3^1;            // K1
+
+void Delay(unsigned int xms);   // 实验台内置
+
+void main()
+{
+    unsigned char i, t, pressed;
+
+    P2 = 0xFF;                  // 全灭
+    while (1)
+    {
+        pressed = 0;
+        for (i = 0; i < 8; i++)
+        {
+            P2 = ~(1 << i);     // 只点亮第 i 个
+            for (t = 0; t < 200; t++)
+            {
+                Delay(1);       // 拆成 1ms，按键才能及时响应
+                if (KEY == 0)
+                {
+                    P2 = 0x00;  // 8 个灯全亮
+                    while (KEY == 0);  // 等松手
+                    Delay(10);  // 松手消抖
+                    pressed = 1;
+                    break;
+                }
+            }
+            if (pressed) break; // 松手后从 LED1 重新开始
+        }
+    }
+}
+`
+  },
+  {
     id: 'key-count',
     title: '按键计数，二进制显示',
     chapter: '按键计数与二进制显示',
     goal: '每按一次 K1，计数加一，8 个 LED 用二进制显示这个数。',
+    win: { desc: '按两次 K1，LED 显示 2', test: function (vm, hw, st) {
+      if (hw.keys.K1 === 0) st.k = 1;
+      if (!st.k) return false;
+      st.seen = st.seen || {};
+      st.seen[vm.ports.P2] = 1;
+      return Object.keys(st.seen).length >= 2;
+    } },
     points: [
       '把 P2 当成一个 8 位显示器：P2 = ~Count，用 LED 直接看二进制。',
       '~ 是按位取反，因为 LED 低电平点亮，所以要反过来。',
@@ -6222,6 +6418,10 @@ void main()
     title: '数码管动态扫描显示 1234',
     chapter: '数码管位选、段选与消影',
     goal: '8 位数码管的前 4 位稳定显示 1 2 3 4，不闪烁、不重影。',
+    win: { desc: '前四位显示 1 2 3 4', test: function (vm, hw) {
+      return hw.nixie[0] === 0x06 && hw.nixie[1] === 0x5B
+        && hw.nixie[2] === 0x4F && hw.nixie[3] === 0x66;
+    } },
     points: [
       '共阴数码管：段码高电平点亮，数字 1 的段码是 0x06。',
       '8 位共用 P0 做段选，位选由 P2.4/P2.3/P2.2 经 74HC138 译码。',
@@ -6271,6 +6471,10 @@ void main()
     title: 'LCD1602 显示两行文字',
     chapter: 'LCD1602 初始化与写操作',
     goal: '液晶屏第一行显示 Hello 51!，第二行显示 STC89C52RC。',
+    win: { desc: '屏幕上出现两行文字', test: function (vm, hw) {
+      var t = hw.lcdText();
+      return t[0].indexOf('Hello 51!') === 0 && t[1].indexOf('STC89C52RC') === 0;
+    } },
     points: [
       'RS=P2.6 选数据/指令，RW=P2.5 选读/写，E=P2.7 下降沿执行。',
       'P0 是 8 位数据总线；第二行地址要加 0x40。',
@@ -6344,6 +6548,7 @@ void main()
     title: '蜂鸣器提示音',
     chapter: '蜂鸣器提示音',
     goal: '蜂鸣器图标周期性闪动，表示正在以约 1 kHz 翻转；可打开声音听到"嘀"声。',
+    win: { desc: '蜂鸣器开始翻转', test: function (vm, hw) { return hw.buzzer.flips >= 20; } },
     points: [
       '开发板蜂鸣器接 P1.5，是无源蜂鸣器：必须给方波才响。',
       '每 500 μs 翻转一次，周期 1 ms，对应约 1 kHz。',
@@ -6378,6 +6583,10 @@ void main()
     title: '综合：按键计数器（数码管显示）',
     chapter: '按键与显示组合',
     goal: '数码管显示 0000，每按一次 K1 数字加一；按住不放时观察显示的变化。',
+    win: { desc: '按一次 K1，数码管变成 0001', test: function (vm, hw, st) {
+      if (hw.keys.K1 === 0) st.k = 1;
+      return !!st.k && hw.nixie[0] === 0x3F && hw.nixie[3] === 0x06;
+    } },
     points: [
       '主循环一边扫描数码管，一边检测按键，这是"多任务"的雏形。',
       '按住 K1 时程序停在"等待松手"，扫描被拖慢，显示会变暗甚至只剩一位。',
@@ -6434,6 +6643,11 @@ void main()
     title: '矩阵键盘读键码',
     chapter: '矩阵键盘与行列扫描',
     goal: '按住开发板上 4×4 键盘里的任意一个键，1602 第一行显示它的键码（1~16）。',
+    win: { desc: '按任意矩阵键，屏幕显示键码', test: function (vm, hw, st) {
+      for (var i = 0; i < hw.matrix.length; i++) if (hw.matrix[i]) st.m = 1;
+      if (!st.m) return false;
+      return /^(0[1-9]|1[0-6])\s*$/.test(hw.lcdText()[1]);
+    } },
     points: [
       '16 个键只占 8 根线：4 行接 P1.7~P1.4，4 列接 P1.3~P1.0。',
       '扫描原理：把某一列拉低，再逐个读 4 行；哪一行为 0，就说明"这一行 + 这一列"的键被按下。',
@@ -6556,6 +6770,11 @@ void main()
     title: '定时器中断做秒表',
     chapter: '定时器与中断（1ms 中断）',
     goal: '数码管显示 分-秒，从 00-00 开始每秒加一，到 00-59 进位。',
+    win: { desc: '秒位开始走字', test: function (vm, hw, st) {
+      st.seen = st.seen || {};
+      if (hw.nixie[4]) st.seen[hw.nixie[4]] = 1;
+      return Object.keys(st.seen).length >= 2;
+    } },
     points: [
       'TMOD 低 4 位选定时器 0；0x01 = 16 位定时，不自装载。',
       '12 MHz 下一个机器周期 1 μs，定 1 ms 就是数 1000 个数：初值 = 65536 - 1000 = 0xFC18。',
@@ -6645,6 +6864,9 @@ void main()
     title: '串口发送 Hello',
     chapter: '串口发送与 printf 调试',
     goal: '每秒钟往串口发两行文字；切到左下角「串口」标签就能看到输出。',
+    win: { desc: '串口收到 Hello 51!', test: function (vm) {
+      return vm.serial.indexOf('Hello 51!') >= 0;
+    } },
     points: [
       'SBUF 是发送/接收共用的一个字节寄存器，写进去就启动一次发送。',
       'while (TI == 0); 在等"发送完成"；发完硬件把 TI 置 1，要由软件清零。',
@@ -6711,6 +6933,10 @@ void main()
     title: '外部中断：K3 一按就响应',
     chapter: '外部中断 INT0 / INT1',
     goal: '按下 K3（P3.2）瞬间进中断，8 个 LED 按次数加一；主循环里一行按键代码都没有。',
+    win: { desc: '按一下 K3，LED 计数加一', test: function (vm, hw, st) {
+      if (hw.keys.K3 === 0) st.k3 = 1;
+      return !!st.k3 && vm.ports.P2 !== 0xFF;
+    } },
     points: [
       'INT0 接在 P3.2，板上正好是 K3；按下瞬间电平从高变低，就是一个下降沿。',
       'IT0 = 1 选下降沿触发；IT0 = 0 是低电平触发——按住 K3 不放会反复进中断。',
@@ -6755,6 +6981,7 @@ void Int0_Routine(void) interrupt 0
     title: '串口回显（接收 + interrupt 4）',
     chapter: '串口接收与调试',
     goal: '在左下角「串口」标签的输入框打字发送，板子收到什么就原样发回来（回显）。',
+    win: { desc: '串口收到回显', test: function (vm) { return vm.serial.length > 0; } },
     points: [
       'REN = 1 才允许接收；SCON = 0x50 比发送版的 0x40 多的那一位就是 REN。',
       '收到的字节进 SBUF 并把 RI 置 1，RI 必须软件清零——规矩和 TI 完全对称。',
@@ -7761,6 +7988,45 @@ void main()
     });
   }
 
+  /* ---------------- 例程通关：达成目标后记到本地 ---------------- */
+  var PROGRESS_KEY = 'mcu51.progress.v1';
+  var exBtn = {}, exOption = {}, winState = {}, winTick = 0;
+
+  function readProgress() {
+    try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; } catch (e) { return {}; }
+  }
+  function paintProgress() {
+    var p = readProgress(), n = 0;
+    window.EXAMPLES.forEach(function (ex) {
+      if (p[ex.id]) n++;
+      var b = exBtn[ex.id];
+      if (b && b._ok) b._ok.hidden = !p[ex.id];
+      var o = exOption[ex.id];
+      if (o) o.textContent = (p[ex.id] ? '✓ ' : '') + o._base;
+    });
+    var hint = $('ex-progress');
+    if (hint) hint.textContent = '已通关 ' + n + ' / ' + window.EXAMPLES.length;
+  }
+  function markExampleDone(ex) {
+    var p = readProgress();
+    if (p[ex.id]) return;
+    p[ex.id] = Date.now();
+    try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); } catch (e) { /* 存不进去也不打断运行 */ }
+    paintProgress();
+    showToast('通关：' + ex.title);
+    log('通关「' + ex.title + '」——' + ex.win.desc, 'ok');
+  }
+  /* 每帧都问太浪费，三条语句才判一次；判定函数自己维护跨帧状态 */
+  function checkWin() {
+    if (!curExample || !curExample.win || !vm || !hw || winState.done) return;
+    if ((winTick++ % 3) !== 0) return;
+    var ok = false;
+    try { ok = !!curExample.win.test(vm, hw, winState); } catch (e) { ok = false; }
+    if (!ok) return;
+    winState.done = true;
+    markExampleDone(curExample);
+  }
+
   function buildExamples() {
     var host = $('ex-list');
     var sel = $('ex-select');
@@ -7776,12 +8042,21 @@ void main()
       t.textContent = ex.title;
       b.appendChild(n);
       b.appendChild(t);
+      var okMark = document.createElement('span');
+      okMark.className = 'ok';
+      okMark.textContent = '✓';
+      okMark.hidden = true;
+      b.appendChild(okMark);
+      b._ok = okMark;
+      exBtn[ex.id] = b;
       b.onclick = function () { requestExample(ex.id, false); };
       host.appendChild(b);
       if (sel) {
         var o = document.createElement('option');
         o.value = ex.id;
-        o.textContent = (i + 1 < 10 ? '0' : '') + (i + 1) + '  ' + ex.title;
+        o._base = (i + 1 < 10 ? '0' : '') + (i + 1) + '  ' + ex.title;
+        o.textContent = o._base;
+        exOption[ex.id] = o;
         sel.appendChild(o);
       }
     });
@@ -7790,6 +8065,7 @@ void main()
         if (this.value) requestExample(this.value, true);
       };
     }
+    paintProgress();
   }
 
   /* 讲义页「在编辑器打开」：当前例程在加载时已进编辑器，这里只负责切页聚焦 */
@@ -7887,10 +8163,8 @@ void main()
   }
   function pinGaps(text) {
     var gaps = [], t = text || '';
-    if (/#include\s*[<"](LCD|LCD1602|LCD12864)/i.test(t) || /\bLCD_[A-Za-z0-9_]*\s*\(/i.test(t)) gaps.push('LCD');
-    if (/\b(SBUF|SCON)\b/.test(t)) gaps.push('串口');
-    if (/\b(interrupt\s+\d|TMOD|TH0|TL0|TH1|TL1)\b/i.test(t)) gaps.push('定时器/中断');
-    if (/\bPic\s*\[/.test(t)) gaps.push('8×8 点阵');
+    /* 引脚板已有 LCD1602、串口、定时器/中断和点阵，只差 12864 的控制器 */
+    if (/LCD12864/i.test(t)) gaps.push('LCD12864');
     return gaps;
   }
   function updatePinCapNote(text) {
@@ -7899,12 +8173,8 @@ void main()
     if (boardView !== 'pin') { box.hidden = true; return; }
     var src = text != null ? text : currentSource().text;
     var gaps = pinGaps(src);
-    var multi = (project.files || []).filter(function (x) { return /\.c$/i.test(x.path); }).length > 1;
-    var parts = [];
-    if (gaps.length) parts.push('当前代码用到 ' + gaps.join('、') + '，引脚板不显示这部分');
-    if (multi) parts.push('多文件工程只运行当前文件');
-    if (!parts.length) { box.hidden = true; return; }
-    note.textContent = parts.join('；') + '。完整效果请用功能板。';
+    if (!gaps.length) { box.hidden = true; return; }
+    note.textContent = '当前代码用到 ' + gaps.join('、') + '，引脚板不显示这部分。完整效果请用功能板。';
     box.hidden = false;
   }
 
@@ -7943,10 +8213,25 @@ void main()
     var text = (f.path === project.active && codeEl) ? codeEl.value : f.content;
     return { name: f.path, text: text };
   }
-  function sendPinCode() {
+  /* 引脚板那套解释器只吃单个文件：多文件工程先把工程压平成一份翻译单元，
+     压平后解析不过（例如 static 重名）再退回当前打开的文件。 */
+  function pinProgram() {
     var s = currentSource();
     if (!s) return null;
-    postHw({ type: 'hw:code', name: s.name, text: s.text });
+    var files = (project.files || []).filter(function (f) { return /\.(c|h|inc)$/i.test(f.path); });
+    if (files.length > 1 && typeof C51 !== 'undefined' && C51.flattenProject) {
+      try {
+        var flat = C51.flattenProject(project.files);
+        C51.parseUnit(flat);
+        return { name: '工程 · ' + files.length + ' 个文件', text: flat, merged: true };
+      } catch (e) { /* 退回当前文件 */ }
+    }
+    return s;
+  }
+  function sendPinCode() {
+    var s = pinProgram();
+    if (!s) return null;
+    postHw({ type: 'hw:code', name: s.name, text: s.text, merged: !!s.merged });
     updatePinCapNote(s.text);
     return s;
   }
@@ -12175,6 +12460,18 @@ void keys_scan()
   var hlEl = $('hl'), marksEl = $('marks');
   var errLine = 0;
   var LINE_H = 23;
+  /* 手机端正文放大到 16px 后行高变了，标记层和居中滚动都按实际行高来 */
+  function syncLineH() {
+    try {
+      var lh = parseFloat(window.getComputedStyle(codeEl).lineHeight);
+      if (lh > 0 && Math.abs(lh - LINE_H) > 0.1) {
+        LINE_H = lh;
+        paintMarks();
+        refreshGutter();
+      }
+    } catch (e) { /* 拿不到计算样式就保持 23 */ }
+  }
+  window.addEventListener('resize', syncLineH);
 
   var HL_KW = {}, HL_TY = {}, HL_REG = {};
   ('if else while for do switch case default break continue return sizeof typedef struct union enum '
@@ -13362,6 +13659,8 @@ void keys_scan()
       hw = C51HW.createHardware();
       hw.bounce.on = bounceOn;
       vm = new C51.VM('', hw, unit.ast);
+      winState = {};
+      winTick = 0;
       codeStale = false;
       rebuildBpKeys();
       hw.syncAll(vm);
@@ -13992,6 +14291,65 @@ void keys_scan()
     ensureCaretVisible();
     markCodeChanged();
   }
+
+  /* ---------------- 手机软键盘工具条 ----------------
+     按钮走和键盘同样的 applyEdit()，撤销栈、行号、着色都跟着更新。 */
+  (function initSoftkeys() {
+    var bar = $('softkeys');
+    if (!bar || !bar.addEventListener) return;
+    var PAIRS = {
+      tab: ['\t', 0], brace: ['{}', 1], paren: ['()', 1], quote: ['""', 1],
+      block: ['/* */', 3], line: ['// ', 0], semi: [';', 0]
+    };
+    function insert(text, back) {
+      var v = codeEl.value, s = codeEl.selectionStart, e = codeEl.selectionEnd;
+      applyEdit(v.slice(0, s) + text + v.slice(e), s + text.length - back);
+      if (codeEl.focus) codeEl.focus();
+    }
+    function caretMove(dx, dy) {
+      var v = codeEl.value, s = codeEl.selectionStart, e = codeEl.selectionEnd, pos;
+      if (s !== e) {
+        pos = dx < 0 ? s : e;
+      } else {
+        pos = s;
+        if (dx) pos = Math.max(0, Math.min(v.length, pos + dx));
+        if (dy) {
+          var lineStart = v.lastIndexOf('\n', pos - 1) + 1;
+          var col = pos - lineStart;
+          if (dy < 0) {
+            if (lineStart === 0) return;
+            var prevStart = v.lastIndexOf('\n', lineStart - 2) + 1;
+            pos = prevStart + Math.min(col, lineStart - 1 - prevStart);
+          } else {
+            var lineEnd = v.indexOf('\n', pos);
+            if (lineEnd < 0) return;
+            var nextStart = lineEnd + 1;
+            var nextEnd = v.indexOf('\n', nextStart);
+            if (nextEnd < 0) nextEnd = v.length;
+            pos = nextStart + Math.min(col, nextEnd - nextStart);
+          }
+        }
+      }
+      codeEl.selectionStart = codeEl.selectionEnd = pos;
+      if (codeEl.focus) codeEl.focus();
+      updateCursor();
+      ensureCaretVisible();
+    }
+    bar.addEventListener('click', function (e) {
+      var b = e.target && e.target.closest ? e.target.closest('button[data-soft]') : null;
+      if (!b) return;
+      e.preventDefault();
+      var k = b.getAttribute('data-soft');
+      if (k === 'undo') { histUndo(); if (codeEl.focus) codeEl.focus(); return; }
+      if (k === 'redo') { histRedo(); if (codeEl.focus) codeEl.focus(); return; }
+      if (k === 'left') { caretMove(-1, 0); return; }
+      if (k === 'right') { caretMove(1, 0); return; }
+      if (k === 'up') { caretMove(0, -1); return; }
+      if (k === 'down') { caretMove(0, 1); return; }
+      var p = PAIRS[k];
+      if (p) insert(p[0], p[1] || 0);
+    });
+  })();
   codeEl.addEventListener('keydown', function (e) {
     if (e.isComposing || e.keyCode === 229) return;
     if (e.key === 'Escape' && acEl && !acEl.hidden) {
@@ -14347,6 +14705,7 @@ void keys_scan()
     lastTs = ts;
     if (state === 'running' && vm && !vm.done) {
       var pr = vm.pump(3000, dt * speed, checkBp);
+      checkWin();
       if (pr.stopped) {
         state = 'paused';
         pausedAtBp = true;
@@ -14402,6 +14761,7 @@ void keys_scan()
   buildPorts();
   buildExamples();
   setPage('code');
+  syncLineH();
   var hash = (typeof location !== 'undefined' && location.hash) || '';
   var m = /ex=([\w-]+)/.exec(hash);
   var hasSharedProject = /[#&]p=[A-Za-z0-9_-]+/.test(hash);

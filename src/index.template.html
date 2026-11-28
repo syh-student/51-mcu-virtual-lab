@@ -10,7 +10,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="51 单片机 · 虚拟实验台">
 <meta property="og:title" content="51 单片机 · 虚拟实验台">
-<meta property="og:description" content="写 C51、跑开发板、量时序，全在一个离线网页里。15 个配套例程，无需开发板与 Keil。">
+<meta property="og:description" content="写 C51、跑开发板、量时序，全在一个离线网页里。16 个配套例程，无需开发板与 Keil。">
 <meta property="og:url" content="https://syh-student.github.io/51-mcu-virtual-lab/">
 <meta property="og:image" content="https://syh-student.github.io/51-mcu-virtual-lab/docs/screenshots/board.png">
 <meta property="og:image:width" content="1440">
@@ -256,6 +256,24 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
           </div>
         </div>
 
+        <div class="softkeys" id="softkeys" role="toolbar" aria-label="代码输入辅助键">
+          <button type="button" data-soft="tab">Tab</button>
+          <button type="button" data-soft="brace">{}</button>
+          <button type="button" data-soft="paren">()</button>
+          <button type="button" data-soft="quote">" "</button>
+          <button type="button" data-soft="semi">;</button>
+          <button type="button" data-soft="line">//</button>
+          <button type="button" data-soft="block">/* */</button>
+          <span class="sk-sep"></span>
+          <button type="button" data-soft="left" aria-label="光标左移">←</button>
+          <button type="button" data-soft="right" aria-label="光标右移">→</button>
+          <button type="button" data-soft="up" aria-label="光标上移">↑</button>
+          <button type="button" data-soft="down" aria-label="光标下移">↓</button>
+          <span class="sk-sep"></span>
+          <button type="button" data-soft="undo" aria-label="撤销">↶</button>
+          <button type="button" data-soft="redo" aria-label="重做">↷</button>
+        </div>
+
         <div class="editor-foot">
           <span id="cur-file">main.c</span>
           <span id="cur-line">行 1，列 1</span>
@@ -424,6 +442,7 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
       <div class="panel-h">
         <span class="idx">01</span><h2>讲义例程</h2>
         <span class="hint">点一条就能打开</span>
+        <span class="hint" id="ex-progress" title="在功能板或写代码页运行，达成例程目标后自动记录">已通关 0 / 16</span>
         <span class="sp"></span>
       </div>
       <div class="panel-b" id="notes-list">

@@ -525,6 +525,29 @@ main { position: relative; z-index: 1; flex: 1; min-height: 0; width: 100%; max-
 .pin-hud { position: absolute; right: 8px; bottom: 8px; z-index: 2; pointer-events: none;
   font-family: var(--mono); font-size: 9px; color: rgba(198,224,246,.6);
   background: rgba(4,10,16,.6); border: 1px solid rgba(160,200,240,.12); padding: 2px 6px; border-radius: 4px; }
+/* 板载外设：LCD1602 + 串口输出，贴在画布下沿，不挡板面 */
+.pin-periph { flex: none; display: flex; gap: 10px; padding: 8px 12px; border-top: 1px solid var(--line-soft); }
+.pp-card { min-width: 0; display: flex; flex-direction: column; border-radius: 8px;
+  background: rgba(0,0,0,.22); border: 1px solid var(--line-soft); padding: 6px 8px; }
+.pp-lcd { flex: 0 0 auto; }
+.pp-serial { flex: 1 1 auto; }
+.pp-h { display: flex; align-items: center; gap: 6px; margin-bottom: 4px;
+  font-size: 9px; color: var(--faint); }
+.pp-h b { color: var(--muted); font-size: 9.5px; font-weight: 600; letter-spacing: .04em; }
+.pp-h .sp { flex: 1; }
+.pp-h .ghost { font-size: 9px; line-height: 15px; padding: 1px 7px; }
+.pin-lcd { display: flex; flex-direction: column; gap: 1px; padding: 5px 8px; border-radius: 5px;
+  background: linear-gradient(180deg, #adc97e 0%, #98b566 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), inset 0 -2px 6px rgba(0,0,0,.18); }
+.pin-lcd.off { opacity: .55; }
+.lcd-line { font-family: var(--mono); font-size: 11px; line-height: 1.5; letter-spacing: 1.2px;
+  color: #1d2a14; white-space: pre; }
+.pin-term { flex: 1; min-height: 46px; max-height: 62px; overflow: auto; margin: 0;
+  padding: 4px 7px; border-radius: 5px; border: 1px solid var(--line-soft); background: rgba(0,0,0,.34);
+  font-family: var(--mono); font-size: 9.5px; line-height: 1.55; color: #b9e3bd;
+  white-space: pre-wrap; word-break: break-all; }
+.pin-term.empty { color: var(--faint); }
+@media (max-width: 900px) { .pin-periph { flex-direction: column; } }
 #pin-svg .pin { cursor: pointer; }
 #pin-svg .pin-hit { fill: transparent; transition: fill .12s; }
 #pin-svg .pin:hover .pin-hit { fill: rgba(120,200,255,.26); }
@@ -1074,7 +1097,7 @@ window.addEventListener('message', function (e) {
   </div>
   <div class="head-right">
     <span class="head-note">电阻电容电感 · 二极管三极管 · 电路定理</span>
-    <span class="build-tag" id="build-tag">构建 11-28 13:34</span>
+    <span class="build-tag" id="build-tag">构建 11-28 14:33</span>
   </div>
 </header>
 
@@ -1224,6 +1247,20 @@ window.addEventListener('message', function (e) {
           <div class="pin-tip" id="pin-tip"></div>
           <div class="pin-hud" id="pin-hud">100%</div>
         </div>
+        <!-- 板载外设：程序写到 P0 / P2 上，这里直接出结果 -->
+        <div class="pin-periph">
+          <div class="pp-card pp-lcd">
+            <div class="pp-h"><b>LCD1602</b><span id="pin-lcd-sub">RS=P2.6 · RW=P2.5 · E=P2.7 · 数据 P0</span></div>
+            <div class="pin-lcd off" id="pin-lcd">
+              <div class="lcd-line" id="pin-lcd-r0">                </div>
+              <div class="lcd-line" id="pin-lcd-r1">                </div>
+            </div>
+          </div>
+          <div class="pp-card pp-serial">
+            <div class="pp-h"><b>串口 UART</b><span class="sp"></span><button id="pin-serial-clear" class="ghost" type="button">清空</button></div>
+            <pre class="pin-term empty" id="pin-serial">（还没有串口输出）</pre>
+          </div>
+        </div>
         <div class="canvas-foot">
           <span id="pin-msg">就绪 · 点「运行」看程序在板上跑</span>
         </div>
@@ -1235,11 +1272,12 @@ window.addEventListener('message', function (e) {
         <div class="panel-b pin-info-box" id="pin-info">
           <div class="pin-info-title">51 实验板</div>
           <div class="pin-info-sub">STC89C52RC · 12MHz · 5V</div>
-          <div class="pin-info-desc">课程硬件篇的开发板原型：40 脚单片机 + 8 位数码管 + 8×8 点阵 + 4×4 矩阵键盘 + 8 只 LED + 蜂鸣器。</div>
+          <div class="pin-info-desc">课程硬件篇的开发板原型：40 脚单片机 + 8 位数码管 + 8×8 点阵 + 4×4 矩阵键盘 + 8 只 LED + 蜂鸣器 + LCD1602 接口 + 串口。</div>
           <ul class="pin-list">
             <li>选一个例程点「运行」，板上会跟着程序动</li>
             <li>滚轮放大、拖动平移，鼠标移到引脚上看名称</li>
             <li>点芯片可放大到引脚级，点外设看课程知识点</li>
+            <li>LCD1602 和串口输出在板子下方，程序和主编辑器共用</li>
           </ul>
         </div>
         <div class="panel-h sub-h"><span class="idx">05</span><h2>40 脚一览</h2><span class="sp"></span>
@@ -7359,7 +7397,7 @@ window.addEventListener('message', function (e) {
       warn: '常见错误：不消抖导致一次按下触发多次；把按键接成上拉还读反。' },
     { id: 'buzzer', name: '蜂鸣器', rect: [20, 224, 106, 108], port: 'P2.5',
       chapter: '课程 第 12 章',
-      desc: '黑色圆片是无源蜂鸣器，内部没有振荡源，必须由 IO 输出对应频率的方波才发声。板上经三极管驱动，P2.5 输出方波。',
+      desc: '黑色圆片是无源蜂鸣器，内部没有振荡源，必须由 IO 输出对应频率的方波才发声。板上经三极管驱动，P2.5 输出方波；课程例程里常写成 P1.5，仿真里两个脚都认。',
       points: ['无源：给方波，频率决定音高', '半周期 500μs → 1kHz', '有源：给电平就响，频率固定'],
       warn: '常见错误：把无源当有源用，只有"哒"一声。' },
     { id: 'usb', name: 'USB 下载口', rect: [24, 632, 84, 74], port: 'P3.0 / P3.1',
@@ -8006,13 +8044,46 @@ window.addEventListener('message', function (e) {
   var vm = null, hw = null, running = false, rafId = 0, speed = 6;
   window.__pinDebug = function () {
     return { running: running, hw: hw && hw.debug ? hw.debug() : null,
-      ports: { P0: levels.P0, P1: levels.P1, P2: levels.P2, P3: levels.P3 } };
+      ports: { P0: levels.P0, P1: levels.P1, P2: levels.P2, P3: levels.P3 },
+      lcd: { row0: lcdRow(0x00), row1: lcdRow(0x40), writes: lcd.writes },
+      serial: vm ? vm.serial : '' };
   };
   var levels = { P0: 255, P1: 255, P2: 255, P3: 255 };
   var selected = null, wires = [], showNames = false;
   var cam = { x: 0, y: 0, k: 1 }, camRaf = 0;
-  var lastP25 = 0, buzzAt = 0;
+  var buzzBit = { P1: 1, P2: 1 }, buzzAt = 0;
+  /* LCD1602：E 下降沿把 P0 上的字节写进 DDRAM；RW=1 是读，忽略。
+     active 只由 P2.5/P2.6/P2.7 的位写点亮，避免普通 P2 口赋值误触发。 */
+  var lcd = { ddram: new Array(80).fill(32), addr: 0, active: false, seenAt: -1e9, writes: 0, dirty: true };
+  var lastSerialLen = -1;
   var pressed = { m: {}, k: {} };
+
+  function lcdFresh() {
+    return !!(vm && lcd.active && (vm.vtime - lcd.seenAt) < 20);
+  }
+  function lcdRow(base) {
+    var s = '';
+    for (var i = 0; i < 16; i++) {
+      var c = lcd.ddram[base + i];
+      s += (c >= 32 && c <= 126) ? String.fromCharCode(c) : ' ';
+    }
+    return s;
+  }
+  function lcdWrite(rs, data) {
+    lcd.writes++;
+    lcd.dirty = true;
+    if (rs) {
+      if (lcd.addr >= 0 && lcd.addr < 80) lcd.ddram[lcd.addr] = data & 0xFF;
+      lcd.addr = lcd.addr === 0x27 ? 0x40 : (lcd.addr + 1) % 80;
+    } else if (data === 0x01) {
+      lcd.ddram = new Array(80).fill(32);
+      lcd.addr = 0;
+    } else if (data === 0x02) {
+      lcd.addr = 0;
+    } else if (data & 0x80) {
+      lcd.addr = data & 0x7F;
+    }
+  }
 
   /* ---------------- 画板 ---------------- */
   var camG = document.createElementNS(NS, 'g');
@@ -8407,8 +8478,6 @@ window.addEventListener('message', function (e) {
     }
   }
   function paintBuzz() {
-    var bit = (levels.P2 >> 5) & 1;
-    if (bit !== lastP25) { lastP25 = bit; buzzAt = performance.now(); }
     var on = performance.now() - buzzAt < 220;
     refs.buzzer.setAttribute('opacity', on ? 0.55 + 0.35 * Math.sin(performance.now() / 40) : 0);
   }
@@ -8423,12 +8492,27 @@ window.addEventListener('message', function (e) {
       syncAll: function () {},
       /* 位写（P1_3 = 0 这类）也要走一遍，VM 会无条件调用它 */
       onBitWrite: function (port, bit, v) {
-        if (port === 'P2' && bit === 5 && v === 0) buzzAt = performance.now();
+        /* 程序一动 LCD 的三根控制线，就认为这块屏在用，P0 不再当段码 */
+        if (port === 'P2' && bit >= 5 && bit <= 7) {
+          lcd.active = true;
+          lcd.seenAt = vm ? vm.vtime : 0;
+        }
+        /* 蜂鸣器：本板 P2.5，课程例程用 P1.5，两个都认；LCD 写 RW 时不算 */
+        if (bit === 5 && (port === 'P1' || port === 'P2')) {
+          var nv = v ? 1 : 0;
+          var ob = buzzBit[port];
+          buzzBit[port] = nv;
+          if (ob !== nv && !lcdFresh()) buzzAt = performance.now();
+        }
       },
       /* 段码锁存：
          动态扫描 → 程序先写 P0 段码，紧接着写 P2 选位，写 P2 的瞬间这一位定下来；
          静态显示 → 位选只写一次，之后只有 P0 在变，那就落到当前选中的那一位。 */
       onPortWrite: function (port, oldV, newV) {
+        if ((port === 'P1' || port === 'P2') && ((oldV >> 5) & 1) !== ((newV >> 5) & 1)) {
+          buzzBit[port] = (newV >> 5) & 1;
+          if (!lcdFresh()) buzzAt = performance.now();
+        }
         /* 点阵模式：P0 是列数据，P3.5~P3.7 是行选。写行选的瞬间把列数据锁进那一行。 */
         if (dotMode) {
           if (port === 'P0') { dotShadow = newV; return; }
@@ -8439,16 +8523,24 @@ window.addEventListener('message', function (e) {
           return;
         }
         if (port === 'P0') {
+          p0Shadow = newV;
+          /* LCD 正在写数据：这一口是显存内容，不能拿去点亮数码管 */
+          if (lcdFresh()) { pendValid = false; return; }
           if (pendValid) commitSeg(pendSel, pendVal);   // 上一次 P0 写后面没跟 P2 → 静态显示
           pendVal = newV; pendSel = curSel; pendValid = true;
-          p0Shadow = newV;
           return;
         }
         if (port !== 'P2') return;
+        /* LCD1602：E（P2.7）下降沿锁存，RW（P2.5）= 1 是读操作，不写显存 */
+        if (lcd.active && ((oldV >> 7) & 1) === 1 && ((newV >> 7) & 1) === 0) {
+          if (((newV >> 5) & 1) === 0) lcdWrite((newV >> 6) & 1, p0Shadow);
+          lcd.seenAt = vm ? vm.vtime : 0;
+        }
         pendValid = false;                              // 这次 P0 属于扫描，交给下面的选位
         p2Wrote = true;
         var sel = (newV >> 2) & 7;
         curSel = sel;
+        if (lcdFresh()) return;                         // LCD 期间不点亮数码管
         commitSeg(sel, p0Shadow);
       },
       readPort: function (port, written) {
@@ -8483,12 +8575,42 @@ window.addEventListener('message', function (e) {
       error: lastError || (vm && vm.error ? String(vm.error) : null)
     });
   }
+  /* ---------------- 板载外设：LCD / 串口 ---------------- */
+  function paintLcd() {
+    var r0 = $('pin-lcd-r0'), r1 = $('pin-lcd-r1'), box = $('pin-lcd'), sub = $('pin-lcd-sub');
+    if (!r0 || !r1) return;
+    r0.textContent = lcdRow(0x00);
+    r1.textContent = lcdRow(0x40);
+    if (box) box.classList.toggle('off', lcd.writes === 0);
+    if (sub) sub.textContent = lcd.writes
+      ? ('已写 ' + lcd.writes + ' 次 · RS=P2.6 RW=P2.5 E=P2.7')
+      : 'RS=P2.6 · RW=P2.5 · E=P2.7 · 数据 P0';
+  }
+  function paintSerial() {
+    var el = $('pin-serial');
+    if (!el) return;
+    var txt = (vm && vm.serial) || '';
+    if (!txt) {
+      if (lastSerialLen === 0) return;
+      lastSerialLen = 0;
+      el.textContent = '（还没有串口输出）';
+      el.classList.add('empty');
+      return;
+    }
+    if (txt.length === lastSerialLen) return;
+    lastSerialLen = txt.length;
+    el.textContent = txt.length > 4000 ? txt.slice(-4000) : txt;
+    el.classList.remove('empty');
+    el.scrollTop = el.scrollHeight;
+  }
   function resetBoardState() {
     levels = { P0: 255, P1: 255, P2: 255, P3: 255 };
     segVal = [0, 0, 0, 0, 0, 0, 0, 0]; blankFrames = 0; segDirty = false;
     p0Shadow = 0; curSel = -1; pendValid = false; pendVal = 0; pendSel = -1; p2Wrote = false;
     dotVal = [0, 0, 0, 0, 0, 0, 0, 0]; dotShadow = 0; dotDirty = false;
-    paintSeg(); paintDots(); paintLevels(); paintLeds();
+    lcd = { ddram: new Array(80).fill(32), addr: 0, active: false, seenAt: -1e9, writes: 0, dirty: true };
+    buzzBit = { P1: 1, P2: 1 }; buzzAt = 0; lastSerialLen = -1;
+    paintSeg(); paintDots(); paintLevels(); paintLeds(); paintLcd(); paintSerial();
   }
   function compileBoard() {
     if (!window.C51) throw new Error('C51 引擎未加载');
@@ -8499,6 +8621,8 @@ window.addEventListener('message', function (e) {
   function syncFrame() {
     ['P0', 'P1', 'P2', 'P3'].forEach(function (p) { levels[p] = vm.ports[p]; });
     paintLevels(); scanSeg(); paintLeds(); paintBuzz(); paintStatus();
+    if (lcd.dirty) { lcd.dirty = false; paintLcd(); }
+    paintSerial();
   }
   function run() {
     if (running) return;
@@ -8629,9 +8753,13 @@ window.addEventListener('message', function (e) {
   window.__pin = {
     load: function (text) {
       $('pin-code').value = text || '';
+      /* 主编辑器发来的代码如果按点阵例程的写法操作 P0/P3，自动切到点阵解释 */
+      dotMode = /Pic\s*\[/.test(text || '');
       sourceDirty = true;
       lastError = null;
       stop();
+      vm = null;
+      resetBoardState();
       $('pin-msg').textContent = '已载入主编辑器的代码';
       postState('stopped', true);
     },
@@ -8722,6 +8850,13 @@ window.addEventListener('message', function (e) {
   var sp = $('pin-speed');
   if (sp) sp.oninput = function () { speed = +this.value; };
   $('pin-clear-wire').onclick = function () { wires = []; renderWires(); };
+  $('pin-serial-clear').onclick = function () {
+    var el = $('pin-serial');
+    if (!el) return;
+    lastSerialLen = (vm && vm.serial) ? vm.serial.length : 0;
+    el.textContent = '（已清空，后续输出会继续显示）';
+    el.classList.add('empty');
+  };
   $('pin-fit').onclick = function () {
     $('pin-focus').classList.remove('on');
     fitBoard();

@@ -7,7 +7,7 @@
 [![CI](https://github.com/syh-student/51-mcu-virtual-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/syh-student/51-mcu-virtual-lab/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![在线体验](https://img.shields.io/badge/在线体验-GitHub%20Pages-2ea44f)](https://syh-student.github.io/51-mcu-virtual-lab/)
-[![例程](https://img.shields.io/badge/配套例程-15%20个-orange)](src/examples.js)
+[![例程](https://img.shields.io/badge/配套例程-16%20个-orange)](src/examples.js)
 
 **https://syh-student.github.io/51-mcu-virtual-lab/**
 
@@ -55,8 +55,8 @@
 
 | 版本 | 文件 | 特点 |
 | --- | --- | --- |
-| 免安装绿色版 | `dist/51Lab-1.2.7-win-x64.exe` | 双击即用，不写注册表；首次启动会解压到临时目录，约 106 MB |
-| 安装版 | `dist/51Lab-Setup-1.2.7-x64.exe` | 可选安装目录、创建桌面快捷方式、可从"应用和功能"卸载，约 116 MB |
+| 免安装绿色版 | `dist/51Lab-1.2.8-win-x64.exe` | 双击即用，不写注册表；首次启动会解压到临时目录，约 106 MB |
+| 安装版 | `dist/51Lab-Setup-1.2.8-x64.exe` | 可选安装目录、创建桌面快捷方式、可从"应用和功能"卸载，约 116 MB |
 
 - 桌面版仍然是**离线**的：`index.html`、`hardware.html`、虚拟机和例程都在安装包里，不联网也能运行。
 - 文件选择器（"打开文件夹 / 磁盘工程"）在 Electron 里可用，权限只给本地文件选择，不开放 Node API。
@@ -76,8 +76,8 @@
 ```bash
 npm install
 npm run desktop          # 开发模式，直接开 Electron 窗口
-npm run dist:portable    # 生成免安装版：dist/51Lab-1.2.7-win-x64.exe
-npm run dist:installer   # 生成安装版：dist/51Lab-Setup-1.2.7-x64.exe
+npm run dist:portable    # 生成免安装版：dist/51Lab-1.2.8-win-x64.exe
+npm run dist:installer   # 生成安装版：dist/51Lab-Setup-1.2.8-x64.exe
 ```
 
 > `dist/` 已在 `.gitignore` 里，构建产物不提交到仓库；发布时通过 GitHub Release 上传这两个 exe。
@@ -113,10 +113,15 @@ npm test
 - **例程切换确认**：从例程列表或顶部下拉切换时，先弹窗确认；当前工程会先自动保存到浏览器，取消则保持原例程。
 - **更新不打断编辑**：Service Worker 发现新版本时只在右下角提示，点「刷新」才切换；确认框支持 `Enter` 确认、`Esc` 取消。
 
+### 讲义
+
+- **例程通关**：每条例程都有一条可判定的验收条件（灯亮、数码管显示、屏幕出字、串口输出、按键计数……），运行中达成后自动打勾，讲义列表显示「已通关 n / 16」，进度记在浏览器本地。
+- **移动端编辑**：窄屏下编辑器正文放大到 16px（避免 iOS 聚焦时整页放大），下方有 Tab / `{}` / `()` / 引号 / 分号 / `//` / `/* */` / 方向键 / 撤销重做工具条，按钮走和键盘同一套编辑逻辑。
+
 ### 开发板
 
 - **功能板**：LED ×8、独立按键 K1~K4、4×4 矩阵键盘、数码管、LCD1602、蜂鸣器，1:1 矢量绘制。
-- **引脚板**：按 40 脚实物排布，同一份代码换个板面继续跑。
+- **引脚板**：按 40 脚实物排布，同一份代码换个板面继续跑；下方带 LCD1602 和串口输出窗，多文件工程会自动压平后运行。
 - **时序真实**：12 MHz 晶振（机器周期 1 μs）、定时器 0/1、外部中断 0/1、串口收发。
 
 ### 时序图
@@ -152,7 +157,7 @@ npm test
 │   ├── style.css
 │   ├── vm.js                 # C51 预处理 / 词法 / 语法 / 虚拟机 / 工程级链接
 │   ├── hw.js                 # 虚拟硬件模型（LED、数码管、按键、LCD、串口）
-│   ├── examples.js           # 15 个配套例程（代码 + 知识点 + 练习）
+│   ├── examples.js           # 16 个配套例程（代码 + 知识点 + 练习）
 │   ├── app.js                # 界面、工程树、编辑器、时序图、分享
 │   └── hardware.html         # 硬件实验室（单文件）
 ├── desktop/
@@ -162,7 +167,7 @@ npm test
 │   ├── icon.ico              # Windows 应用图标
 │   └── make_icon.py          # 图标生成脚本
 ├── build.py              # 把 src/ 拼成两个 HTML
-├── test.js               # 虚拟机与硬件模型回归（64 条）
+├── test.js               # 虚拟机与硬件模型回归（87 条）
 ├── test-examples.js      # 所有例程编译 + 跑一段，防回归
 ├── test-ui.js            # 极简 DOM 桩跑界面代码（树、编辑器、事件）
 ├── tools/
@@ -194,8 +199,8 @@ npm run lint      # ESLint，源码零告警
 
 | 套件 | 覆盖什么 | 规模 |
 | --- | --- | --- |
-| `test.js` | 端口位操作、数码管扫描、按键消抖、LCD、定时器与中断、串口、多文件链接、宏与条件编译、struct、IP 位别名 | 64 条断言 |
-| `test-examples.js` | 把 15 个例程全部编译并推进虚拟时间，对比端口 / 数码管 / LCD 状态 | 15 个例程 |
+| `test.js` | 端口位操作、数码管扫描、按键消抖、LCD、定时器与中断、串口、多文件链接、宏与条件编译、struct、IP 位别名、工程压平、例程通关判定 | 87 条断言 |
+| `test-examples.js` | 把 16 个例程全部编译并推进虚拟时间，对比端口 / 数码管 / LCD 状态 | 16 个例程 |
 | `test-ui.js` | 用极简 DOM 桩跑真实界面代码：工程树、文件夹、新建文件、断点、自动缩进、Ctrl+/ 等 | 36 条断言 |
 | `test-diagnostics.js` | 编译诊断的 did-you-mean、静态提醒与误报防护 | 21 项 |
 | `test-persistence.js` | 工程存档、启动恢复、分享工程与文件夹结构持久化 | 9 项 |
@@ -214,13 +219,13 @@ CI 在每次 push / PR 时跑：构建 → 校验产物无残留占位符 → li
 - 定时器模式 0、8×8 点阵、DS1302
 - `#if` 里不能用宏的数值参与比较（`#ifdef` / `#if 0` 等正常）
 
-引脚板只覆盖 LED、数码管、按键、矩阵键盘和蜂鸣器；LCD、串口、定时器 / 中断与多文件工程请用功能板，切过去时页面会给出提示。
+引脚板已覆盖 LED、数码管、点阵、按键、矩阵键盘、蜂鸣器、LCD1602 和串口收发；LCD12864 还不支持。多文件工程会先压平成单个文件再跑，遇到 `static` 重名这类压平后解析不过的写法，会自动退回「只运行当前文件」。
 
 ## 路线图
 
 - [ ] 指针与数组下标的更完整支持（含函数指针）
 - [ ] I2C / DS1302 / 单总线时序外设
-- [ ] 引脚板补齐 LCD 与串口
+- [x] 引脚板补齐 LCD 与串口
 - [ ] 例程进度与练习判分的本地记录
 - [ ] 移动端编辑器输入体验（软键盘、手势）
 

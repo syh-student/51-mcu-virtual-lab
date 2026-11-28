@@ -662,5 +662,67 @@ void main()
   check('struct：成员不存在报错', !!vm.error && /没有成员/.test(vm.error), vm.error);
 }
 
+/* 37. 例程：流水灯 + 按住 K1 全亮，松开恢复 */
+{
+  global.window = {};
+  require('./src/examples.js');
+  const ex = window.EXAMPLES.find(e => e.id === 'led-flow-key');
+  check('例程存在：流水灯 + 按键全亮', !!ex);
+  const { vm, hw } = makeVM(ex.code);
+  run(vm, 12);
+  hw.setKey(vm, 'K1', true);
+  run(vm, 20);
+  check('按住 K1 八灯全亮', vm.ports.P2 === 0x00, 'P2=0x' + vm.ports.P2.toString(16));
+  hw.setKey(vm, 'K1', false);
+  run(vm, 24);
+  check('松开 K1 恢复流水', vm.ports.P2 !== 0x00, 'P2=0x' + vm.ports.P2.toString(16));
+}
+
+/* 38. 引脚板：把多文件工程压平成单个翻译单元 */
+{
+  const files = [
+    { path: 'main.c', content: '#include "led.h"\nvoid main(){ LED_On(); while(1){} }\n' },
+    { path: 'led.c', content: '#include "led.h"\nvoid LED_On(){ P2 = 0xFE; }\n' },
+    { path: 'led.h', content: '#ifndef LED_H\n#define LED_H\n#include <REGX52.H>\nsbit LED = P2^0;\n'
+      + 'void LED_On(void);\n#endif\n' }
+  ];
+  const flat = C51.flattenProject(files);
+  check('引脚板：sbit 只出现一次', (flat.match(/sbit\s+LED/g) || []).length === 1,
+    String((flat.match(/sbit\s+LED/g) || []).length));
+  check('引脚板：main.c 排在 led.c 之后',
+    flat.lastIndexOf('===== main.c') > flat.lastIndexOf('===== led.c'));
+  let flatErr = '';
+  try { C51.parseUnit(flat); } catch (e) { flatErr = e.message || String(e); }
+  check('引脚板：压平后能解析', !flatErr, flatErr);
+  const vm = new C51.VM(flat, HW.createHardware());
+  run(vm, 8);
+  check('引脚板：压平后能跑出结果', vm.ports.P2 === 0xFE, 'P2=0x' + (vm.ports.P2 || 0).toString(16));
+}
+
+/* 39. 例程通关条件：不用互动的能达成，需要按键的不会误判 */
+{
+  const byId = id => window.EXAMPLES.find(e => e.id === id);
+  check('通关：每条都有可执行判定',
+    window.EXAMPLES.every(e => !e.win || typeof e.win.test === 'function'));
+
+  function tryWin(id, frames) {
+    const ex = byId(id), st = {};
+    const { vm, hw } = makeVM(ex.code);
+    for (let i = 0; i < frames; i++) {
+      run(vm, 1);
+      let ok = false;
+      try { ok = !!ex.win.test(vm, hw, st); } catch (e) { ok = false; }
+      if (ok) return true;
+    }
+    return false;
+  }
+  [['led-on', 10], ['led-blink', 200], ['led-flow', 200], ['nixie', 30],
+    ['lcd', 40], ['buzzer', 200], ['timer-clock', 200], ['uart-hello', 200]]
+    .forEach(([id, n]) => check('通关可达：' + byId(id).title, tryWin(id, n)));
+
+  ['key-led', 'key-count', 'led-flow-key', 'combo', 'matrix-key', 'ext-int', 'uart-echo']
+    .forEach(id => check('通关不误判：' + byId(id).title, !tryWin(id, 120)));
+}
+
 console.log('\n结果：' + pass + ' 通过 / ' + fail + ' 失败');
 process.exit(fail ? 1 : 0);

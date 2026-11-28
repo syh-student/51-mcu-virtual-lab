@@ -5,6 +5,7 @@ window.EXAMPLES = [
     title: '点亮第一个 LED',
     chapter: '端口输出与低电平点亮',
     goal: '运行后，开发板上 D1（P2.0）保持点亮，其余 7 个熄灭。',
+    win: { desc: 'D1 点亮、其余熄灭', test: function (vm) { return vm.ports.P2 === 0xFE; } },
     points: [
       '8 个 LED 接在 P2 口，写 0 输出低电平，LED 点亮；写 1 熄灭。',
       '0xFE 的二进制是 1111 1110，只有最低位是 0，所以只亮 D1。',
@@ -28,6 +29,11 @@ void main()
     title: 'LED 闪烁与软件延时',
     chapter: '闪烁与软件延时',
     goal: 'D1 以大约 1 秒为周期闪烁（亮 500 ms、灭 500 ms）。',
+    win: { desc: 'D1 完成一次亮—灭', test: function (vm, hw, st) {
+      var b = vm.ports.P2 & 1;
+      if (st.b0 !== b) { st.b0 = b; st.flips = (st.flips || 0) + 1; }
+      return (st.flips || 0) >= 3;
+    } },
     points: [
       '闪烁 = 亮—等—灭—等 的循环，Delay 负责"等"。',
       '讲义里的 Delay 靠双层空循环耗时，12 MHz 下约 1 ms 一轮。',
@@ -68,6 +74,14 @@ void main()
     title: '流水灯',
     chapter: '流水灯',
     goal: '亮点从 D1 依次移动到 D8，循环往复。',
+    win: { desc: '亮点走过 4 个以上位置', test: function (vm, hw, st) {
+      var v = vm.ports.P2, n = 0;
+      for (var i = 0; i < 8; i++) if (((v >> i) & 1) === 0) n++;
+      if (n !== 1) return false;
+      st.seen = st.seen || {};
+      st.seen[v] = 1;
+      return Object.keys(st.seen).length >= 4;
+    } },
     points: [
       '流水灯的本质：让"为 0 的那一位"在 8 位里循环移动。',
       '_crol_ 是循环左移，移出去的位会回到另一端；普通 << 会把位移丢。',
@@ -96,6 +110,13 @@ void main()
     title: '独立按键控制 LED',
     chapter: '独立按键与消抖',
     goal: '点住开发板上的 K1~K4，对应的 LED 亮起；松手后保持最后按下的那一路。',
+    win: { desc: '按 K1~K4 点亮对应的 LED', test: function (vm, hw, st) {
+      ['K1', 'K2', 'K3', 'K4'].forEach(function (k) { if (hw.keys[k] === 0) st.key = k; });
+      if (!st.key) return false;
+      var v = vm.ports.P2, n = 0;
+      for (var i = 0; i < 8; i++) if (((v >> i) & 1) === 0) n++;
+      return n === 1;
+    } },
     points: [
       'K1~K4 分别接 P3.1、P3.0、P3.2、P3.3，按下为低电平。',
       '消抖 = 读到低电平后 Delay(20) 再确认一次。',
@@ -134,10 +155,67 @@ void main()
 `
   },
   {
+    id: 'led-flow-key',
+    title: '流水灯 + 按键全亮',
+    chapter: '流水灯与按键组合',
+    goal: 'LED1~LED8 依次流水，每个 200ms；按住 K1 时 8 个灯全亮，松开后从 LED1 重新流水。',
+    win: { desc: '按住 K1，8 个灯全亮', test: function (vm, hw) {
+      return hw.keys.K1 === 0 && vm.ports.P2 === 0x00;
+    } },
+    points: [
+      '流水灯用 ~(1 << i) 让 0 在 P2 的 8 位里移动，低电平点亮。',
+      '把 200ms 拆成 200 个 1ms，按键才能及时响应；直接 Delay(200) 要等满 200ms 才全亮。',
+      '按住 K1 时 P2=0x00，8 个灯全亮；while (P3_1 == 0); 等松手，松手后重新开始。',
+      '这是阻塞式写法；想让按键和流水互不影响，可以改用定时器中断。'
+    ],
+    quiz: ['把内层 200 改成 20，流水速度会怎么变？', '如果松开后想从当前灯继续，而不是从 LED1 重来，代码该怎么改？'],
+    code: `#include <REGX52.H>
+
+sbit KEY = P3^1;            // K1
+
+void Delay(unsigned int xms);   // 实验台内置
+
+void main()
+{
+    unsigned char i, t, pressed;
+
+    P2 = 0xFF;                  // 全灭
+    while (1)
+    {
+        pressed = 0;
+        for (i = 0; i < 8; i++)
+        {
+            P2 = ~(1 << i);     // 只点亮第 i 个
+            for (t = 0; t < 200; t++)
+            {
+                Delay(1);       // 拆成 1ms，按键才能及时响应
+                if (KEY == 0)
+                {
+                    P2 = 0x00;  // 8 个灯全亮
+                    while (KEY == 0);  // 等松手
+                    Delay(10);  // 松手消抖
+                    pressed = 1;
+                    break;
+                }
+            }
+            if (pressed) break; // 松手后从 LED1 重新开始
+        }
+    }
+}
+`
+  },
+  {
     id: 'key-count',
     title: '按键计数，二进制显示',
     chapter: '按键计数与二进制显示',
     goal: '每按一次 K1，计数加一，8 个 LED 用二进制显示这个数。',
+    win: { desc: '按两次 K1，LED 显示 2', test: function (vm, hw, st) {
+      if (hw.keys.K1 === 0) st.k = 1;
+      if (!st.k) return false;
+      st.seen = st.seen || {};
+      st.seen[vm.ports.P2] = 1;
+      return Object.keys(st.seen).length >= 2;
+    } },
     points: [
       '把 P2 当成一个 8 位显示器：P2 = ~Count，用 LED 直接看二进制。',
       '~ 是按位取反，因为 LED 低电平点亮，所以要反过来。',
@@ -171,6 +249,10 @@ void main()
     title: '数码管动态扫描显示 1234',
     chapter: '数码管位选、段选与消影',
     goal: '8 位数码管的前 4 位稳定显示 1 2 3 4，不闪烁、不重影。',
+    win: { desc: '前四位显示 1 2 3 4', test: function (vm, hw) {
+      return hw.nixie[0] === 0x06 && hw.nixie[1] === 0x5B
+        && hw.nixie[2] === 0x4F && hw.nixie[3] === 0x66;
+    } },
     points: [
       '共阴数码管：段码高电平点亮，数字 1 的段码是 0x06。',
       '8 位共用 P0 做段选，位选由 P2.4/P2.3/P2.2 经 74HC138 译码。',
@@ -220,6 +302,10 @@ void main()
     title: 'LCD1602 显示两行文字',
     chapter: 'LCD1602 初始化与写操作',
     goal: '液晶屏第一行显示 Hello 51!，第二行显示 STC89C52RC。',
+    win: { desc: '屏幕上出现两行文字', test: function (vm, hw) {
+      var t = hw.lcdText();
+      return t[0].indexOf('Hello 51!') === 0 && t[1].indexOf('STC89C52RC') === 0;
+    } },
     points: [
       'RS=P2.6 选数据/指令，RW=P2.5 选读/写，E=P2.7 下降沿执行。',
       'P0 是 8 位数据总线；第二行地址要加 0x40。',
@@ -293,6 +379,7 @@ void main()
     title: '蜂鸣器提示音',
     chapter: '蜂鸣器提示音',
     goal: '蜂鸣器图标周期性闪动，表示正在以约 1 kHz 翻转；可打开声音听到"嘀"声。',
+    win: { desc: '蜂鸣器开始翻转', test: function (vm, hw) { return hw.buzzer.flips >= 20; } },
     points: [
       '开发板蜂鸣器接 P1.5，是无源蜂鸣器：必须给方波才响。',
       '每 500 μs 翻转一次，周期 1 ms，对应约 1 kHz。',
@@ -327,6 +414,10 @@ void main()
     title: '综合：按键计数器（数码管显示）',
     chapter: '按键与显示组合',
     goal: '数码管显示 0000，每按一次 K1 数字加一；按住不放时观察显示的变化。',
+    win: { desc: '按一次 K1，数码管变成 0001', test: function (vm, hw, st) {
+      if (hw.keys.K1 === 0) st.k = 1;
+      return !!st.k && hw.nixie[0] === 0x3F && hw.nixie[3] === 0x06;
+    } },
     points: [
       '主循环一边扫描数码管，一边检测按键，这是"多任务"的雏形。',
       '按住 K1 时程序停在"等待松手"，扫描被拖慢，显示会变暗甚至只剩一位。',
@@ -383,6 +474,11 @@ void main()
     title: '矩阵键盘读键码',
     chapter: '矩阵键盘与行列扫描',
     goal: '按住开发板上 4×4 键盘里的任意一个键，1602 第一行显示它的键码（1~16）。',
+    win: { desc: '按任意矩阵键，屏幕显示键码', test: function (vm, hw, st) {
+      for (var i = 0; i < hw.matrix.length; i++) if (hw.matrix[i]) st.m = 1;
+      if (!st.m) return false;
+      return /^(0[1-9]|1[0-6])\s*$/.test(hw.lcdText()[1]);
+    } },
     points: [
       '16 个键只占 8 根线：4 行接 P1.7~P1.4，4 列接 P1.3~P1.0。',
       '扫描原理：把某一列拉低，再逐个读 4 行；哪一行为 0，就说明"这一行 + 这一列"的键被按下。',
@@ -505,6 +601,11 @@ void main()
     title: '定时器中断做秒表',
     chapter: '定时器与中断（1ms 中断）',
     goal: '数码管显示 分-秒，从 00-00 开始每秒加一，到 00-59 进位。',
+    win: { desc: '秒位开始走字', test: function (vm, hw, st) {
+      st.seen = st.seen || {};
+      if (hw.nixie[4]) st.seen[hw.nixie[4]] = 1;
+      return Object.keys(st.seen).length >= 2;
+    } },
     points: [
       'TMOD 低 4 位选定时器 0；0x01 = 16 位定时，不自装载。',
       '12 MHz 下一个机器周期 1 μs，定 1 ms 就是数 1000 个数：初值 = 65536 - 1000 = 0xFC18。',
@@ -594,6 +695,9 @@ void main()
     title: '串口发送 Hello',
     chapter: '串口发送与 printf 调试',
     goal: '每秒钟往串口发两行文字；切到左下角「串口」标签就能看到输出。',
+    win: { desc: '串口收到 Hello 51!', test: function (vm) {
+      return vm.serial.indexOf('Hello 51!') >= 0;
+    } },
     points: [
       'SBUF 是发送/接收共用的一个字节寄存器，写进去就启动一次发送。',
       'while (TI == 0); 在等"发送完成"；发完硬件把 TI 置 1，要由软件清零。',
@@ -660,6 +764,10 @@ void main()
     title: '外部中断：K3 一按就响应',
     chapter: '外部中断 INT0 / INT1',
     goal: '按下 K3（P3.2）瞬间进中断，8 个 LED 按次数加一；主循环里一行按键代码都没有。',
+    win: { desc: '按一下 K3，LED 计数加一', test: function (vm, hw, st) {
+      if (hw.keys.K3 === 0) st.k3 = 1;
+      return !!st.k3 && vm.ports.P2 !== 0xFF;
+    } },
     points: [
       'INT0 接在 P3.2，板上正好是 K3；按下瞬间电平从高变低，就是一个下降沿。',
       'IT0 = 1 选下降沿触发；IT0 = 0 是低电平触发——按住 K3 不放会反复进中断。',
@@ -704,6 +812,7 @@ void Int0_Routine(void) interrupt 0
     title: '串口回显（接收 + interrupt 4）',
     chapter: '串口接收与调试',
     goal: '在左下角「串口」标签的输入框打字发送，板子收到什么就原样发回来（回显）。',
+    win: { desc: '串口收到回显', test: function (vm) { return vm.serial.length > 0; } },
     points: [
       'REN = 1 才允许接收；SCON = 0x50 比发送版的 0x40 多的那一位就是 REN。',
       '收到的字节进 SBUF 并把 RI 置 1，RI 必须软件清零——规矩和 TI 完全对称。',
