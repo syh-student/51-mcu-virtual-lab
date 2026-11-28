@@ -1050,7 +1050,7 @@
   var boardViewRestored = false;
 
   /* ==================== 电路实验台页：整屏 iframe + 页内工具条 ==================== */
-  var TOOL_LABELS = { lab: '电路实验台', eda: '画板模拟', calc: '参数计算器', quiz: '自测练习' };
+  var TOOL_LABELS = { lab: '电路实验台', ban: '面包板', eda: '画板模拟', calc: '参数计算器', quiz: '自测练习' };
   var HW_TOOL_KEY = 'mcu51.hwtool.v1';
   var hwTool = 'lab';
   var labReady = false;
@@ -1176,7 +1176,8 @@
       btns[i].setAttribute('aria-selected', on ? 'true' : 'false');
     }
     var h = $('circuit-hint');
-    if (h) h.textContent = (TOOL_LABELS[view] || '电路实验台') + (view === 'lab' ? ' · 搭电路 / 看现象' : ' · 不运行代码');
+    if (h) h.textContent = (TOOL_LABELS[view] || '电路实验台') +
+      (view === 'ban' ? ' · 插孔搭电路 / 看现象' : (view === 'lab' ? ' · 搭电路 / 看现象' : ' · 不运行代码'));
   }
   function ensureCircuitFrame() {
     var fr = labFrame();

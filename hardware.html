@@ -189,6 +189,21 @@ main { position: relative; z-index: 1; flex: 1; min-height: 0; width: 100%; max-
   white-space: pre-line;
 }
 .canvas-hint[hidden] { display: none; }
+/* 面包板二级页：只留面包板 / 实物元件 / 杜邦线三组，原理图相关入口收起 */
+.mode-badge {
+  display: none; align-items: center; padding: 1px 8px; border-radius: 999px;
+  font-size: 10px; letter-spacing: .06em; color: #0d1014;
+  background: linear-gradient(180deg, #ffd98a, #f0a72c);
+}
+html.ban-mode .mode-badge { display: inline-flex; }
+html.ban-mode #sec-presets,
+html.ban-mode #sec-palette { display: none; }
+/* 电路实验台页不掺面包板：板、实物元件、杜邦线三组入口整体收起，只在「面包板」页出现 */
+html:not(.ban-mode) #sec-breadboard,
+html:not(.ban-mode) #sec-wujian,
+html:not(.ban-mode) #sec-db { display: none; }
+/* 面包板页没有预设电路，「复位」没有意义，收起免得点了没反应 */
+html.ban-mode #btn-reset-ckt { display: none; }
 .canvas-tools {
   position: absolute; right: 10px; bottom: 10px; z-index: 4;
   display: flex; gap: 4px;
@@ -1097,7 +1112,7 @@ window.addEventListener('message', function (e) {
   </div>
   <div class="head-right">
     <span class="head-note">电阻电容电感 · 二极管三极管 · 电路定理</span>
-    <span class="build-tag" id="build-tag">构建 11-28 16:07</span>
+    <span class="build-tag" id="build-tag">构建 11-28 17:44</span>
   </div>
 </header>
 
@@ -1105,6 +1120,7 @@ window.addEventListener('message', function (e) {
   <nav class="capsule" id="capsule" role="group" aria-label="页面导航">
     <span class="hover-pill" aria-hidden="true"></span>
     <button class="nav-item on" type="button" data-page="lab" aria-current="page">电路实验台</button>
+    <button class="nav-item" type="button" data-page="ban">面包板</button>
     <button class="nav-item" type="button" data-page="pindemo">引脚级仿真板</button>
     <button class="nav-item" type="button" data-page="eda">画板模拟</button>
     <button class="nav-item" type="button" data-page="calc">参数计算器</button>
@@ -1124,7 +1140,7 @@ window.addEventListener('message', function (e) {
       <aside class="panel lib-panel">
         <div class="panel-h"><span class="idx">01</span><h2>元件库</h2></div>
         <div class="panel-b">
-          <div class="lib-section">
+          <div class="lib-section" id="sec-presets">
             <div class="lib-title">预置电路（课程例子）</div>
             <div class="presets" id="presets"></div>
           </div>
@@ -1132,20 +1148,20 @@ window.addEventListener('message', function (e) {
             <b>怎么连线</b>
             <span>一个引脚拖到另一个引脚就能连线；单击导线选中、Delete 删除（Alt+单击直接删）。滚轮缩放，空格 + 拖动平移。</span>
           </div>
-          <div class="lib-section">
+          <div class="lib-section" id="sec-breadboard">
             <div class="lib-title">面包板（可多块拼接）</div>
             <div class="palette" id="palette-breadboard"></div>
           </div>
-          <div class="lib-section">
+          <div class="lib-section" id="sec-wujian">
             <div class="lib-title">实物元件（插进面包板孔）</div>
             <div class="palette" id="palette-wujian"></div>
           </div>
-          <div class="lib-section">
+          <div class="lib-section" id="sec-db">
             <div class="lib-title">杜邦线（点两个孔连接）</div>
             <div class="db-yanse" id="db-yanse"></div>
             <div class="lib-tip"><span>先选颜色，再依次点面包板上的两个孔就连一根杜邦线；点已有的线选中，Delete 删除。</span></div>
           </div>
-          <div class="lib-section">
+          <div class="lib-section" id="sec-palette">
             <div class="lib-title">点一下放到画布</div>
             <div class="palette" id="palette"></div>
           </div>
@@ -1156,6 +1172,7 @@ window.addEventListener('message', function (e) {
       <div class="panel canvas-panel">
         <div class="panel-h">
           <span class="idx">02</span><h2 id="ckt-title">LED 限流电路</h2>
+          <span class="mode-badge" id="mode-badge">面包板</span>
           <span class="hint" id="ckt-desc">5V 点亮 Vf≈2V 的 LED</span>
           <span class="sp"></span>
           <button id="btn-undo" class="ghost ico" type="button" title="撤销（Ctrl+Z）" aria-label="撤销" disabled>↶</button>
@@ -2982,8 +2999,10 @@ window.addEventListener('message', function (e) {
   }
   function setPage(name) {
     curPage = name;
+    /* 「面包板」与「电路实验台」共用同一张无限画布：切页只换左栏与提示，不动画布内容 */
+    var pageId = (name === 'ban') ? 'page-lab' : 'page-' + name;
     var pages = document.querySelectorAll('.page');
-    for (var i = 0; i < pages.length; i++) pages[i].classList.toggle('on', pages[i].id === 'page-' + name);
+    for (var i = 0; i < pages.length; i++) pages[i].classList.toggle('on', pages[i].id === pageId);
     for (var j = 0; j < navs.length; j++) {
       var on = navs[j].getAttribute('data-page') === name;
       navs[j].classList.toggle('on', on);
@@ -2991,11 +3010,65 @@ window.addEventListener('message', function (e) {
       if (on) navs[j].setAttribute('aria-current', 'page');
       else navs[j].removeAttribute('aria-current');
     }
+    document.documentElement.classList.toggle('ban-mode', name === 'ban');
+    /* 两页各自的对象不同，切页时把另一页的选中状态清掉，免得参数面板挂着一个看不见的东西 */
+    if (name === 'ban') { selected = null; selectedWire = null; }
+    else { selectedBan = null; selectedWj = null; selectedDb = null; dbDiyiji = null; }
+    if (name === 'ban') ruBanMoShi(); else chuBanMoShi();
     var active = document.querySelector('.nav-item[data-page="' + name + '"]');
     if (active) {
       if (blob) { blob.style.left = active.offsetLeft + 'px'; blob.style.width = active.offsetWidth + 'px'; }
       movePill(active);
     }
+  }
+  /* 面包板二级页：左栏只留面包板 / 实物元件 / 杜邦线；首次进入且画布全空时自动摆一块全尺寸板 */
+  var banQian = null;      /* 进入前的画布中央提示文案，退出时还原 */
+  var banTipQian = null;   /* 进入前左栏「怎么连线」说明，退出时还原 */
+  var banTitleQian = null; /* 进入前的画布标题，退出时还原 */
+  var banDescQian = null;
+  var banYiDao = false;    /* 本次会话是否已做过引导 */
+  function ruBanMoShi() {
+    if (banTitleQian == null) {
+      var t0 = $('ckt-title'), d0 = $('ckt-desc');
+      if (t0) banTitleQian = t0.textContent;
+      if (d0) banDescQian = d0.textContent;
+    }
+    var hint = $('canvas-hint');
+    if (hint) {
+      if (banQian == null) banQian = hint.innerHTML;
+      hint.innerHTML = '点左侧「全尺寸 830 点」放一块面包板\n元件拖到孔上自动吸附 · 滚轮缩放 · 空格 + 拖动平移';
+    }
+    var tip = $('lib-tip');
+    if (tip) {
+      if (banTipQian == null) banTipQian = tip.innerHTML;
+      tip.innerHTML = '<b>面包板怎么用</b><span>先放一块板，再把电阻、LED 等实物元件拖到孔上会自动吸附；点两个孔连一根杜邦线，右侧实时判定回路是否成立、元件会不会亮。</span>';
+    }
+    if (banYiDao) { render(); return; }
+    banYiDao = true;
+    $('ckt-status').textContent = breadboards.length
+      ? ('面包板模式：已有 ' + breadboards.length + ' 块板，点两个孔连杜邦线，元件拖到孔上自动吸附')
+      : '面包板模式：点左侧「全尺寸 830 点」或「半尺寸 400 点」放一块板';
+    render();
+  }
+  function chuBanMoShi() {
+    if (banQian == null && banTipQian == null) return;   /* 本来就在非面包板页，不用白重画一次 */
+    if (banTitleQian != null) {
+      var t1 = $('ckt-title'), d1 = $('ckt-desc');
+      if (t1) t1.textContent = components.length ? banTitleQian : '自由搭建';
+      if (d1) d1.textContent = components.length ? banDescQian : '从左边元件库取元件';
+      banTitleQian = null; banDescQian = null;
+    }
+    if (banQian != null) {
+      var hint = $('canvas-hint');
+      if (hint) hint.innerHTML = banQian;
+      banQian = null;
+    }
+    if (banTipQian != null) {
+      var tip = $('lib-tip');
+      if (tip) tip.innerHTML = banTipQian;
+      banTipQian = null;
+    }
+    render();
   }
   for (var ni = 0; ni < navs.length; ni++) {
     (function (n) {
@@ -3220,20 +3293,29 @@ window.addEventListener('message', function (e) {
     window.__fitCount = (window.__fitCount || 0) + 1;
     var bj0 = genBuJu();
     var w = bj0.width, h = bj0.height;
-    if (!w || !h || (!components.length && !breadboards.length)) {
+    var banKai = document.documentElement.classList.contains('ban-mode');
+    if (!w || !h || (banKai ? (!breadboards.length && !wujian.length) : !components.length)) {
       view = { x: 0, y: 0, k: 1 }; viewTouched = false; applyView(); return;
     }
     var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    components.forEach(function (c) {
-      var e = compExtent(c.kind, c.rot);
-      minX = Math.min(minX, c.x - e.hw); maxX = Math.max(maxX, c.x + e.hw);
-      minY = Math.min(minY, c.y - e.hh); maxY = Math.max(maxY, c.y + e.hh);
-    });
-    breadboards.forEach(function (ban) {
-      var r = banJuXing(ban);
-      minX = Math.min(minX, r.left); maxX = Math.max(maxX, r.right);
-      minY = Math.min(minY, r.top); maxY = Math.max(maxY, r.bottom);
-    });
+    if (banKai) {
+      /* 面包板页只框面包板与实物元件 */
+      breadboards.forEach(function (ban) {
+        var r = banJuXing(ban);
+        minX = Math.min(minX, r.left); maxX = Math.max(maxX, r.right);
+        minY = Math.min(minY, r.top); maxY = Math.max(maxY, r.bottom);
+      });
+      wujian.forEach(function (wj) {
+        minX = Math.min(minX, wj.x - 48); maxX = Math.max(maxX, wj.x + 48);
+        minY = Math.min(minY, wj.y - 48); maxY = Math.max(maxY, wj.y + 48);
+      });
+    } else {
+      components.forEach(function (c) {
+        var e = compExtent(c.kind, c.rot);
+        minX = Math.min(minX, c.x - e.hw); maxX = Math.max(maxX, c.x + e.hw);
+        minY = Math.min(minY, c.y - e.hh); maxY = Math.max(maxY, c.y + e.hh);
+      });
+    }
     var bw = Math.max(80, maxX - minX), bh = Math.max(60, maxY - minY);
     var margin = w < 560 ? 26 : 64;
     var cap = maxK || 1.8;
@@ -4418,6 +4500,14 @@ window.addEventListener('message', function (e) {
 
   function render(skipParams) {
     window.__renderCount = (window.__renderCount || 0) + 1;
+    /* 面包板页：画布标题换成工作台名字（退出时 chuBanMoShi 还原） */
+    if (document.documentElement.classList.contains('ban-mode')) {
+      var tb = $('ckt-title'), db = $('ckt-desc');
+      if (tb) tb.textContent = '面包板实验台';
+      if (db) db.textContent = breadboards.length
+        ? (breadboards.length + ' 块面包板 · 点两个孔连杜邦线')
+        : '先放一块面包板';
+    }
     miniJingTaiAng = true;   /* 元件分布可能变化，离屏静态层待重画 */
     biaoqianKai = view.k >= BIAOQIAN_K;
     hidePinTip();
@@ -4480,9 +4570,13 @@ window.addEventListener('message', function (e) {
       dbZong: dubangxian.length, dbHua: 0, dbTi: 0
     };
     window.__cullTongji = function () { return cullTongji; };
-    $('canvas-hint').hidden = components.length > 0 || breadboards.length > 0 || wujian.length > 0;
+    /* 面包板页只看面包板：原理图元件与导线不画，免得两种符号体系叠在一张图上 */
+    var banKai = document.documentElement.classList.contains('ban-mode');
+    $('canvas-hint').hidden = banKai
+      ? (breadboards.length > 0 || wujian.length > 0)
+      : (components.length > 0);
     /* 先画导线（落在 cengWire 层；屏外导线直接跳过） */
-    wires.forEach(function (w) {
+    if (!banKai) wires.forEach(function (w) {
       var a = compAt(w.a.id), b = compAt(w.b.id);
       if (!a || !b) return;
       if (!wireZaiCull(w, lastCullRect)) { cullTongji.xianTi++; return; }
@@ -4569,38 +4663,43 @@ window.addEventListener('message', function (e) {
         if ((na && activeNets[na]) || (nb && activeNets[nb])) p.classList.add('net');
       });
     }
-    /* 先算一次面包板连通结论：元件渲染（LED 亮灭、数码管段亮、短路闪烁）要用 */
-    qjJieguo = wujian.length ? wjQiuJie() : null;
-    /* 先画面包板（落在 cengComp 层底部，元件随后画在其上方；屏外板不建 DOM） */
-    breadboards.forEach(function (ban) {
-      if (!banZaiCull(ban, lastCullRect)) { cullTongji.banTi++; return; }
-      cullTongji.banHua++;
-      drawBreadboard(ban);
-    });
-    /* 再画元件（落在 cengComp 层；屏外元件不建 DOM，但统计仍计入） */
-    components.forEach(function (c) {
-      if (!compZaiCull(c, lastCullRect)) { cullTongji.jianTi++; return; }
-      cullTongji.jianHua++;
-      drawComponent(c, ledCurrents[c.id]);
-    });
-    /* 实物元件画在面包板之上（屏外不建 DOM） */
-    wujian.forEach(function (wj) {
-      if (!wjZaiCull(wj, lastCullRect)) { cullTongji.wjTi++; return; }
-      cullTongji.wjHua++;
-      drawWujian(wj);
-    });
-    /* 杜邦线最后画，压在最上层 */
-    dubangxian.forEach(function (db) {
-      if (!dbZaiCull(db, lastCullRect)) { cullTongji.dbTi++; return; }
-      cullTongji.dbHua++;
-      drawDubanxian(db);
-    });
+    /* 先算一次面包板连通结论：元件渲染（LED 亮灭、数码管段亮、短路闪烁）要用；电路实验台页不算 */
+    qjJieguo = (banKai && wujian.length) ? wjQiuJie() : null;
+    /* 面包板这一套（板 / 实物元件 / 杜邦线）只在「面包板」页画，电路实验台页不掺进来 */
+    if (banKai) {
+      /* 先画面包板（落在 cengComp 层底部，元件随后画在其上方；屏外板不建 DOM） */
+      breadboards.forEach(function (ban) {
+        if (!banZaiCull(ban, lastCullRect)) { cullTongji.banTi++; return; }
+        cullTongji.banHua++;
+        drawBreadboard(ban);
+      });
+      /* 再画实物元件（落在 cengComp 层；屏外元件不建 DOM，但统计仍计入）
+         原理图那套 V1/R1/D1 在这里不画，否则两套符号叠在白板上一片乱 */
+      wujian.forEach(function (wj) {
+        if (!wjZaiCull(wj, lastCullRect)) { cullTongji.wjTi++; return; }
+        cullTongji.wjHua++;
+        drawWujian(wj);
+      });
+      /* 杜邦线最后画，压在最上层 */
+      dubangxian.forEach(function (db) {
+        if (!dbZaiCull(db, lastCullRect)) { cullTongji.dbTi++; return; }
+        cullTongji.dbHua++;
+        drawDubanxian(db);
+      });
+    } else {
+      /* 电路实验台页：只画原理图元件，面包板对象留在数据里，切到面包板页再看 */
+      components.forEach(function (c) {
+        if (!compZaiCull(c, lastCullRect)) { cullTongji.jianTi++; return; }
+        cullTongji.jianHua++;
+        drawComponent(c, ledCurrents[c.id]);
+      });
+    }
     /* 对齐辅助线（拖动时显示，落在 cengGuide 层） */
     guideXEl = svg('line', { 'class': 'guide', visibility: 'hidden' }, cengGuide);
     guideYEl = svg('line', { 'class': 'guide', visibility: 'hidden' }, cengGuide);
-    /* 画电流动画（若可解） */
+    /* 画电流动画（若可解；面包板页画的是插孔电路，原理图这套电流线不该出现） */
     var energized = false;
-    if (sol && sol.ok) {
+    if (sol && sol.ok && !banKai) {
       drawFlow(sol, net);
       energized = sol.currents.some(function (cur) { return Math.abs(cur.current) > 1e-9; });
     }
@@ -5385,6 +5484,43 @@ window.addEventListener('message', function (e) {
     del.onclick = function () { deleteWire(w); };
   }
 
+  /* 选中面包板时的右栏：板规格 + 删除 */
+  function renderBanParams(ban, host) {
+    var head = el('div', '', (ban.lieshu === 63 ? '全尺寸 830 点' : '半尺寸 400 点'), host);
+    head.style.cssText = 'font-size:11px;color:var(--accent);margin-bottom:10px;font-family:var(--mono)';
+    var row = el('div', 'param-row', null, host);
+    el('label', null, '列数', row);
+    el('span', 'pv', ban.lieshu + ' 列', row);
+    var row2 = el('div', 'param-row', null, host);
+    el('label', null, '朝向', row2);
+    el('span', 'pv', (ban.rot || 0) + '°', row2);
+    el('div', 'empty-note', '拖动这块板靠近另一块会自动磁吸拼接；点板上的两个方孔就能连一根杜邦线。', host);
+    var act = el('div', 'comp-actions', null, host);
+    var del = el('button', 'ghost danger', '删除这块面包板', act);
+    del.type = 'button';
+    del.style.gridColumn = '1 / -1';
+    del.onclick = function () {
+      pushHistory();
+      breadboards = breadboards.filter(function (x) { return x !== ban; });
+      /* 插在这块板上的实物元件、连到这块板孔的杜邦线一起清掉，不然会留下悬空引用 */
+      for (var i = wujian.length - 1; i >= 0; i--) {
+        var zai = wujian[i].yinjiao.some(function (yj) {
+          var dz = yj.kong ? jieXiDizhi(yj.kong) : null;
+          return dz && dz.id === ban.id;
+        });
+        if (zai) wujian.splice(i, 1);
+      }
+      dubangxian = dubangxian.filter(function (db) {
+        var a = jieXiDizhi(db.kongA), b = jieXiDizhi(db.kongB);
+        return !((a && a.id === ban.id) || (b && b.id === ban.id));
+      });
+      selectedBan = null;
+      wangLuoZang();
+      scheduleSaveCircuit();
+      render();
+    };
+  }
+
   function renderParams() {
     var host = $('param-list');
     host.innerHTML = '';
@@ -5395,9 +5531,20 @@ window.addEventListener('message', function (e) {
       return;
     }
     if (titleEl) titleEl.textContent = '元件参数';
-    if (selectedWj && wjAt(selectedWj)) {
+    var banKai = document.documentElement.classList.contains('ban-mode');
+    if (banKai && selectedWj && wjAt(selectedWj)) {
       if (titleEl) titleEl.textContent = '实物元件参数';
       renderWjParams(wjAt(selectedWj), host);
+      return;
+    }
+    if (banKai && selectedBan && banAt(selectedBan)) {
+      if (titleEl) titleEl.textContent = '面包板参数';
+      renderBanParams(banAt(selectedBan), host);
+      return;
+    }
+    /* 面包板页不显示原理图元件的参数面板（画布上那些元件已被隐藏） */
+    if (banKai) {
+      el('div', 'empty-note', '选中面包板或实物元件，这里显示它的详情', host);
       return;
     }
     if (!selected || !compAt(selected)) {
@@ -5471,6 +5618,40 @@ window.addEventListener('message', function (e) {
   }
 
   /* ================= 实时计算面板 ================= */
+  /* 面包板页的实时计算：只讲插孔电路的连通结论，不掺原理图那套电压电流 */
+  function renderBanReadout(host, item) {
+    var ztMing = {
+      ok: '✓ 回路成立', duanlu: '⚠ 电源短路', duanlu2: '⚠ 电源经导线直通',
+      wudian: '未接电源', budian: '回路不成立', kong: '未求解'
+    };
+    if (!wujian.length) {
+      el('div', 'empty-note', '面包板还没插元件：从左边「实物元件」拖一个到孔上，再用杜邦线把电池接进来。', host);
+      return;
+    }
+    var qj = qjJieguo || wjQiuJie();
+    var row0 = el('div', 'ro-item', null, host);
+    el('span', 'ro-k', '面包板', row0);
+    var ztWen = ztMing[qj.zt] || qj.zt;
+    if (qj.zt === 'duanlu2' && qj.fuLei) ztWen = '⚠ 负载直通，没有限流';
+    el('span', 'ro-v' + (qj.zt === 'ok' ? ' hl' : ''), ztWen, row0);
+    if (qj.dianchi) item('电源', (qj.dianchiLiebiao && qj.dianchiLiebiao.length > 1 ? qj.dianchiLiebiao.length + ' 块 · ' : '') + '9V 层叠电池');
+    wujian.forEach(function (wj) {
+      if (wj.kind === 'dianchi') return;
+      var zt = '';
+      if (qj.liang && qj.liang[wj.id]) zt = '点亮';
+      else if (qj.zhuan && qj.zhuan[wj.id]) zt = wj.kind === 'dianji' ? '转动' : '发声';
+      else if (qj.fan && qj.fan[wj.id]) {
+        zt = { fan: '接反', queR: '缺限流电阻', buquan: '回路不完整' }[qj.fan[wj.id]];
+      } else if (qj.duanDao && qj.duanDao[wj.id]) zt = '正向导通';
+      else if (qj.duanLiang && qj.duanLiang[wj.id]) zt = '亮段 ' + Object.keys(qj.duanLiang[wj.id]).sort().join('');
+      if (zt) item(WUZHONG[wj.kind].label, zt, /点亮|导通|亮段|发声|转动/.test(zt));
+    });
+    qj.tishi.forEach(function (t) {
+      el('div', 'warn-box' + (qj.zt === 'duanlu' || qj.zt === 'duanlu2' ? ' danger' : ''), t, host);
+    });
+    el('div', 'formula', '教学级判定：只看回路通不通、极性对不对，不计算电流数值。', host);
+  }
+
   function renderReadout(sol, net) {
     var host = $('readout');
     host.innerHTML = '';
@@ -5478,6 +5659,11 @@ window.addEventListener('message', function (e) {
       var row = el('div', 'ro-item', null, host);
       el('span', 'ro-k', k, row);
       el('span', 'ro-v' + (hl ? ' hl' : ''), v, row);
+    }
+    /* 面包板页只显示插孔电路结论 */
+    if (document.documentElement.classList.contains('ban-mode')) {
+      renderBanReadout(host, item);
+      return;
     }
     /* 预置电路有专用解析公式——即使通用求解器因二极管/电容断路，也能算 */
     var presetHandled = false;
@@ -5550,36 +5736,7 @@ window.addEventListener('message', function (e) {
 
     if (presetHandled) return;
 
-    /* 面包板上有元件时，右栏改为显示教学级连通结论 */
-    if (wujian.length) {
-      var qj = qjJieguo || wjQiuJie();
-      var ztMing = {
-        ok: '✓ 回路成立', duanlu: '⚠ 电源短路', duanlu2: '⚠ 电源经导线直通',
-        wudian: '未接电源', budian: '回路不成立', kong: '未求解'
-      };
-      var row0 = el('div', 'ro-item', null, host);
-      el('span', 'ro-k', '面包板', row0);
-      var ztWen = ztMing[qj.zt] || qj.zt;
-      if (qj.zt === 'duanlu2' && qj.fuLei) ztWen = '⚠ 负载直通，没有限流';
-      el('span', 'ro-v' + (qj.zt === 'ok' ? ' hl' : ''), ztWen, row0);
-      if (qj.dianchi) item('电源', (qj.dianchiLiebiao && qj.dianchiLiebiao.length > 1 ? qj.dianchiLiebiao.length + ' 块 · ' : '') + '9V 层叠电池');
-      wujian.forEach(function (wj) {
-        if (wj.kind === 'dianchi') return;
-        var zt = '';
-        if (qj.liang && qj.liang[wj.id]) zt = '点亮';
-        else if (qj.zhuan && qj.zhuan[wj.id]) zt = wj.kind === 'dianji' ? '转动' : '发声';
-        else if (qj.fan && qj.fan[wj.id]) {
-          zt = { fan: '接反', queR: '缺限流电阻', buquan: '回路不完整' }[qj.fan[wj.id]];
-        } else if (qj.duanDao && qj.duanDao[wj.id]) zt = '正向导通';
-        else if (qj.duanLiang && qj.duanLiang[wj.id]) zt = '亮段 ' + Object.keys(qj.duanLiang[wj.id]).sort().join('');
-        if (zt) item(WUZHONG[wj.kind].label, zt, /点亮|导通|亮段|发声|转动/.test(zt));
-      });
-      qj.tishi.forEach(function (t) {
-        el('div', 'warn-box' + (qj.zt === 'duanlu' || qj.zt === 'duanlu2' ? ' danger' : ''), t, host);
-      });
-      el('div', 'formula', '教学级判定：只看回路通不通、极性对不对，不计算电流数值。', host);
-      return;
-    }
+    /* 面包板结论只在「面包板」页显示（那页由 renderBanReadout 接管），这里不再插一段 */
 
     /* 自由搭建：用通用求解器 */
     if (!sol || !sol.ok) {
@@ -6310,14 +6467,22 @@ window.addEventListener('message', function (e) {
     if (PRESETS[currentPreset]) loadPreset(currentPreset);
   };
   $('btn-clear-ckt').onclick = function () {
-    if (components.length || wires.length || breadboards.length || wujian.length || dubangxian.length) pushHistory();
-    components = []; wires = []; breadboards = []; wujian = []; dubangxian = [];
-    selected = null; selectedWire = null; selectedBan = null; pendingPin = null;
-    selectedWj = null; selectedDb = null; dbDiyiji = null; dbUid = 1;
-    wangLuoZang();
-    currentPreset = '';
-    $('ckt-title').textContent = '自由搭建'; $('ckt-desc').textContent = '从左边元件库取元件';
-    syncPresetButtons();
+    /* 两页各清各的：电路实验台清原理图，面包板页清板/元件/杜邦线 */
+    var banKai = document.documentElement.classList.contains('ban-mode');
+    if (banKai) {
+      if (breadboards.length || wujian.length || dubangxian.length) pushHistory();
+      breadboards = []; wujian = []; dubangxian = [];
+      selectedBan = null; selectedWj = null; selectedDb = null; dbDiyiji = null;
+      wangLuoZang();
+      $('ckt-status').textContent = '已清空面包板';
+    } else {
+      if (components.length || wires.length) pushHistory();
+      components = []; wires = [];
+      selected = null; selectedWire = null; pendingPin = null;
+      currentPreset = '';
+      $('ckt-title').textContent = '自由搭建'; $('ckt-desc').textContent = '从左边元件库取元件';
+      syncPresetButtons();
+    }
     scheduleSaveCircuit();
     render();
   };
@@ -6554,14 +6719,15 @@ window.addEventListener('message', function (e) {
   document.addEventListener('keydown', function (e) {
     var mod = e.ctrlKey || e.metaKey;
     var k = e.key;
-    if (curPage === 'lab' && e.code === 'Space' && !isTypingTarget(e.target) &&
+    if ((curPage === 'lab' || curPage === 'ban') && e.code === 'Space' && !isTypingTarget(e.target) &&
         (e.target === document || e.target === document.body || $('canvas-wrap').contains(e.target))) {
       if (!spaceDown) { spaceDown = true; svgRoot.classList.add('space'); }
       e.preventDefault();
       return;
     }
     if (isTypingTarget(e.target)) return;
-    if (curPage !== 'lab') return;
+    /* 面包板页也用这套快捷键：Esc 取消待连、Delete 删杜邦线/元件 */
+    if (curPage !== 'lab' && curPage !== 'ban') return;
     if (mod && (k === 'z' || k === 'Z')) { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
     if (mod && (k === 'y' || k === 'Y')) { e.preventDefault(); redo(); return; }
     if (k === 'Escape') {
@@ -8890,7 +9056,7 @@ window.addEventListener('message', function (e) {
 (function () {
   'use strict';
   if (window.parent === window) return;   /* 独立打开时不用桥接 */
-  var VIEWS = { lab: 1, pindemo: 1, eda: 1, calc: 1, quiz: 1 };
+  var VIEWS = { lab: 1, ban: 1, pindemo: 1, eda: 1, calc: 1, quiz: 1 };
   function applyView(v) {
     if (!VIEWS[v] || !window.__hwLab) return;
     document.documentElement.classList.toggle('pin-bridged', v === 'pindemo');
