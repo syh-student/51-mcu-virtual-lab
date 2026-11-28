@@ -1175,9 +1175,6 @@
       btns[i].classList.toggle('on', on);
       btns[i].setAttribute('aria-selected', on ? 'true' : 'false');
     }
-    var h = $('circuit-hint');
-    if (h) h.textContent = (TOOL_LABELS[view] || '电路实验台') +
-      (view === 'ban' ? ' · 插孔搭电路 / 看现象' : (view === 'lab' ? ' · 搭电路 / 看现象' : ' · 不运行代码'));
   }
   function ensureCircuitFrame() {
     var fr = labFrame();
@@ -1211,7 +1208,7 @@
     var box = $('pin-cap-note');
     if (view !== 'pin' && box) box.hidden = true;
     if (view === 'native') {
-      setBoardHint('运行当前工程，看板子反应');
+      setBoardHint('');
       updateButtons();
       forceRender = true;
       return;
@@ -4526,11 +4523,9 @@ void keys_scan()
   function renderStat() {
     var n = dirtyCount();
     if (project.fs) {
-      setStat('磁盘 · ' + FS.name + (n ? ' · ' + n + ' 个未保存' : ' · 已保存'));
-    } else if (FS.pending) {
-      setStat('上次的文件夹：' + FS.pending.name);
+      setStat('已连接' + (n ? ' · ' + n + ' 个未保存' : ''));
     } else {
-      setStat('浏览器内工程 · 不写盘');
+      setStat('未连接');
     }
   }
   function updateFsDot() {
@@ -5446,13 +5441,16 @@ void keys_scan()
     if (!marksEl) return;
     var html = '';
     var pad = 12;
+    var total = codeEl.value.split('\n').length;
     /* 光标所在行：和错误行、执行行一样画在 marks 层，不用改高亮 HTML */
     var curLn = codeEl.value.slice(0, codeEl.selectionStart).split('\n').length;
+    if (curLn > total) curLn = total;
     html += '<i class="focus" style="top:' + (pad + (curLn - 1) * LINE_H) + 'px"></i>';
     var showErr = errLine && (!errFile || errFile === project.active);
     if (showErr) html += '<i class="err" style="top:' + (pad + (errLine - 1) * LINE_H) + 'px"></i>';
     var loc = (vm && (state === 'running' || state === 'paused')) ? mapUnitLine(vm.line) : null;
-    if (loc && loc.line && loc.file === project.active && loc.line !== errLine) {
+    /* 换了文件或程序还没同步时，行号可能落在文件外面，别在空白处画一条色带 */
+    if (loc && loc.line && loc.line <= total && loc.file === project.active && loc.line !== errLine) {
       html += '<i class="cur" style="top:' + (pad + (loc.line - 1) * LINE_H) + 'px"></i>';
     }
     if (marksEl.innerHTML !== html) marksEl.innerHTML = html;
@@ -7551,6 +7549,10 @@ void keys_scan()
     if (osc && freq) osc.frequency.value = freq;
     gain.gain.value = active ? 0.04 : 0;
   }
+  /* 浏览器会在切后台时把音频挂起：用户下一次点页面就把声音接回来，免得以为坏了 */
+  document.addEventListener('pointerdown', function () {
+    if (soundOn && actx && actx.state === 'suspended') actx.resume();
+  }, true);
 
   /* ---------------- 渲染 ----------------
      只有「正在运行」或明确要求重绘（forceRender）时才碰 DOM。
@@ -7605,7 +7607,7 @@ void keys_scan()
       var buzzing = state === 'running' && hw.buzzer.flips - lastFlips > 0;
       var fill = buzzing ? '#f0b429' : '#333941';
       if (rBuzzerFill !== fill) { rBuzzerFill = fill; buzzerEl.setAttribute('fill', fill); }
-      var btext = '蜂鸣器 翻转 ' + hw.buzzer.flips + ' 次';
+      var btext = '蜂鸣器 翻转 ' + hw.buzzer.flips + ' 次' + (hw.buzzer.flips > 0 && !soundOn ? ' · 声音关' : '');
       if (rBuzzerText !== btext) { rBuzzerText = btext; buzzerText.textContent = btext; }
       paintDot8();
     }

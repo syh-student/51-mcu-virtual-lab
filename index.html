@@ -3903,7 +3903,7 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
           <span>UTF-8</span>
           <span id="vtime">0 ms</span>
           <span id="steps">0 条语句</span>
-          <span id="fs-note" class="editor-fs">（浏览器内工程 · 不写盘）</span>
+          <span id="fs-note" class="editor-fs">（未连接）</span>
         </div>
       </div>
 
@@ -3931,7 +3931,6 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
         <div id="serial-view" class="serial-view" hidden>
           <pre id="serial-out" class="serial-out">（串口还没有输出）</pre>
           <div class="serial-bar">
-            <span class="hint">程序写 SBUF 出现在这里 · 相当于 Keil 的 UART #1 窗口</span>
             <span class="sp"></span>
             <input id="serial-tx" class="serial-tx" type="text" placeholder="输入文本发到板子（写进 SBUF、置 RI）" />
             <button id="btn-serial-send" type="button">发送</button>
@@ -3953,7 +3952,7 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
         <button type="button" role="tab" data-view="pin">引脚板</button>
       </div>
       <span class="sp"></span>
-      <span class="hint" id="board-view-hint">运行当前工程，看板子反应</span>
+      <span class="hint" id="board-view-hint"></span>
       <div class="pin-cap-note" id="pin-cap-note" hidden>
         <span id="pin-cap-text"></span>
         <button type="button" id="pin-cap-back">切到功能板</button>
@@ -3964,7 +3963,6 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
       <div class="panel dev-panel">
         <div class="panel-h">
           <span class="idx">08</span><h2>板载器件</h2><span class="sp"></span>
-          <span class="hint">DS1302 / XPT / DS18B20 / 595 / 红外</span>
           <button id="dev-toggle" class="ghost" type="button">收起</button>
         </div>
         <div class="panel-b dev-body">
@@ -4018,14 +4016,12 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
       <div class="panel sfr-panel">
         <div class="panel-h">
           <span class="idx">05</span><h2>寄存器</h2><span class="sp"></span>
-          <span class="hint">悬停位块看含义</span>
         </div>
         <div id="sfr" class="sfr"><div class="sfr-empty">运行后显示 TMOD / TCON / IE 等寄存器的值和每一位</div></div>
       </div>
       <div class="panel watch-panel">
         <div class="panel-h">
           <span class="idx">06</span><h2>变量监视</h2><span class="sp"></span>
-          <span class="hint">Watch</span>
         </div>
         <div id="watch" class="watch"></div>
         <div class="watch-add">
@@ -4057,7 +4053,6 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
         <button type="button" role="tab" data-view="quiz">自测练习</button>
       </div>
       <span class="sp"></span>
-      <span class="hint" id="circuit-hint">搭电路 · 看现象 · 不运行代码</span>
     </div>
     <div class="hw-view" id="lab-hw-view">
       <iframe id="lab-frame" title="51 单片机电路实验台" loading="lazy"></iframe>
@@ -4070,7 +4065,7 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
       <div class="panel-h">
         <span class="idx">07</span>
         <h2>时序图 · 逻辑分析仪</h2>
-        <span class="hint" id="scope-hint">整次运行的完整波形，下次运行自动清空</span>
+        <span class="hint" id="scope-hint"></span>
         <span class="sp"></span>
         <div class="seg" id="scope-span" role="group" aria-label="时间窗口">
           <button type="button" data-ms="0" class="on">全程</button>
@@ -4112,7 +4107,6 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
     <div class="panel">
       <div class="panel-h">
         <span class="idx">01</span><h2>讲义例程</h2>
-        <span class="hint">点一条就能打开</span>
         <span class="hint" id="ex-progress" title="在功能板或写代码页运行，达成例程目标后自动记录">已通关 0 / 16</span>
         <span class="sp"></span>
       </div>
@@ -4149,7 +4143,6 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
   <div class="panel-h">
     <span class="idx">03</span>
     <h2>虚拟开发板</h2>
-    <span class="hint">移到元件上看引脚</span>
     <span class="sp"></span>
     <button id="btn-bounce" class="ghost" title="模拟真实按键 5~20ms 的接触抖动，用来验证消抖代码">抖动 关</button>
     <button id="btn-sound" class="ghost">声音 关</button>
@@ -6635,7 +6628,8 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
       }
       if (port === 'P1') {
         var bOld = (oldV >> 5) & 1, bNew = (newV >> 5) & 1;
-        if (bOld !== bNew) {
+        /* 位写和整口写会先后各来一次，电平没真变就不要再记一遍，否则翻转间隔会被抹成 0 */
+        if (bOld !== bNew && hw.buzzer.level !== bNew) {
           hw.buzzer.flips++;
           hw.buzzer.prevFlip = hw.buzzer.lastFlip;
           hw.buzzer.lastFlip = vm ? vm.vtime : 0;
@@ -8961,9 +8955,6 @@ void main()
       btns[i].classList.toggle('on', on);
       btns[i].setAttribute('aria-selected', on ? 'true' : 'false');
     }
-    var h = $('circuit-hint');
-    if (h) h.textContent = (TOOL_LABELS[view] || '电路实验台') +
-      (view === 'ban' ? ' · 插孔搭电路 / 看现象' : (view === 'lab' ? ' · 搭电路 / 看现象' : ' · 不运行代码'));
   }
   function ensureCircuitFrame() {
     var fr = labFrame();
@@ -8997,7 +8988,7 @@ void main()
     var box = $('pin-cap-note');
     if (view !== 'pin' && box) box.hidden = true;
     if (view === 'native') {
-      setBoardHint('运行当前工程，看板子反应');
+      setBoardHint('');
       updateButtons();
       forceRender = true;
       return;
@@ -12312,11 +12303,9 @@ void keys_scan()
   function renderStat() {
     var n = dirtyCount();
     if (project.fs) {
-      setStat('磁盘 · ' + FS.name + (n ? ' · ' + n + ' 个未保存' : ' · 已保存'));
-    } else if (FS.pending) {
-      setStat('上次的文件夹：' + FS.pending.name);
+      setStat('已连接' + (n ? ' · ' + n + ' 个未保存' : ''));
     } else {
-      setStat('浏览器内工程 · 不写盘');
+      setStat('未连接');
     }
   }
   function updateFsDot() {
@@ -13232,13 +13221,16 @@ void keys_scan()
     if (!marksEl) return;
     var html = '';
     var pad = 12;
+    var total = codeEl.value.split('\n').length;
     /* 光标所在行：和错误行、执行行一样画在 marks 层，不用改高亮 HTML */
     var curLn = codeEl.value.slice(0, codeEl.selectionStart).split('\n').length;
+    if (curLn > total) curLn = total;
     html += '<i class="focus" style="top:' + (pad + (curLn - 1) * LINE_H) + 'px"></i>';
     var showErr = errLine && (!errFile || errFile === project.active);
     if (showErr) html += '<i class="err" style="top:' + (pad + (errLine - 1) * LINE_H) + 'px"></i>';
     var loc = (vm && (state === 'running' || state === 'paused')) ? mapUnitLine(vm.line) : null;
-    if (loc && loc.line && loc.file === project.active && loc.line !== errLine) {
+    /* 换了文件或程序还没同步时，行号可能落在文件外面，别在空白处画一条色带 */
+    if (loc && loc.line && loc.line <= total && loc.file === project.active && loc.line !== errLine) {
       html += '<i class="cur" style="top:' + (pad + (loc.line - 1) * LINE_H) + 'px"></i>';
     }
     if (marksEl.innerHTML !== html) marksEl.innerHTML = html;
@@ -15337,6 +15329,10 @@ void keys_scan()
     if (osc && freq) osc.frequency.value = freq;
     gain.gain.value = active ? 0.04 : 0;
   }
+  /* 浏览器会在切后台时把音频挂起：用户下一次点页面就把声音接回来，免得以为坏了 */
+  document.addEventListener('pointerdown', function () {
+    if (soundOn && actx && actx.state === 'suspended') actx.resume();
+  }, true);
 
   /* ---------------- 渲染 ----------------
      只有「正在运行」或明确要求重绘（forceRender）时才碰 DOM。
@@ -15391,7 +15387,7 @@ void keys_scan()
       var buzzing = state === 'running' && hw.buzzer.flips - lastFlips > 0;
       var fill = buzzing ? '#f0b429' : '#333941';
       if (rBuzzerFill !== fill) { rBuzzerFill = fill; buzzerEl.setAttribute('fill', fill); }
-      var btext = '蜂鸣器 翻转 ' + hw.buzzer.flips + ' 次';
+      var btext = '蜂鸣器 翻转 ' + hw.buzzer.flips + ' 次' + (hw.buzzer.flips > 0 && !soundOn ? ' · 声音关' : '');
       if (rBuzzerText !== btext) { rBuzzerText = btext; buzzerText.textContent = btext; }
       paintDot8();
     }

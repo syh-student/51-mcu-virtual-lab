@@ -466,7 +466,8 @@
       }
       if (port === 'P1') {
         var bOld = (oldV >> 5) & 1, bNew = (newV >> 5) & 1;
-        if (bOld !== bNew) {
+        /* 位写和整口写会先后各来一次，电平没真变就不要再记一遍，否则翻转间隔会被抹成 0 */
+        if (bOld !== bNew && hw.buzzer.level !== bNew) {
           hw.buzzer.flips++;
           hw.buzzer.prevFlip = hw.buzzer.lastFlip;
           hw.buzzer.lastFlip = vm ? vm.vtime : 0;

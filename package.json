@@ -1,6 +1,6 @@
 {
   "name": "51-mcu-virtual-lab",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "private": true,
   "main": "desktop/main.js",
   "description": "51 单片机虚拟实验台：纯前端、零依赖、可离线的单页 IDE",

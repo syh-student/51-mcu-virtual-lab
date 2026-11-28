@@ -280,7 +280,7 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
           <span>UTF-8</span>
           <span id="vtime">0 ms</span>
           <span id="steps">0 条语句</span>
-          <span id="fs-note" class="editor-fs">（浏览器内工程 · 不写盘）</span>
+          <span id="fs-note" class="editor-fs">（未连接）</span>
         </div>
       </div>
 
@@ -308,7 +308,6 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
         <div id="serial-view" class="serial-view" hidden>
           <pre id="serial-out" class="serial-out">（串口还没有输出）</pre>
           <div class="serial-bar">
-            <span class="hint">程序写 SBUF 出现在这里 · 相当于 Keil 的 UART #1 窗口</span>
             <span class="sp"></span>
             <input id="serial-tx" class="serial-tx" type="text" placeholder="输入文本发到板子（写进 SBUF、置 RI）" />
             <button id="btn-serial-send" type="button">发送</button>
@@ -330,7 +329,7 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
         <button type="button" role="tab" data-view="pin">引脚板</button>
       </div>
       <span class="sp"></span>
-      <span class="hint" id="board-view-hint">运行当前工程，看板子反应</span>
+      <span class="hint" id="board-view-hint"></span>
       <div class="pin-cap-note" id="pin-cap-note" hidden>
         <span id="pin-cap-text"></span>
         <button type="button" id="pin-cap-back">切到功能板</button>
@@ -341,7 +340,6 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
       <div class="panel dev-panel">
         <div class="panel-h">
           <span class="idx">08</span><h2>板载器件</h2><span class="sp"></span>
-          <span class="hint">DS1302 / XPT / DS18B20 / 595 / 红外</span>
           <button id="dev-toggle" class="ghost" type="button">收起</button>
         </div>
         <div class="panel-b dev-body">
@@ -395,14 +393,12 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
       <div class="panel sfr-panel">
         <div class="panel-h">
           <span class="idx">05</span><h2>寄存器</h2><span class="sp"></span>
-          <span class="hint">悬停位块看含义</span>
         </div>
         <div id="sfr" class="sfr"><div class="sfr-empty">运行后显示 TMOD / TCON / IE 等寄存器的值和每一位</div></div>
       </div>
       <div class="panel watch-panel">
         <div class="panel-h">
           <span class="idx">06</span><h2>变量监视</h2><span class="sp"></span>
-          <span class="hint">Watch</span>
         </div>
         <div id="watch" class="watch"></div>
         <div class="watch-add">
@@ -434,7 +430,6 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
         <button type="button" role="tab" data-view="quiz">自测练习</button>
       </div>
       <span class="sp"></span>
-      <span class="hint" id="circuit-hint">搭电路 · 看现象 · 不运行代码</span>
     </div>
     <div class="hw-view" id="lab-hw-view">
       <iframe id="lab-frame" title="51 单片机电路实验台" loading="lazy"></iframe>
@@ -447,7 +442,7 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
       <div class="panel-h">
         <span class="idx">07</span>
         <h2>时序图 · 逻辑分析仪</h2>
-        <span class="hint" id="scope-hint">整次运行的完整波形，下次运行自动清空</span>
+        <span class="hint" id="scope-hint"></span>
         <span class="sp"></span>
         <div class="seg" id="scope-span" role="group" aria-label="时间窗口">
           <button type="button" data-ms="0" class="on">全程</button>
@@ -489,7 +484,6 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
     <div class="panel">
       <div class="panel-h">
         <span class="idx">01</span><h2>讲义例程</h2>
-        <span class="hint">点一条就能打开</span>
         <span class="hint" id="ex-progress" title="在功能板或写代码页运行，达成例程目标后自动记录">已通关 0 / 16</span>
         <span class="sp"></span>
       </div>
@@ -526,7 +520,6 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
   <div class="panel-h">
     <span class="idx">03</span>
     <h2>虚拟开发板</h2>
-    <span class="hint">移到元件上看引脚</span>
     <span class="sp"></span>
     <button id="btn-bounce" class="ghost" title="模拟真实按键 5~20ms 的接触抖动，用来验证消抖代码">抖动 关</button>
     <button id="btn-sound" class="ghost">声音 关</button>

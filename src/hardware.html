@@ -190,12 +190,7 @@ main { position: relative; z-index: 1; flex: 1; min-height: 0; width: 100%; max-
 }
 .canvas-hint[hidden] { display: none; }
 /* 面包板二级页：只留面包板 / 实物元件 / 杜邦线三组，原理图相关入口收起 */
-.mode-badge {
-  display: none; align-items: center; padding: 1px 8px; border-radius: 999px;
-  font-size: 10px; letter-spacing: .06em; color: #0d1014;
-  background: linear-gradient(180deg, #ffd98a, #f0a72c);
-}
-html.ban-mode .mode-badge { display: inline-flex; }
+html.ban-mode #ckt-desc { display: none; }
 html.ban-mode #sec-presets,
 html.ban-mode #sec-palette { display: none; }
 /* 电路实验台页不掺面包板：板、实物元件、杜邦线三组入口整体收起，只在「面包板」页出现 */
@@ -453,33 +448,62 @@ html.ban-mode #btn-reset-ckt { display: none; }
 }
 
 /* ========== 画板模拟 ========== */
-.eda-layout { display: grid; grid-template-columns: 236px minmax(0,1fr) 280px; gap: 12px; width: 100%; min-height: 0; }
-.eda-lib { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
-.eda-part {
-  appearance: none; border: 1px solid var(--line-soft); background: rgba(255,255,255,.03);
-  color: rgba(246,241,234,.68); border-radius: 8px; padding: 6px 4px; cursor: pointer;
-  font-family: var(--sans); font-size: 9.5px; text-align: center; line-height: 1.3;
-  transition: all .16s var(--ease);
+.eda-layout { display: grid; grid-template-columns: 244px minmax(0,1fr) 272px; gap: 16px; width: 100%; min-height: 0; }
+
+/* 左栏：模板 / 元件按「一行一条」排，不再用一格格卡片 */
+.eda-side .presets { display: flex; flex-direction: column; gap: 1px; }
+.eda-side .preset {
+  position: relative; text-align: left; appearance: none; border: 0; background: transparent;
+  color: var(--muted); border-radius: 6px; padding: 7px 9px 7px 12px; cursor: pointer;
+  font-family: var(--sans); transition: background .14s var(--ease), color .14s var(--ease);
 }
-.eda-part:hover { background: rgba(255,255,255,.08); border-color: var(--line); }
-.eda-part b { display: block; font-size: 10px; font-weight: 600; }
-.eda-part span { font-size: 8.5px; color: var(--faint); }
-.netlist .net-item { padding: 6px 0; border-bottom: 1px solid var(--line-soft); font-size: 10px; }
-.net-item .net-name { color: var(--accent); font-family: var(--mono); font-size: 10.5px; }
-.net-item .net-pins { color: var(--faint); font-family: var(--mono); font-size: 9px; margin-top: 2px; line-height: 1.6; word-break: break-all; }
+.eda-side .preset::before {
+  content: ''; position: absolute; left: 4px; top: 9px; bottom: 9px; width: 2px;
+  border-radius: 2px; background: transparent; transition: background .14s var(--ease);
+}
+.eda-side .preset:hover { background: rgba(255,255,255,.045); }
+.eda-side .preset.on { background: rgba(255,255,255,.055); color: var(--ink); }
+.eda-side .preset.on::before { background: var(--accent); }
+.eda-side .preset b { display: block; font-weight: 500; font-size: 11px; letter-spacing: .01em; }
+.eda-side .preset span { display: block; margin-top: 2px; color: var(--faint); font-size: 8.5px; line-height: 1.5; }
+
+.eda-lib { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; }
+.eda-part {
+  appearance: none; border: 0; background: transparent; color: var(--muted);
+  border-radius: 6px; padding: 5px 8px; cursor: pointer; font-family: var(--sans);
+  font-size: 9px; text-align: left; line-height: 1.35;
+  transition: background .14s var(--ease);
+}
+.eda-part:hover { background: rgba(255,255,255,.05); }
+.eda-part b { display: block; font-size: 9.5px; font-weight: 500; color: rgba(246,241,234,.8); }
+.eda-part span { font-size: 8px; color: var(--faint); }
+
+.netlist .net-item { padding: 5px 2px; border-bottom: 1px solid var(--line-soft); cursor: default; }
+.netlist .net-item:last-child { border-bottom: 0; }
+.netlist .net-item:hover { background: rgba(255,255,255,.03); }
+.net-item .net-name { color: rgba(246,241,234,.8); font-family: var(--mono); font-size: 9.5px; }
+.net-item .net-pins { color: var(--faint); font-family: var(--mono); font-size: 8px; margin-top: 1px; line-height: 1.5; word-break: break-all; }
+
 .seg.eda-tabs { padding: 2px; }
 .seg.eda-tabs button { font-size: 10px; padding: 5px 12px; }
 .eda-stage { position: relative; flex: 1; min-height: 0; overflow: hidden;
-  background: radial-gradient(circle at 1px 1px, rgba(255,255,255,.045) 1px, transparent 0) 0 0/20px 20px,
-  linear-gradient(160deg, rgba(255,255,255,.018), transparent 70%); }
+  background: radial-gradient(circle at 1px 1px, rgba(255,255,255,.038) 1px, transparent 0) 0 0/18px 18px; }
 #eda-svg { display: block; width: 100%; height: 100%; touch-action: none; }
 .eda-comp { cursor: pointer; }
-.eda-comp .body { stroke: rgba(246,241,234,.7); stroke-width: 1.6; fill: rgba(255,255,255,.04); }
-.eda-comp.sel .body { stroke: var(--accent); stroke-width: 2.4; }
-.eda-comp .ref { fill: rgba(246,241,234,.85); font-family: var(--mono); font-size: 10px; }
-.eda-comp .pin-n { fill: var(--faint); font-family: var(--mono); font-size: 7px; }
-.eda-netline { stroke: rgba(120,200,255,.55); stroke-width: 1.4; fill: none; }
-.eda-netlabel { fill: var(--accent); font-family: var(--mono); font-size: 9px; }
+.eda-comp .body { stroke: rgba(246,241,234,.58); stroke-width: 1.2; fill: rgba(255,255,255,.03); }
+.eda-comp.sel .body { stroke: var(--accent); stroke-width: 2; }
+.eda-comp .ref { fill: rgba(246,241,234,.92); font-family: var(--mono); font-size: 9.5px; }
+.eda-comp .comp-name { fill: rgba(246,241,234,.4); font-family: var(--sans); font-size: 8px; letter-spacing: .02em; }
+.eda-comp .pin-n { fill: rgba(246,241,234,.34); font-family: var(--mono); font-size: 7px; }
+.eda-comp .pin-wire { stroke: rgba(246,241,234,.32); stroke-width: .9; fill: none; }
+/* 网络：默认只留焊盘节点与标签，悬停才把同名焊盘虚线串起来 */
+.eda-pin-dot { fill: rgba(150,180,205,.45); pointer-events: none; }
+.eda-wire { stroke: rgba(140,180,210,.4); stroke-width: 1.2; stroke-linecap: round; pointer-events: none; }
+.eda-netlabel { fill: rgba(196,216,232,.7); font-family: var(--mono); font-size: 8px; letter-spacing: .02em; }
+.eda-net .eda-hl-line { fill: none; stroke: rgba(120,200,255,.4); stroke-width: 1; stroke-dasharray: 4 4; opacity: 0; transition: opacity .12s; pointer-events: none; }
+.eda-net.hl .eda-hl-line { opacity: 1; }
+.eda-net.hl .eda-pin-dot { fill: var(--accent); }
+.eda-net.hl .eda-netlabel { fill: var(--accent); }
 .eda-trace { stroke: var(--warn); stroke-width: 2.4; fill: none; cursor: pointer; }
 .eda-trace:hover { stroke: #fff; }
 .eda-board { fill: rgba(80,140,100,.08); stroke: rgba(143,211,176,.5); stroke-width: 2; stroke-dasharray: 6 4; }
@@ -496,7 +520,7 @@ html.ban-mode #btn-reset-ckt { display: none; }
 .fablist .fab-item { padding: 5px 0; font-size: 9.5px; border-bottom: 1px solid var(--line-soft); }
 .fab-item b { font-family: var(--mono); color: var(--accent); }
 .fab-item span { color: var(--faint); }
-@media (max-width: 1200px) { .eda-layout { grid-template-columns: 190px minmax(0,1fr) 230px; } }
+@media (max-width: 1200px) { .eda-layout { grid-template-columns: 196px minmax(0,1fr) 226px; } }
 @media (max-width: 900px) { .eda-layout { grid-template-columns: 1fr; } }
 
 /* 通用：选中态按钮 */
@@ -864,6 +888,20 @@ html.ios .preset b { font-weight: 600; font-size: 11.5px; }
 html.ios .preset span { color: var(--faint); font-size: 10px; }
 html.ios .eda-part b { font-size: 10.5px; }
 html.ios .eda-part span { font-size: 9px; }
+/* 画板模拟左栏在 iOS 主题下也走「一行一条」，不要圆角卡片 */
+html.ios .eda-side .presets { gap: 1px; }
+html.ios .eda-side .preset {
+  border: 0; border-radius: 6px; background: transparent;
+  padding: 7px 9px 7px 12px;
+}
+html.ios .eda-side .preset:hover { background: rgba(255,255,255,.045); border-color: transparent; transform: none; }
+html.ios .eda-side .preset.on { background: rgba(255,255,255,.06); border-color: transparent; color: var(--ink); }
+html.ios .eda-side .preset.on::before { background: var(--accent); }
+html.ios .eda-side .eda-part {
+  border: 0; border-radius: 6px; background: transparent;
+  padding: 5px 8px;
+}
+html.ios .eda-side .eda-part:hover { background: rgba(255,255,255,.05); border-color: transparent; }
 html.ios .lib-tip {
   border: 0;
   border-radius: 12px;
@@ -1040,9 +1078,12 @@ html.ios .eda-stage {
 html.ios .eda-comp .body { stroke: rgba(235, 235, 245, .72); fill: rgba(255, 255, 255, .04); }
 html.ios .eda-comp.sel .body { stroke: var(--accent); }
 html.ios .eda-comp .ref { fill: rgba(235, 235, 245, .86); }
+html.ios .eda-comp .comp-name { fill: rgba(235, 235, 245, .4); }
 html.ios .eda-comp .pin-n { fill: var(--faint); }
-html.ios .eda-netline { stroke: rgba(10, 132, 255, .58); }
-html.ios .eda-netlabel { fill: var(--accent); }
+html.ios .eda-comp .pin-wire { stroke: rgba(235,235,245,.28); }
+html.ios .eda-wire { stroke: rgba(10, 132, 255, .4); }
+html.ios .eda-pin-dot { fill: rgba(10, 132, 255, .4); }
+html.ios .eda-netlabel { fill: rgba(235, 235, 245, .7); }
 html.ios .eda-board { fill: rgba(48, 209, 88, .08); stroke: rgba(48, 209, 88, .5); }
 html.ios .eda-pad { fill: rgba(255, 149, 0, .5); stroke: var(--warn); }
 html.ios .netlist .net-item { border-bottom: .5px solid var(--line-soft); }
@@ -1073,6 +1114,11 @@ html.ios.light .pin-lv.lo b { color: var(--danger); }
 html.ios.light .pin-lv.hi b { color: var(--accent); }
 html.ios.light .canvas-hint { color: rgba(235, 235, 245, .5); }
 html.ios.light .pin-stage, html.ios.light .eda-stage { color-scheme: dark; }
+/* 画板模拟左栏：元件名/网络名原本用浅色，落在白卡片上会看不见 */
+html.ios.light .eda-part b,
+html.ios.light .net-item .net-name { color: rgba(28, 32, 38, .88); }
+html.ios.light .eda-part:hover { background: rgba(0, 0, 0, .04); }
+html.ios.light .netlist .net-item:hover { background: rgba(0, 0, 0, .03); }
 
 @media (max-width: 900px) {
   html.ios main { padding: 0 12px 16px; }
@@ -1127,9 +1173,7 @@ window.addEventListener('message', function (e) {
     <button class="nav-item" type="button" data-page="quiz">自测练习</button>
   </nav>
   <div class="sp"></div>
-  <div class="appbar-right">
-    <span class="hint-inline">拖动元件、点击引脚连线，实时看电压电流</span>
-  </div>
+  <div class="appbar-right"></div>
 </div>
 
 <main>
@@ -1172,7 +1216,6 @@ window.addEventListener('message', function (e) {
       <div class="panel canvas-panel">
         <div class="panel-h">
           <span class="idx">02</span><h2 id="ckt-title">LED 限流电路</h2>
-          <span class="mode-badge" id="mode-badge">面包板</span>
           <span class="hint" id="ckt-desc">5V 点亮 Vf≈2V 的 LED</span>
           <span class="sp"></span>
           <button id="btn-undo" class="ghost ico" type="button" title="撤销（Ctrl+Z）" aria-label="撤销" disabled>↶</button>
@@ -1314,7 +1357,7 @@ window.addEventListener('message', function (e) {
           <div class="lib-title">选择工程模板</div>
           <div class="presets" id="eda-projects"></div>
           <div class="lib-section">
-            <div class="lib-title">放置元件（点一下）</div>
+            <div class="lib-title">放置元件</div>
             <div class="eda-lib" id="eda-lib"></div>
           </div>
         </div>
@@ -1330,7 +1373,6 @@ window.addEventListener('message', function (e) {
             <button type="button" data-view="pcb">PCB 布局布线</button>
           </div>
           <span class="sp"></span>
-          <span class="hint" id="eda-hint">同名网络标签自动相连</span>
           <button id="btn-add-net" class="ghost" type="button">加网络标签</button>
           <button id="btn-sync-pcb" class="ghost" type="button">同步到 PCB</button>
         </div>
@@ -2784,12 +2826,12 @@ window.addEventListener('message', function (e) {
       note: '上拉/下拉要明确；并联电容实现复位', color: '#8fd3b0'
     },
     'CH340': {
-      name: 'CH340G USB转串口', cat: '接口', sym: 'ic', pkg: 'SOP-16', pins: 16,
+      name: 'CH340G', cat: '接口', sym: 'ic', pkg: 'SOP-16', pins: 16,
       pinNames: { 2: 'TXD', 3: 'RXD' },
       note: 'TXD/RXD 与单片机交叉：TXD→P3.0(RXD)，RXD→P3.1(TXD)', color: '#78c8ff'
     },
     'HUB': {
-      name: 'USB2.0 Hub 4口', cat: '接口', sym: 'ic', pkg: 'QFN-24', pins: 24,
+      name: 'USB Hub', cat: '接口', sym: 'ic', pkg: 'QFN-24', pins: 24,
       note: '上行1口→下行4口；需外部供电或限流；差分线等长', color: '#78c8ff'
     },
     'LDO': {
@@ -2798,7 +2840,7 @@ window.addEventListener('message', function (e) {
       note: '输入输出电容按手册；注意压差与散热', color: '#f0be64'
     },
     'TVS': {
-      name: 'TVS 阵列 ESD保护', cat: '电源', sym: 'diode', pkg: 'SOT-23', pins: 2,
+      name: 'TVS 阵列', cat: '电源', sym: 'diode', pkg: 'SOT-23', pins: 2,
       note: '靠近连接器，走线先过 TVS 再进芯片；结电容不能太大', color: '#ff7a6b'
     },
     'HEADER': {
@@ -4502,11 +4544,8 @@ window.addEventListener('message', function (e) {
     window.__renderCount = (window.__renderCount || 0) + 1;
     /* 面包板页：画布标题换成工作台名字（退出时 chuBanMoShi 还原） */
     if (document.documentElement.classList.contains('ban-mode')) {
-      var tb = $('ckt-title'), db = $('ckt-desc');
+      var tb = $('ckt-title');
       if (tb) tb.textContent = '面包板实验台';
-      if (db) db.textContent = breadboards.length
-        ? (breadboards.length + ' 块面包板 · 点两个孔连杜邦线')
-        : '先放一块面包板';
     }
     miniJingTaiAng = true;   /* 元件分布可能变化，离屏静态层待重画 */
     biaoqianKai = view.k >= BIAOQIAN_K;
@@ -5868,6 +5907,9 @@ window.addEventListener('message', function (e) {
         wangLuoZang();
         $('ckt-status').textContent = '已放置 ' + kuan.ming + '，拖动靠近另一块可磁吸拼接';
         render();
+        /* 第一块板放下去时按实际尺寸收进视野：830 点整板很宽，
+           沿用上一页的 160% 缩放会把两头都裁掉，只剩中间几列。 */
+        if (breadboards.length === 1) setTimeout(function () { fitView(1.6); }, 30);
       });
     });
   })();
@@ -7089,46 +7131,141 @@ window.addEventListener('message', function (e) {
     for (var i = 0; i < btns.length; i++) btns[i].classList.toggle('on', btns[i].getAttribute('data-view') === view);
   }
 
-  /* 原理图：元件用矩形+引脚，网络用虚线连到标签 */
+  /* 原理图：元件符号 + 焊盘节点 + 网络标签（同名即相连，悬停才拉虚线看全貌） */
+  var SCH_K = 1.8;   /* 原理图排布放大系数：模板坐标太挤，拉开才有呼吸感 */
+
+  function schBox(p) {
+    var def = partDef(p);
+    if (!def) return null;
+    var isIC = def.sym === 'ic' || def.pins > 4;
+    var hw = (isIC ? 30 : 22) * SCH_K, hh = (isIC ? 36 : 14) * SCH_K;
+    var cx = p.x * SCH_K, cy = p.y * SCH_K;
+    return { x0: cx - hw, y0: cy - hh, x1: cx + hw, y1: cy + hh };
+  }
+
   function renderSch() {
-    $('eda-hint').textContent = '同名网络标签自动相连（课程 25.2）';
-    /* 网络连线：同名焊盘之间用直角折线连起来 + 就近放标签，减少交叉 */
-    project.nets.forEach(function (net, ni) {
+    /* 视口按内容定：图形自动放大铺满画布，不再堆在左上角 */
+    svgRoot.setAttribute('viewBox', '0 40 880 620');
+    svgRoot.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+    var kuang = project.parts.map(schBox).filter(Boolean);
+    suanPinBuju();
+    project.parts.forEach(function (p) { drawSchPart(p); });
+
+    var yiZhan = [];   /* 已放标签的矩形，用来避让 */
+    project.nets.forEach(function (net) {
       var anchors = [];
       net.pins.forEach(function (pin) {
         var pd = parsePin(pin);
         var part = project.parts.filter(function (p) { return p.id === pd.id; })[0];
         if (!part) return;
         var a = schPinPos(part, pd.num);
-        if (a) anchors.push(a);
+        if (a) anchors.push({ x: a.x, y: a.y, cx: part.x * SCH_K });
       });
       if (!anchors.length) return;
-      /* 取最右的焊盘作为标签锚点（就近） */
-      var right = anchors.reduce(function (a, b) { return a.x >= b.x ? a : b; });
-      var lx = Math.min(560, right.x + 40), ly = right.y;
-      /* 标签纵向错开，避免重叠（模拟理线） */
-      lx = Math.min(600, right.x + 30 + (ni % 3) * 4);
-      ly = Math.max(50, Math.min(340, ly + ((ni % 2) ? 8 : -8)));
-      /* 同一网络：每个焊盘→右锚点的折线 */
+
+      var g = svg('g', { 'class': 'eda-net', 'data-net': net.name }, svgRoot);
+
+      /* 悬停时才显现：把所有同名焊盘按顺序连成虚线 */
+      if (anchors.length > 1) {
+        var d = anchors.map(function (a, i) { return (i ? 'L' : 'M') + a.x + ' ' + a.y; }).join(' ');
+        svg('path', { d: d, 'class': 'eda-hl-line' }, g);
+      }
+
+      /* 只有「面对面」且中间没有别的元件时，才画一小段实线 */
+      for (var i = 0; i < anchors.length; i++) {
+        for (var j = i + 1; j < anchors.length; j++) {
+          var A = anchors[i], B = anchors[j];
+          var kai = null;
+          if (Math.abs(A.y - B.y) <= 8) {
+            if (A.x > A.cx && B.x < B.cx && B.x - A.x > 0 && B.x - A.x <= 200) kai = [A, B];
+            else if (B.x > B.cx && A.x < A.cx && A.x - B.x > 0 && A.x - B.x <= 200) kai = [B, A];
+          }
+          if (!kai) continue;
+          var y = kai[0].y, x1 = kai[0].x, x2 = kai[1].x;
+          var dang = kuang.some(function (b) { return y > b.y0 && y < b.y1 && b.x0 < x2 - 2 && b.x1 > x1 + 2; });
+          if (!dang) svg('line', { x1: x1, y1: y, x2: x2, y2: y, 'class': 'eda-wire' }, g);
+        }
+      }
+
       anchors.forEach(function (a) {
-        var midX = a.x + (lx - a.x) * 0.5;
-        svg('path', { d: 'M' + a.x + ' ' + a.y + ' L' + midX + ' ' + a.y + ' L' + midX + ' ' + ly + ' L' + lx + ' ' + ly,
-          'class': 'eda-netline' }, svgRoot);
+        svg('circle', { cx: a.x, cy: a.y, r: 2.1, 'class': 'eda-pin-dot' }, g);
       });
-      svg('text', { x: lx + 3, y: ly - 4, 'class': 'eda-netlabel' }, svgRoot).textContent = net.name;
+
+      /* 标签优先放在焊盘朝外的一侧，被元件/别的标签挡住就换边或错行 */
+      var head = anchors.reduce(function (a, b) { return (b.x < a.x || (b.x === a.x && b.y < a.y)) ? b : a; });
+      var w = net.name.length * 4.7 + 4;
+      var wai = head.x < head.cx ? 'end' : 'start';
+      var nei = wai === 'end' ? 'start' : 'end';
+      var ce = [
+        { a: wai, x: wai === 'end' ? head.x - 10 : head.x + 10, y: head.y - 6 },
+        { a: nei, x: nei === 'end' ? head.x - 10 : head.x + 10, y: head.y - 6 },
+        { a: 'middle', x: head.x, y: head.y + 15 },
+        { a: 'middle', x: head.x, y: head.y - 11 }
+      ];
+      var fang = null;
+      for (var c = 0; c < ce.length && !fang; c++) {
+        var k = ce[c];
+        var bx0 = k.a === 'end' ? k.x - w : (k.a === 'start' ? k.x : k.x - w / 2);
+        var box = { x0: bx0, x1: bx0 + w, y0: k.y - 8, y1: k.y + 3 };
+        var peng = kuang.some(function (b) { return box.x1 > b.x0 && box.x0 < b.x1 && box.y1 > b.y0 && box.y0 < b.y1; })
+          || yiZhan.some(function (b) { return box.x1 > b.x0 && box.x0 < b.x1 && box.y1 > b.y0 && box.y0 < b.y1; });
+        if (!peng) fang = { a: k.a, x: k.x, y: k.y, box: box };
+      }
+      if (!fang) {
+        /* 四个方向都挤：贴着外沿排，逐行错开 */
+        var x0 = wai === 'end' ? head.x - 10 : head.x + 10;
+        var ly0 = head.y - 6;
+        for (var t = 0; t < 8; t++) {
+          var b2 = wai === 'end' ? { x0: x0 - w, x1: x0, y0: ly0 - 8, y1: ly0 + 3 } : { x0: x0, x1: x0 + w, y0: ly0 - 8, y1: ly0 + 3 };
+          if (!yiZhan.some(function (b) { return b2.x1 > b.x0 && b2.x0 < b.x1 && b2.y1 > b.y0 && b2.y0 < b.y1; })) break;
+          ly0 += 10;
+        }
+        fang = { a: wai, x: x0, y: ly0, box: b2 };
+      }
+      yiZhan.push(fang.box);
+      svg('text', { x: fang.x, y: fang.y, 'class': 'eda-netlabel', 'text-anchor': fang.a }, g).textContent = net.name;
+
+      g.addEventListener('mouseenter', function () { g.classList.add('hl'); });
+      g.addEventListener('mouseleave', function () { g.classList.remove('hl'); });
     });
-    /* 元件 */
-    project.parts.forEach(function (p) { drawSchPart(p); });
   }
 
   function schPinPos(part, pinNum) {
-    var x = part.x, y = part.y;
-    /* 简化：小元件左右各一脚，IC 上下分布 */
+    var e = pinBuju[part.id];
+    if (e && e.pos[pinNum]) return e.pos[pinNum];
+    var x = part.x * SCH_K, y = part.y * SCH_K;
     var def = partDef(part);
     if (!def) return null;
-    if (pinNum <= 2) return { x: x + (pinNum === 1 ? -30 : 30), y: y };
-    var side = pinNum % 2 ? -1 : 1;
-    return { x: x + side * 34, y: y - 30 + Math.floor(pinNum / 2) * 7 };
+    if (pinNum <= 2) return { x: x + (pinNum === 1 ? -34 : 34), y: y };
+    return { x: x + 34, y: y };
+  }
+
+  /* 每个元件实际被网络用到的引脚：左右分开、纵向均分，避免引脚跑到框外 */
+  var pinBuju = {};
+  function suanPinBuju() {
+    pinBuju = {};
+    project.parts.forEach(function (p) { pinBuju[p.id] = { pins: [], pos: {} }; });
+    project.nets.forEach(function (net) {
+      net.pins.forEach(function (s) {
+        var pd = parsePin(s);
+        var e = pinBuju[pd.id];
+        if (e && e.pins.indexOf(pd.num) < 0) e.pins.push(pd.num);
+      });
+    });
+    project.parts.forEach(function (p) {
+      var e = pinBuju[p.id];
+      e.pins.sort(function (a, b) { return a - b; });
+      var zuo = [], you = [];
+      e.pins.forEach(function (n, i) { (i % 2 ? you : zuo).push(n); });
+      [zuo, you].forEach(function (arr, si) {
+        var dx = (si ? 1 : -1) * 34;
+        arr.forEach(function (n, i) {
+          var y = (i + 1) * 66 / (arr.length + 1) - 33;
+          e.pos[n] = { x: p.x * SCH_K + dx, y: p.y * SCH_K + y };
+        });
+      });
+    });
   }
 
   function parsePin(s) { var m = String(s).match(/^(.+)\.(\d+)$/); return m ? { id: m[1], num: +m[2] } : { id: s, num: 1 }; }
@@ -7136,10 +7273,24 @@ window.addEventListener('message', function (e) {
   function drawSchPart(p) {
     var def = partDef(p);
     if (!def) return;
-    var g = svg('g', { 'class': 'eda-comp' + (selected === p.id ? ' sel' : ''), transform: 'translate(' + p.x + ',' + p.y + ')' }, svgRoot);
-    var isIC = def.sym === 'ic' || def.pins > 4;
-    if (isIC) {
+    var g = svg('g', { 'class': 'eda-comp' + (selected === p.id ? ' sel' : ''), transform: 'translate(' + (p.x * SCH_K) + ',' + (p.y * SCH_K) + ')' }, svgRoot);
+    var isHeader = def.sym === 'header';
+    var isUSB = def.pkg && def.pkg.indexOf('USB-C') === 0;
+    var isIC = (def.sym === 'ic' || def.pins > 4) && !isHeader && !isUSB && def.sym !== 'button';
+    var halfW = isHeader ? 8 : (isUSB ? 16 : (isIC ? 30 : 22));
+    if (isUSB) {
+      svg('rect', { x: -16, y: -36, width: 32, height: 72, rx: 3, 'class': 'body' }, g);
+      svg('rect', { x: -10, y: -30, width: 20, height: 8, rx: 2, 'class': 'pin-wire' }, g);
+    } else if (isIC) {
       svg('rect', { x: -30, y: -36, width: 60, height: 72, rx: 3, 'class': 'body' }, g);
+    } else if (isHeader) {
+      /* 排针：细长条 + 两侧焊盘刻度，不再是一个空方框 */
+      svg('rect', { x: -8, y: -36, width: 16, height: 72, rx: 2, 'class': 'body' }, g);
+      for (var i = 0; i < 10; i++) {
+        var ty = -32 + i * 7;
+        svg('rect', { x: -14, y: ty - 1, width: 5, height: 2, 'class': 'pin-wire' }, g);
+        svg('rect', { x: 9, y: ty - 1, width: 5, height: 2, 'class': 'pin-wire' }, g);
+      }
     } else if (def.sym === 'cap' || def.sym === 'capp') {
       svg('line', { x1: -22, y1: 0, x2: -5, y2: 0, 'class': 'body' }, g);
       svg('line', { x1: -5, y1: -10, x2: -5, y2: 10, 'class': 'body' }, g);
@@ -7154,25 +7305,40 @@ window.addEventListener('message', function (e) {
       svg('line', { x1: -22, y1: 0, x2: -16, y2: 0, 'class': 'body' }, g);
       svg('line', { x1: 16, y1: 0, x2: 22, y2: 0, 'class': 'body' }, g);
     } else if (def.sym === 'led' || def.sym === 'diode') {
-      svg('circle', { cx: 0, cy: 0, r: 12, 'class': 'body', stroke: def.color }, g);
+      svg('circle', { cx: 0, cy: 0, r: 12, 'class': 'body' }, g);
       svg('line', { x1: -22, y1: 0, x2: -12, y2: 0, 'class': 'body' }, g);
       svg('line', { x1: 12, y1: 0, x2: 22, y2: 0, 'class': 'body' }, g);
     } else {
       svg('rect', { x: -22, y: -14, width: 44, height: 28, rx: 3, 'class': 'body' }, g);
     }
-    svg('text', { x: 0, y: isIC ? -42 : -20, 'class': 'ref', 'text-anchor': 'middle' }, g).textContent = p.id;
-    svg('text', { x: 0, y: isIC ? 48 : 26, 'class': 'pin-n', 'text-anchor': 'middle', fill: def.color }, g).textContent = def.name;
-    /* 引脚号（IC） */
-    if (isIC) {
-      var show = def.pinNames ? Object.keys(def.pinNames).slice(0,4) : [];
-      show.forEach(function (num, i) {
-        svg('text', { x: -22, y: -24 + i * 11, 'class': 'pin-n', 'text-anchor': 'end' }, g).textContent = num;
+    svg('text', { x: 0, y: isIC || isHeader || isUSB ? -42 : -20, 'class': 'ref', 'text-anchor': 'middle' }, g).textContent = p.id;
+    svg('text', { x: 0, y: isIC || isHeader || isUSB ? 48 : 26, 'class': 'comp-name', 'text-anchor': 'middle' }, g).textContent = def.name;
+
+    /* 引脚：从本体边缘拉一小段线到焊盘（焊盘上再点网络节点） */
+    var e = pinBuju[p.id];
+    if (e) {
+      e.pins.forEach(function (num) {
+        var pos = e.pos[num];
+        if (!pos) return;
+        var dir = pos.x - p.x * SCH_K < 0 ? -1 : 1;
+        var ly = pos.y - p.y * SCH_K;
+        svg('line', { x1: dir * halfW, y1: ly, x2: dir * 34, y2: ly, 'class': 'pin-wire' }, g);
       });
     }
     g.addEventListener('click', function (e) { e.stopPropagation(); selected = p.id; render(); });
-    var drag = false, sx, sy, ox, oy;
-    g.addEventListener('pointerdown', function (e) { drag = true; sx=e.clientX; sy=e.clientY; ox=p.x; oy=p.y; });
-    g.addEventListener('pointermove', function (e) { if(drag){ p.x=ox+e.clientX-sx; p.y=oy+e.clientY-sy; g.setAttribute('transform','translate('+p.x+','+p.y+')'); renderNetLinesOnly(); }});
+    var drag = false, sx, sy, ox, oy, kk = 1;
+    g.addEventListener('pointerdown', function (e) {
+      drag = true; sx = e.clientX; sy = e.clientY; ox = p.x; oy = p.y;
+      var vb = svgRoot.viewBox.baseVal, box = svgRoot.getBoundingClientRect();
+      kk = SCH_K * ((vb && vb.width ? box.width / vb.width : 1) || 1);
+    });
+    g.addEventListener('pointermove', function (e) {
+      if (drag) {
+        p.x = ox + (e.clientX - sx) / kk; p.y = oy + (e.clientY - sy) / kk;
+        g.setAttribute('transform', 'translate(' + (p.x * SCH_K) + ',' + (p.y * SCH_K) + ')');
+        renderNetLinesOnly();
+      }
+    });
     g.addEventListener('pointerup', function () { if(drag){ drag=false; render(); }});
   }
 
@@ -7190,8 +7356,10 @@ window.addEventListener('message', function (e) {
   }
 
   function renderPcb() {
-    $('eda-hint').textContent = '拖动元件布局 · 焊盘高亮可连线';
     var C = pcbColors();
+    /* PCB 用像素坐标铺板，视口回到 1:1 */
+    svgRoot.removeAttribute('viewBox');
+    svgRoot.removeAttribute('preserveAspectRatio');
     /* 板子铺满可视区（留出边距） */
     var host = $('eda-stage');
     var vw = (host && host.clientWidth) || 700, vh = (host && host.clientHeight) || 460;
@@ -7232,24 +7400,25 @@ window.addEventListener('message', function (e) {
       var py = p.py != null ? p.py : (BY + 34 + (p.y / 330) * (BH - 80));
       return { x: px, y: py };
     }
-    project.nets.forEach(function (net) {
+    project.nets.forEach(function (net, ni) {
       var pts = net.pins.map(posOf).filter(Boolean);
       if (pts.length < 2) return;
-      /* 依次连接，走 45° 折线，避免斜穿元件 */
-      var w = /VCC|VBUS|VDD|GND/.test(net.name) ? 4.2 : 2.6;
+      /* 每条网络给一条自己的竖向走线通道，避免所有线挤在中间 */
+      var w = /VCC|VBUS|VDD|GND/.test(net.name) ? 3.6 : 2.2;
+      var lane = ((ni % 5) - 2) * 7;
       var d = 'M' + pts[0].x + ' ' + pts[0].y;
       for (var i = 1; i < pts.length; i++) {
         var a = pts[i-1], b = pts[i];
-        var midX = a.x + (b.x - a.x) * 0.5;
+        var midX = +(a.x + (b.x - a.x) * 0.5 + lane).toFixed(1);
         d += ' L' + midX + ' ' + a.y + ' L' + midX + ' ' + b.y + ' L' + b.x + ' ' + b.y;
       }
       svg('path', { d: d, fill: 'none', stroke: C.copper, 'stroke-width': w,
-        'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: '.8' }, svgRoot);
-      svg('path', { d: d, fill: 'none', stroke: 'rgba(255,240,190,.35)', 'stroke-width': w * .3,
-        'stroke-linecap': 'round', opacity: '.55' }, svgRoot);
+        'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: '.62' }, svgRoot);
+      svg('path', { d: d, fill: 'none', stroke: 'rgba(255,240,190,.28)', 'stroke-width': w * .28,
+        'stroke-linecap': 'round', opacity: '.45' }, svgRoot);
       /* 焊盘铜环 */
       pts.forEach(function (pt) {
-        svg('circle', { cx: pt.x, cy: pt.y, r: 2.6, fill: C.copper, opacity: '.9' }, svgRoot);
+        svg('circle', { cx: pt.x, cy: pt.y, r: 3, fill: C.copper, opacity: '.75' }, svgRoot);
       });
     });
 
@@ -7374,6 +7543,13 @@ window.addEventListener('message', function (e) {
       var item = el('div', 'net-item', null, host);
       el('div', 'net-name', net.name, item);
       el('div', 'net-pins', net.pins.join(' · '), item);
+      /* 指到哪条网络，画布上同名焊盘就亮起来 */
+      var zhao = function (on) {
+        var g = svgRoot.querySelector('.eda-net[data-net="' + net.name + '"]');
+        if (g) g.classList.toggle('hl', on);
+      };
+      item.addEventListener('mouseenter', function () { zhao(true); });
+      item.addEventListener('mouseleave', function () { zhao(false); });
     });
   }
 
