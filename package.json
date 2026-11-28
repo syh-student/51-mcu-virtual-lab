@@ -20,9 +20,9 @@
     "test": "node test.js && node test-examples.js && node test-ui.js && node test-diagnostics.js && node test-persistence.js",
     "lint": "eslint src",
     "desktop": "electron .",
-    "dist:portable": "electron-builder --win portable --x64",
-    "dist:installer": "electron-builder --win nsis --x64",
-    "dist:win": "electron-builder --win --x64",
+    "dist:portable": "electron-builder --win portable --x64 --publish never",
+    "dist:installer": "electron-builder --win nsis --x64 --publish never",
+    "dist:win": "electron-builder --win --x64 --publish never",
     "shots": "node tools/shots.js",
     "verify": "node tools/verify.js"
   },
