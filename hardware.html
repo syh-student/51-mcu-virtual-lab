@@ -175,8 +175,13 @@ main { position: relative; z-index: 1; flex: 1; min-height: 0; width: 100%; max-
     rgba(255,255,255,.045) 7px, rgba(255,255,255,.045) 8px);
 }
 #circuit { position: relative; z-index: 2; display: block; width: 100%; height: 100%; touch-action: none; }
-#circuit.space { cursor: grab; }
+#circuit.space, #circuit.hand { cursor: grab; }
 #circuit.panning { cursor: grabbing; }
+.canvas-tools button.on {
+  background: rgba(64, 156, 255, .18);
+  color: #7db8ff;
+  border-color: rgba(64, 156, 255, .45);
+}
 .canvas-hint {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
   z-index: 3;
@@ -194,6 +199,20 @@ main { position: relative; z-index: 1; flex: 1; min-height: 0; width: 100%; max-
 }
 .ghost.ico { padding: 3px 8px; font-size: 13px; line-height: 1; }
 .ghost:disabled { opacity: .35; cursor: default; }
+/* 小地图：右上角缩略导航，默认收起，只在缩放时短暂弹出；半透明玻璃底不抢主视觉 */
+.minimap {
+  position: absolute; right: 10px; top: 10px; z-index: 4;
+  width: 132px; padding: 4px;
+  background: rgba(10,8,7,.62); border: 1px solid rgba(120,200,255,.14);
+  border-radius: 7px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  opacity: 0; pointer-events: none;
+  transform: translateY(-3px) scale(.97);
+  transition: opacity .18s ease, transform .18s ease;
+}
+.minimap.hidden { opacity: 0; pointer-events: none; transform: translateY(-3px) scale(.97); }
+.minimap:not(.hidden) { opacity: 1; pointer-events: auto; transform: none; }
+.minimap canvas { display: block; width: 122px; height: 78px; border-radius: 4px; cursor: pointer; touch-action: none; }
+@media (max-width: 900px) { .minimap { width: 112px; } .minimap canvas { width: 102px; height: 66px; } }
 .canvas-foot {
   flex: none; display: flex; align-items: center; gap: 10px; padding: 7px 14px;
   border-top: 1px solid var(--line-soft); font-size: 10px; color: var(--faint);
@@ -251,6 +270,55 @@ main { position: relative; z-index: 1; flex: 1; min-height: 0; width: 100%; max-
 .junction { fill: rgba(246,241,234,.7); }
 .wire-preview { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 5 5; fill: none; pointer-events: none; }
 .guide { stroke: rgba(120,200,255,.45); stroke-width: 1; stroke-dasharray: 4 4; pointer-events: none; }
+
+/* 面包板：白塑料本底 + 方孔 + 红蓝电源轨 */
+.breadboard { cursor: pointer; }
+.ban-body { fill: url(#ban-jianbian); stroke: rgba(0,0,0,.34); stroke-width: 1.3; filter: drop-shadow(0 3px 8px rgba(0,0,0,.45)); }
+.ban-bian { fill: none; stroke: rgba(255,255,255,.22); stroke-width: 1; }
+.ban-tab { fill: #e6e3dc; stroke: rgba(0,0,0,.28); stroke-width: 1; }
+.ban-kou { fill: #aeaaa0; stroke: rgba(0,0,0,.18); stroke-width: .8; }
+.ban-cao { fill: url(#ban-cao-jianbian); }
+.ban-kong { fill: #1d1e23; stroke: rgba(255,255,255,.34); stroke-width: .8; cursor: pointer; }
+.ban-tiao { stroke-width: 2.2; stroke-linecap: round; }
+.ban-tiao.zheng { stroke: #cf4234; }
+.ban-tiao.fu { stroke: #2f6fae; }
+.ban-ji { font-family: var(--mono); font-size: 8.5px; font-weight: 700; text-anchor: middle; }
+.ban-ji.zheng { fill: #cf4234; }
+.ban-ji.fu { fill: #2f6fae; }
+.ban-num { fill: rgba(0,0,0,.58); font-family: var(--mono); font-size: 7.2px; text-anchor: middle; }
+.breadboard.selected .ban-body,
+.breadboard.selected .ban-tab { stroke: var(--accent); stroke-width: 2; filter: drop-shadow(0 0 5px rgba(77,184,255,.45)); }
+.breadboard.selected .ban-kong { stroke: rgba(77,184,255,.55); }
+.ban-kong:hover { fill: #3d7cb0; }
+
+/* 实物元件 */
+.wujian { cursor: pointer; }
+.wujian .wj-lead { stroke: #dfe4ea; stroke-width: 1.7; stroke-linecap: round; }
+.wujian .wj-lead-yin { stroke: #5b636e; stroke-width: 3; stroke-linecap: round; opacity: .9; }
+.wujian .wj-jian { fill: none; stroke: #dbe2ea; stroke-width: 1.1; opacity: .9; }
+.wujian .wj-dianzu { fill: #d8b48a; stroke: #b89066; stroke-width: 1; }
+.wujian .wj-led { stroke: rgba(255,255,255,.5); stroke-width: 1; }
+.wujian .wj-zi { fill: #3a2f16; font-family: var(--mono); font-size: 13px; font-weight: 700; }
+.wujian .wj-zhi { fill: #5b636e; font-family: var(--mono); font-size: 8px; }
+.wujian .wj-ma { fill: #dbe4f2; fill-opacity: .8; font-family: var(--mono); font-size: 8.5px; }
+.wujian:hover { filter: drop-shadow(0 0 3px rgba(77,184,255,.4)); }
+.wujian.selected { filter: drop-shadow(0 0 6px rgba(77,184,255,.6)); }
+/* 电源短路时电池外圈闪红 */
+.wujian .wj-duanlu-ring { fill: none; stroke: #e04436; stroke-width: 2; animation: wjDuanLu 1s ease-in-out infinite; }
+@keyframes wjDuanLu { 0%, 100% { stroke-opacity: .22; } 50% { stroke-opacity: 1; } }
+/* 杜邦线 */
+.dubang { fill: none; stroke-width: 3; stroke-linecap: round; cursor: pointer; }
+.dubang-hit { fill: none; stroke-width: 12; stroke-linecap: round; cursor: pointer; }
+.dubang-zu { pointer-events: none; }
+.dubang-zu .dubang, .dubang-zu .dubang-hit { pointer-events: stroke; }
+.dubang.selected { stroke-width: 4.5; filter: drop-shadow(0 0 4px rgba(255,255,255,.5)); }
+/* 杜邦线颜色选择 */
+.db-yanse { display: flex; flex-wrap: wrap; gap: 6px; }
+.db-yanse button { width: 26px; height: 26px; border-radius: 6px; border: 2px solid transparent;
+  cursor: pointer; padding: 0; position: relative; }
+.db-yanse button.on { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(77,184,255,.25); }
+.ban-kong.db-dengdai { fill: #3d7cb0; }
+.ban-kong.wang-tong { fill: #2f8fd6; }
 
 /* 参数面板 */
 .param-row { margin-bottom: 12px; }
@@ -1006,7 +1074,7 @@ window.addEventListener('message', function (e) {
   </div>
   <div class="head-right">
     <span class="head-note">电阻电容电感 · 二极管三极管 · 电路定理</span>
-    <span class="build-tag" id="build-tag">构建 11-27 23:35</span>
+    <span class="build-tag" id="build-tag">构建 11-28 13:34</span>
   </div>
 </header>
 
@@ -1042,6 +1110,19 @@ window.addEventListener('message', function (e) {
             <span>一个引脚拖到另一个引脚就能连线；单击导线选中、Delete 删除（Alt+单击直接删）。滚轮缩放，空格 + 拖动平移。</span>
           </div>
           <div class="lib-section">
+            <div class="lib-title">面包板（可多块拼接）</div>
+            <div class="palette" id="palette-breadboard"></div>
+          </div>
+          <div class="lib-section">
+            <div class="lib-title">实物元件（插进面包板孔）</div>
+            <div class="palette" id="palette-wujian"></div>
+          </div>
+          <div class="lib-section">
+            <div class="lib-title">杜邦线（点两个孔连接）</div>
+            <div class="db-yanse" id="db-yanse"></div>
+            <div class="lib-tip"><span>先选颜色，再依次点面包板上的两个孔就连一根杜邦线；点已有的线选中，Delete 删除。</span></div>
+          </div>
+          <div class="lib-section">
             <div class="lib-title">点一下放到画布</div>
             <div class="palette" id="palette"></div>
           </div>
@@ -1066,10 +1147,15 @@ window.addEventListener('message', function (e) {
 滚轮缩放 · 空格 + 拖动平移</div>
           <div class="ckt-pin-tip" id="ckt-pin-tip" hidden></div>
           <div class="canvas-tools">
+            <button id="btn-hand" class="ghost" type="button" title="抓手工具：拖动画布（再点一次退出，或按空格临时使用）">抓手</button>
+            <button id="btn-minimap" class="ghost" type="button" title="小地图：查看全部元件分布，点击可跳转">小地图</button>
             <button id="btn-zoom-out" class="ghost" type="button" title="缩小（滚轮也可以）">−</button>
             <button id="btn-zoom-reset" class="ghost" type="button" title="恢复 100%">100%</button>
             <button id="btn-zoom-in" class="ghost" type="button" title="放大（滚轮也可以）">＋</button>
             <button id="btn-zoom-fit" class="ghost" type="button" title="适应画布：把整张电路放到视口中央">适应</button>
+          </div>
+          <div class="minimap hidden" id="minimap">
+            <canvas id="minimap-canvas" aria-label="全画布缩略导航"></canvas>
           </div>
         </div>
         <div class="canvas-foot">
@@ -2897,7 +2983,19 @@ window.addEventListener('message', function (e) {
   var pendingPin = null;   // 等待连线的引脚 {id,pin}
   var currentPreset = 'led';
   var uid = 1;
+  var breadboards = [];    // 面包板：{ id, x, y, lieshu, rot }
+  var selectedBan = null;  // 选中的面包板 id（与 selected 互斥）
   function nextId() { return 'c' + (uid++); }
+  var wujian = [];         // 实物元件：{ id, kind, x, y, rot, yinjiao:[{kong}], ...参数 }
+  var selectedWj = null;   // 选中的实物元件 id（与 selected/selectedBan 互斥）
+  var wjUid = 1;
+  function nextWjId() { return 'wj-' + (wjUid++); }
+  var dubangxian = [];     // 杜邦线：{ id, kongA, kongB, yanse }
+  var selectedDb = null;   // 选中的杜邦线 id
+  var dbDiyiji = null;     // 杜邦线待连接的第一个孔地址
+  var dbYanse = '#e04436'; // 当前选中的杜邦线颜色
+  var dbUid = 1;
+  function nextDbId() { return 'db-' + (dbUid++); }
 
   /* ================= 撤销 / 重做 ================= */
   var history = [], future = [], MAX_HISTORY = 60;
@@ -2908,11 +3006,19 @@ window.addEventListener('message', function (e) {
     return {
       components: JSON.parse(JSON.stringify(components)),
       wires: JSON.parse(JSON.stringify(wires)),
+      breadboards: JSON.parse(JSON.stringify(breadboards)),
+      wujian: JSON.parse(JSON.stringify(wujian)),
+      dubangxian: JSON.parse(JSON.stringify(dubangxian)),
       selected: selected,
+      selectedBan: selectedBan,
+      selectedWj: selectedWj,
+      selectedDb: selectedDb,
       preset: currentPreset,
       title: $('ckt-title').textContent,
       desc: $('ckt-desc').textContent,
-      uid: uid
+      uid: uid,
+      wjUid: wjUid,
+      dbUid: dbUid
     };
   }
   function updateHistoryButtons() {
@@ -2937,13 +3043,23 @@ window.addEventListener('message', function (e) {
   function restoreSnapshot(s) {
     components = JSON.parse(JSON.stringify(s.components));
     wires = JSON.parse(JSON.stringify(s.wires));
+    breadboards = JSON.parse(JSON.stringify(s.breadboards || []));
+    wujian = JSON.parse(JSON.stringify(s.wujian || []));
+    dubangxian = JSON.parse(JSON.stringify(s.dubangxian || []));
     selected = s.selected || null;
+    selectedBan = s.selectedBan || null;
+    selectedWj = s.selectedWj || null;
+    selectedDb = s.selectedDb || null;
     selectedWire = null;
     currentPreset = s.preset;
     uid = s.uid;
+    wjUid = s.wjUid || 1;
+    dbUid = s.dbUid || 1;
     $('ckt-title').textContent = s.title;
     $('ckt-desc').textContent = s.desc;
     pendingPin = null;
+    dbDiyiji = null;
+    wangLuoZang();
     paramEditComp = null;
     if (nudgeTimer) { clearTimeout(nudgeTimer); nudgeTimer = null; }
     syncPresetButtons();
@@ -2977,11 +3093,70 @@ window.addEventListener('message', function (e) {
   /* ================= 画布视图（缩放 / 平移） ================= */
   var GRID = 10;
   var view = { x: 0, y: 0, k: 1 };
+  var ZUIXIAO_SUOFANG = 0.25, ZUIDA_SUOFANG = 4;   /* 无限画布的缩放上下限 */
   var viewTouched = false;
   var scene = null;
+  /* 画布尺寸缓存：缩放/平移期间画布大小不会变，读缓存即可；
+     避免在“布局已脏”时调 getBoundingClientRect，逼浏览器对整棵大 SVG 做强制重排 */
+  var bujuHuanCun = null;
+  function genBuJu() {
+    if (!bujuHuanCun) {
+      var r = svgRoot.getBoundingClientRect();
+      bujuHuanCun = { left: r.left, top: r.top, width: r.width, height: r.height };
+    }
+    return bujuHuanCun;
+  }
+  /* 分层：导线 / 元件 / 对齐辅助线 / 电流标注，各自独立的 g，保证 z 序稳定 */
+  var cengWire = null, cengComp = null, cengGuide = null, cengFlow = null;
+  /* 视口裁剪：上次渲染时实际覆盖的世界矩形，超出即触发一次防抖重建 */
+  var lastCullRect = null, cullDingShi = 0;
+  var biaoqianDingShi = 0;
   var guideXEl = null, guideYEl = null;
   var wireDrag = null, wirePreview = null, hoverPinEl = null;
   var spaceDown = false, panDrag = null, suppressCanvasClick = false;
+  var zhuashouOn = false;   /* 抓手工具：与空格不同，是持续开关，再点一次退出 */
+  var biaoqianKai = true;   /* 面包板列号/行标是否印制：缩放低于阈值就不印 */
+  var BIAOQIAN_K = 0.62;    /* 低于这个缩放级别，列号行标糊成一团，索性不画 */
+  function syncZhuashou() {
+    svgRoot.classList.toggle('hand', zhuashouOn);
+    var b = $('btn-hand');
+    if (b) b.classList.toggle('on', zhuashouOn);
+  }
+
+  /* 当前视口对应的世界矩形（未加边距） */
+  function shijieShikou() {
+    var bj = genBuJu();
+    var w = bj.width, h = bj.height;
+    return {
+      left: (0 - view.x) / view.k, right: (w - view.x) / view.k,
+      top: (0 - view.y) / view.k, bottom: (h - view.y) / view.k
+    };
+  }
+  /* 元件包围盒是否落在裁剪矩形内（compExtent 返回半宽半高） */
+  function compZaiCull(c, ju) {
+    var e = compExtent(c.kind, c.rot);
+    return !(c.x + e.hw < ju.left || c.x - e.hw > ju.right ||
+             c.y + e.hh < ju.top || c.y - e.hh > ju.bottom);
+  }
+  /* 导线世界包围盒：正交走线不会超出两端引脚张成的矩形 */
+  function wireZaiCull(w, ju) {
+    var a = compAt(w.a.id), b = compAt(w.b.id);
+    if (!a || !b) return false;
+    var pa = pinPos(a, w.a.pin), pb = pinPos(b, w.b.pin);
+    var zx = Math.min(pa.x, pb.x), yx = Math.max(pa.x, pb.x);
+    var zy = Math.min(pa.y, pb.y), yy = Math.max(pa.y, pb.y);
+    return !(yx < ju.left || zx > ju.right || yy < ju.top || zy > ju.bottom);
+  }
+  /* 平移/缩放后视口若超出上次裁剪矩形，防抖重建，把新露出的对象补画进来 */
+  function panDingCull() {
+    if (!lastCullRect) return;
+    var k = shijieShikou();
+    var han = k.left >= lastCullRect.left && k.right <= lastCullRect.right &&
+              k.top >= lastCullRect.top && k.bottom <= lastCullRect.bottom;
+    if (han) return;
+    if (cullDingShi) clearTimeout(cullDingShi);
+    cullDingShi = setTimeout(function () { cullDingShi = 0; render(); }, 160);
+  }
 
   function viewTransform() {
     return 'translate(' + view.x + ',' + view.y + ') scale(' + view.k + ')';
@@ -2991,22 +3166,40 @@ window.addEventListener('message', function (e) {
     if (scene) scene.setAttribute('transform', viewTransform());
     var b = $('btn-zoom-reset');
     if (b) b.textContent = Math.round(view.k * 100) + '%';
+    huaXiaoDiTu();
+    /* 跨过“印字/不印字”的缩放阈值时，补一次重画（否则会停在旧状态） */
+    var gaiKai = view.k >= BIAOQIAN_K;
+    if (gaiKai !== biaoqianKai) {
+      if (biaoqianDingShi) clearTimeout(biaoqianDingShi);
+      biaoqianDingShi = setTimeout(function () { biaoqianDingShi = 0; render(); }, 120);
+    }
+    panDingCull();
+    scheduleSaveView();
   }
   function resetView() { view = { x: 0, y: 0, k: 1 }; viewTouched = true; applyView(); }
   /* 把整张电路放进视口中央：按元件包围盒算缩放，最多放大到 1.8 倍 */
   function fitView(maxK) {
-    var w = svgRoot.clientWidth, h = svgRoot.clientHeight;
-    if (!w || !h || !components.length) { view = { x: 0, y: 0, k: 1 }; viewTouched = false; applyView(); return; }
+    window.__fitCount = (window.__fitCount || 0) + 1;
+    var bj0 = genBuJu();
+    var w = bj0.width, h = bj0.height;
+    if (!w || !h || (!components.length && !breadboards.length)) {
+      view = { x: 0, y: 0, k: 1 }; viewTouched = false; applyView(); return;
+    }
     var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     components.forEach(function (c) {
       var e = compExtent(c.kind, c.rot);
       minX = Math.min(minX, c.x - e.hw); maxX = Math.max(maxX, c.x + e.hw);
       minY = Math.min(minY, c.y - e.hh); maxY = Math.max(maxY, c.y + e.hh);
     });
+    breadboards.forEach(function (ban) {
+      var r = banJuXing(ban);
+      minX = Math.min(minX, r.left); maxX = Math.max(maxX, r.right);
+      minY = Math.min(minY, r.top); maxY = Math.max(maxY, r.bottom);
+    });
     var bw = Math.max(80, maxX - minX), bh = Math.max(60, maxY - minY);
     var margin = w < 560 ? 26 : 64;
     var cap = maxK || 1.8;
-    var k = Math.max(0.35, Math.min(cap, (w - margin * 2) / bw, (h - margin * 2) / bh));
+    var k = Math.max(ZUIXIAO_SUOFANG, Math.min(cap, (w - margin * 2) / bw, (h - margin * 2) / bh));
     view.k = k;
     view.x = (w - bw * k) / 2 - minX * k;
     view.y = (h - bh * k) / 2 - minY * k;
@@ -3014,14 +3207,14 @@ window.addEventListener('message', function (e) {
     applyView();
   }
   function scenePoint(clientX, clientY) {
-    var r = svgRoot.getBoundingClientRect();
+    var r = genBuJu();
     return { x: (clientX - r.left - view.x) / view.k, y: (clientY - r.top - view.y) / view.k };
   }
   function zoomAt(clientX, clientY, factor) {
     var oldK = view.k;
-    var newK = Math.max(0.35, Math.min(3, oldK * factor));
+    var newK = Math.max(ZUIXIAO_SUOFANG, Math.min(ZUIDA_SUOFANG, oldK * factor));
     if (Math.abs(newK - oldK) < 1e-4) return;
-    var r = svgRoot.getBoundingClientRect();
+    var r = genBuJu();
     var sx = clientX - r.left, sy = clientY - r.top;
     var px = (sx - view.x) / oldK, py = (sy - view.y) / oldK;
     view.k = newK;
@@ -3201,6 +3394,269 @@ window.addEventListener('message', function (e) {
     return { x: comp.x + rx, y: comp.y + ry };
   }
   function nodeKey(id, pin) { return id + ':' + pin; }
+
+  /* ================= 面包板几何与孔模型 ================= */
+  /* 尺寸参照真实面包板：方孔、孔距 20、中间 DIP 凹槽、上下各两条红蓝电源轨。
+     全尺寸 63 列（830 点，轨 50 孔），半尺寸 30 列（400 点，轨 25 孔）。 */
+  var KONG_JU = 20;          // 相邻孔中心间距（世界单位，≈真实 2.54mm）
+  var KONG_BAN = 5.6;        // 方孔半边长（视觉，≈孔径 0.56 个孔距，贴近实物）
+  var CAO_KUAN = 26;         // 中间 DIP 凹槽的可视宽度（真板就是窄窄一条，两侧各留一圈平塑料）
+  var BAN_NEI = 12;          // 板体左右内边距
+  var GUI_NEI = 140;         // 内侧电源轨行（负极）中心到板心距离
+  var GUI_WAI = 170;         // 外侧电源轨行（正极）中心到板心距离
+  var SHANG_ROW0 = 30;       // 靠凹槽的第一排孔中心到板心距离（= 凹槽半宽，紧贴凹槽）
+  var BAN_HH = 200;          // 板体半高：整板 21 个孔距高，与真实 830 点板长宽比一致
+  var BAN_CIXI_R = 14;       // 磁吸判定阈值
+  var QU_SHANG = 'shang', QU_XIA = 'xia';
+  var QU_ZHENG_SHANG = 'zjs', QU_FU_SHANG = 'fjs';   // 上排的 正极轨 / 负极轨
+  var QU_ZHENG_XIA = 'zjx', QU_FU_XIA = 'fjx';       // 下排的 正极轨 / 负极轨
+  var GUI_QUAN = [QU_ZHENG_SHANG, QU_FU_SHANG, QU_ZHENG_XIA, QU_FU_XIA];
+  var KONG_QUAN = [QU_SHANG, QU_XIA, QU_ZHENG_SHANG, QU_FU_SHANG, QU_ZHENG_XIA, QU_FU_XIA];
+  function shiGuiQu(qu) { return GUI_QUAN.indexOf(qu) >= 0; }
+  /* 未旋转时板体半宽（随列数变化） */
+  function banHW0(lieshu) { return (lieshu - 1) / 2 * KONG_JU + KONG_BAN + BAN_NEI; }
+  function banHH0() { return BAN_HH; }
+  /* 电源轨每行孔数：与真实 830 点板（50 孔）/ 400 点板（25 孔）一致 */
+  function guiKongShu(lieshu) { return lieshu >= 60 ? 50 : 25; }
+  /* 旋转后的世界半宽半高（只支持 0/90，结果仍轴对齐） */
+  function banChiCun(ban) {
+    var hw0 = banHW0(ban.lieshu), hh0 = banHH0();
+    return (ban.rot === 90) ? { hw: hh0, hh: hw0 } : { hw: hw0, hh: hh0 };
+  }
+  /* 面包板世界轴对齐矩形 */
+  function banJuXing(ban) {
+    var c = banChiCun(ban);
+    return { left: ban.x - c.hw, right: ban.x + c.hw, top: ban.y - c.hh, bottom: ban.y + c.hh,
+      cx: ban.x, cy: ban.y, hw: c.hw, hh: c.hh };
+  }
+  /* 孔在板体本地坐标中的位置：孔区按 5 行 × 列排布，电源轨独立成行 */
+  function kongBenDi(ban, qu, lie, wei) {
+    if (shiGuiQu(qu)) {
+      var guiN = guiKongShu(ban.lieshu);
+      var lx = (lie - (guiN - 1) / 2) * KONG_JU;
+      var yang = (qu === QU_ZHENG_SHANG || qu === QU_FU_SHANG) ? -1 : 1;
+      var rowY = (qu === QU_ZHENG_SHANG || qu === QU_ZHENG_XIA) ? GUI_WAI : GUI_NEI;
+      return { x: lx, y: yang * rowY };
+    }
+    var lx2 = (lie - (ban.lieshu - 1) / 2) * KONG_JU;
+    var qian = (qu === QU_SHANG) ? -1 : 1;
+    return { x: lx2, y: qian * (SHANG_ROW0 + wei * KONG_JU) };
+  }
+  function xuanZhuanDian(lx, ly, rot) {
+    var a = (rot || 0) * Math.PI / 180;
+    return { x: lx * Math.cos(a) - ly * Math.sin(a), y: lx * Math.sin(a) + ly * Math.cos(a) };
+  }
+  /* 孔的世界坐标 */
+  function kongWeiZhi(ban, qu, lie, wei) {
+    var bd = kongBenDi(ban, qu, lie, wei);
+    var p = xuanZhuanDian(bd.x, bd.y, ban.rot);
+    return { x: ban.x + p.x, y: ban.y + p.y };
+  }
+  /* 孔的全局地址，如 ban-1:shang:24:2 / ban-1:zjs:12:0 */
+  function kongDizhi(ban, qu, lie, wei) { return ban.id + ':' + qu + ':' + lie + ':' + wei; }
+  function jieXiDizhi(str) {
+    var m = /^([^:]+):([a-z]+):(\d+):(\d+)$/.exec(str || '');
+    if (!m || KONG_QUAN.indexOf(m[2]) < 0) return null;
+    return { id: m[1], qu: m[2], lie: parseInt(m[3], 10), wei: parseInt(m[4], 10) };
+  }
+  /* 孔组键：同列同侧的 5 个孔内部金属弹片默认连通，故键里不含 wei；
+     电源轨整条是一根铜条，整行 25/50 孔同组。 */
+  function kongZuKey(ban, qu, lie) {
+    if (shiGuiQu(qu)) return ban.id + ':' + qu;
+    return ban.id + ':' + qu + ':' + lie;
+  }
+  function banAt(id) { for (var i = 0; i < breadboards.length; i++) if (breadboards[i].id === id) return breadboards[i]; return null; }
+  /* 按孔地址直接解析出世界坐标；板已删除或地址非法时返回 null */
+  function kongWeiZhiByDizhi(dizhi) {
+    var xi = jieXiDizhi(dizhi), ban = xi ? banAt(xi.id) : null;
+    if (!ban) return null;
+    return kongWeiZhi(ban, xi.qu, xi.lie, xi.wei);
+  }
+  /* 世界点反算到该板最近的孔：先把世界位移转回本地，再四舍五入到列/行/孔位 */
+  function zuiJinKong(ban, wx, wy) {
+    var a = (ban.rot || 0) * Math.PI / 180;
+    var dx = wx - ban.x, dy = wy - ban.y;
+    var lx = dx * Math.cos(a) + dy * Math.sin(a);
+    var ly = -dx * Math.sin(a) + dy * Math.cos(a);
+    var absY = Math.abs(ly);
+    var qu, lie, wei = 0;
+    /* 孔区最外排 110+5=115，内侧轨 140，分界定在 126 */
+    if (absY > 126) {
+      var guiN = guiKongShu(ban.lieshu);
+      lie = Math.round(lx / KONG_JU + (guiN - 1) / 2);
+      lie = Math.max(0, Math.min(guiN - 1, lie));
+      var shang = ly < 0;
+      var wai = absY > (GUI_NEI + GUI_WAI) / 2;   /* 155 之外是正极轨 */
+      qu = shang ? (wai ? QU_ZHENG_SHANG : QU_FU_SHANG) : (wai ? QU_ZHENG_XIA : QU_FU_XIA);
+    } else {
+      lie = Math.round(lx / KONG_JU + (ban.lieshu - 1) / 2);
+      lie = Math.max(0, Math.min(ban.lieshu - 1, lie));
+      qu = ly < 0 ? QU_SHANG : QU_XIA;
+      wei = Math.round((absY - SHANG_ROW0) / KONG_JU);
+      wei = Math.max(0, Math.min(4, wei));
+    }
+    var p = kongWeiZhi(ban, qu, lie, wei);
+    return { qu: qu, lie: lie, wei: wei, dizhi: kongDizhi(ban, qu, lie, wei),
+      juli: Math.hypot(p.x - wx, p.y - wy) };
+  }
+  /* 面包板是否落在裁剪矩形内 */
+  function banZaiCull(ban, ju) {
+    var c = banChiCun(ban);
+    return !(ban.x + c.hw < ju.left || ban.x - c.hw > ju.right ||
+             ban.y + c.hh < ju.top || ban.y - c.hh > ju.bottom);
+  }
+  /* 拖动磁吸：与其它板的边/中心在阈值内即对齐，返回对齐后的坐标与辅助线位置 */
+  function banCiXi(ban, x, y) {
+    var c = banChiCun(ban), gx = null, gy = null;
+    var bestDx = null, bestDy = null;
+    breadboards.forEach(function (o) {
+      if (o === ban) return;
+      var r = banJuXing(o);
+      var houxuanX = [
+        { v: r.right + c.hw, g: r.right }, { v: r.left - c.hw, g: r.left },
+        { v: r.left + c.hw, g: r.left }, { v: r.right - c.hw, g: r.right },
+        { v: r.cx, g: r.cx }
+      ];
+      houxuanX.forEach(function (h) {
+        var cha = Math.abs(h.v - x);
+        if (cha <= BAN_CIXI_R && (bestDx === null || cha < bestDx.cha)) bestDx = { v: h.v, g: h.g, cha: cha };
+      });
+      var houxuanY = [
+        { v: r.bottom + c.hh, g: r.bottom }, { v: r.top - c.hh, g: r.top },
+        { v: r.top + c.hh, g: r.top }, { v: r.bottom - c.hh, g: r.bottom },
+        { v: r.cy, g: r.cy }
+      ];
+      houxuanY.forEach(function (h) {
+        var cha = Math.abs(h.v - y);
+        if (cha <= BAN_CIXI_R && (bestDy === null || cha < bestDy.cha)) bestDy = { v: h.v, g: h.g, cha: cha };
+      });
+    });
+    if (bestDx) { x = bestDx.v; gx = bestDx.g; }
+    if (bestDy) { y = bestDy.v; gy = bestDy.g; }
+    return { x: x, y: y, gx: gx, gy: gy };
+  }
+
+  /* ================= 实物元件（插进面包板孔） ================= */
+  /* 元件本体是刚体，引脚在本地坐标里固定；放置/拖动时以第 0 脚为锚点吸附到最近孔，
+     其余引脚按各自最近孔记录地址（yinjiao）。阶段 4 只做放置/插拔/走线，不做求解。 */
+  var WUZHONG = {
+    dianzu: { label: '电阻', yinjiao: [{ x: -40, y: 0, ming: '1' }, { x: 40, y: 0, ming: '2' }],
+      def: { r: 220 }, banti: { hw: 44, hh: 12 } },
+    led: { label: 'LED', yinjiao: [{ x: -10, y: 0, ming: 'A' }, { x: 10, y: 0, ming: 'K' }],
+      def: { yanse: '#ff4d3d' }, banti: { hw: 16, hh: 16 } },
+    erjiguan: { label: '二极管', yinjiao: [{ x: -40, y: 0, ming: 'A' }, { x: 40, y: 0, ming: 'K' }],
+      def: {}, banti: { hw: 44, hh: 14 } },
+    anjian: { label: '四脚按键', yinjiao: [
+      { x: -10, y: -10, ming: '1' }, { x: 10, y: -10, ming: '2' },
+      { x: -10, y: 10, ming: '3' }, { x: 10, y: 10, ming: '4' }],
+      def: { anxia: false }, banti: { hw: 16, hh: 16 } },
+    kaiguan: { label: '滑动开关', yinjiao: [{ x: -10, y: 0, ming: '1' }, { x: 10, y: 0, ming: '2' }],
+      def: { bihe: false }, banti: { hw: 16, hh: 12 } },
+    fengmingqi: { label: '蜂鸣器', yinjiao: [{ x: -10, y: 0, ming: '+' }, { x: 10, y: 0, ming: '−' }],
+      def: {}, banti: { hw: 40, hh: 40 } },
+    dianji: { label: '直流电机', yinjiao: [{ x: -30, y: 0, ming: 'M1' }, { x: 30, y: 0, ming: 'M2' }],
+      def: {}, banti: { hw: 42, hh: 42 } },
+    dianweiqi: { label: '电位器', yinjiao: [
+      { x: -20, y: 20, ming: '1' }, { x: 0, y: 20, ming: '2' }, { x: 20, y: 20, ming: '3' }],
+      def: { r: 10000, hua: 0.5 }, banti: { hw: 30, hh: 30 } },
+    dianchi: { label: '9V 电池', yinjiao: [{ x: -10, y: 0, ming: '+' }, { x: 10, y: 0, ming: '−' }],
+      def: { v: 9 }, banti: { hw: 26, hh: 40 } },
+    shumaguan: { label: '一位数码管', yinjiao: [
+      /* 水平 DIP：上下两排（y=±30 对齐凹槽两侧首排孔）各 5 脚，x 间距 20 对齐列。
+         引脚定义按 5161AS 一位数码管：上排 g f COM a b，下排 e d COM c dp。 */
+      { x: -40, y: -30, ming: 'g', duan: 'g' }, { x: -20, y: -30, ming: 'f', duan: 'f' },
+      { x: 0, y: -30, ming: 'COM' }, { x: 20, y: -30, ming: 'a', duan: 'a' },
+      { x: 40, y: -30, ming: 'b', duan: 'b' },
+      { x: -40, y: 30, ming: 'e', duan: 'e' }, { x: -20, y: 30, ming: 'd', duan: 'd' },
+      { x: 0, y: 30, ming: 'COM' }, { x: 20, y: 30, ming: 'c', duan: 'c' },
+      { x: 40, y: 30, ming: 'dp', duan: 'dp' }
+    ], def: { gonggong: 'gongyin' }, banti: { hw: 46, hh: 40 } }
+  };
+  var WUZHONG_XIFU = KONG_JU * 1.2;   // 引脚吸附半径：24 世界单位内才算入孔
+  var WUZHONG_MIAO = KONG_JU * 1.8;   // 锚点瞄准半径：36，覆盖板心到首排孔的间隙
+  /* 四色环电阻配色：0–9 依次为 黑棕红橙黄绿蓝紫灰白，末环金为 ±5% 误差 */
+  var SE_HUAN = ['#141516', '#7a4a1e', '#c0392b', '#e07b39', '#e8c33a',
+    '#3f8f4a', '#2f5fa8', '#7a4a9e', '#9aa0a6', '#f4f4f2'];
+  /* 阻值 → 四色环（前两位有效数字 + 倍率 + 金误差环） */
+  function seHuan(zh) {
+    var v = Math.max(1, Math.round(zh || 220));
+    var zhi = String(v);
+    if (zhi.length < 2) zhi = zhi + '0';
+    var cheng = Math.min(9, zhi.length - 2);
+    return [SE_HUAN[parseInt(zhi.charAt(0), 10)], SE_HUAN[parseInt(zhi.charAt(1), 10)], SE_HUAN[cheng], '#d9b25a'];
+  }
+  /* 阻值文字：220 → 220Ω，1000 → 1kΩ，10000 → 10kΩ */
+  function geShiZou(zh) {
+    var v = Math.max(0, Math.round(zh || 0));
+    if (v >= 1000) {
+      var k = v / 1000;
+      return (k === Math.floor(k) ? String(k) : k.toFixed(1)) + 'kΩ';
+    }
+    return String(v) + 'Ω';
+  }
+  /* 元件上的三位阻值代码（实物 3296 电位器印的就是这种）：220 → 221，10000 → 103 */
+  function sanWeiMa(zh) {
+    var v = Math.max(1, Math.round(zh || 0));
+    var zhi = String(v);
+    while (zhi.length < 3) zhi = zhi + '0';
+    return zhi.slice(0, 2) + String(Math.min(9, zhi.length - 2));
+  }
+  function wjAt(id) { for (var i = 0; i < wujian.length; i++) if (wujian[i].id === id) return wujian[i]; return null; }
+  /* 引脚本地坐标转世界坐标 */
+  function wjYinjiaoShijie(wj, idx) {
+    var yj = WUZHONG[wj.kind].yinjiao[idx];
+    var p = xuanZhuanDian(yj.x, yj.y, wj.rot);
+    return { x: wj.x + p.x, y: wj.y + p.y };
+  }
+  /* 世界点在所有面包板里找最近孔，返回 {ban,qu,lie,wei,dizhi,juli}；超半径返回 null */
+  function zuiJinKongSuoYou(wx, wy, banjing) {
+    var r = (banjing == null) ? WUZHONG_XIFU : banjing;
+    var best = null;
+    breadboards.forEach(function (ban) {
+      var k = zuiJinKong(ban, wx, wy);
+      if (!best || k.juli < best.juli) {
+        best = { ban: ban, qu: k.qu, lie: k.lie, wei: k.wei, dizhi: k.dizhi, juli: k.juli };
+      }
+    });
+    if (best && best.juli <= r) return best;
+    return null;
+  }
+  /* 以第 0 脚为锚点把本体吸附到最近孔，再逐脚计算孔地址。
+     锚点用更大的瞄准半径（覆盖板心到首排孔的 30 单位间隙），其余引脚用常规半径。 */
+  function wjXiFu(wj) {
+    var anchor = wjYinjiaoShijie(wj, 0);
+    var k0 = zuiJinKongSuoYou(anchor.x, anchor.y, WUZHONG_MIAO);
+    if (k0) {
+      var yj0 = WUZHONG[wj.kind].yinjiao[0];
+      var p0 = xuanZhuanDian(yj0.x, yj0.y, wj.rot);
+      var kong0 = kongWeiZhi(k0.ban, k0.qu, k0.lie, k0.wei);
+      wj.x = kong0.x - p0.x;
+      wj.y = kong0.y - p0.y;
+    }
+    wj.yinjiao = [];
+    WUZHONG[wj.kind].yinjiao.forEach(function (yj, idx) {
+      var sp = wjYinjiaoShijie(wj, idx);
+      var k = zuiJinKongSuoYou(sp.x, sp.y);
+      wj.yinjiao.push({ kong: k ? k.dizhi : null });
+    });
+  }
+  /* 新建实物元件并吸附到指定世界点 */
+  function fangWujian(kind, wx, wy) {
+    var wj = { id: nextWjId(), kind: kind, x: wx, y: wy, rot: 0 };
+    WUZHONG[kind].def && Object.keys(WUZHONG[kind].def).forEach(function (k) { wj[k] = WUZHONG[kind].def[k]; });
+    wj.yinjiao = [];
+    wjXiFu(wj);
+    return wj;
+  }
+  /* 实物元件是否在裁剪矩形内（按本体外接半宽高，旋转后轴对齐） */
+  function wjZaiCull(wj, ju) {
+    var b = WUZHONG[wj.kind].banti || { hw: 30, hh: 30 };
+    var a = (wj.rot || 0) * Math.PI / 180;
+    var ca = Math.abs(Math.cos(a)), sa = Math.abs(Math.sin(a));
+    var hw = b.hw * ca + b.hh * sa, hh = b.hw * sa + b.hh * ca;
+    return !(wj.x + hw < ju.left || wj.x - hw > ju.right ||
+             wj.y + hh < ju.top || wj.y - hh > ju.bottom);
+  }
 
   /* 导线走正交折线：按终点引脚朝向决定先横后竖 / 先竖后横，
      再用圆角把直角磨掉，避免满屏斜线。 */
@@ -3489,6 +3945,20 @@ window.addEventListener('message', function (e) {
 
   /* ================= 画布持久化（刷新后保留搭好的电路） ================= */
   var CIRCUIT_KEY = 'hwlab.circuit.v1';
+  var VIEW_KEY = 'hwlab.view.v1';
+  var viewSaveTimer = 0;
+  /* 视角单独存一个键：平移/缩放很频繁，不用每次都重写整份电路 */
+  function scheduleSaveView() {
+    if (viewSaveTimer) return;
+    viewSaveTimer = setTimeout(function () {
+      viewSaveTimer = 0;
+      try {
+        localStorage.setItem(VIEW_KEY, JSON.stringify({
+          x: view.x, y: view.y, k: view.k, touched: viewTouched
+        }));
+      } catch (e) {}
+    }, 400);
+  }
   var circuitSaveTimer = 0;
   function scheduleSaveCircuit() {
     if (circuitSaveTimer) return;
@@ -3496,8 +3966,11 @@ window.addEventListener('message', function (e) {
       circuitSaveTimer = 0;
       try {
         localStorage.setItem(CIRCUIT_KEY, JSON.stringify({
-          components: components, wires: wires, preset: currentPreset,
-          title: $('ckt-title').textContent, desc: $('ckt-desc').textContent, uid: uid
+          components: components, wires: wires, breadboards: breadboards,
+          wujian: wujian, dubangxian: dubangxian,
+          preset: currentPreset,
+          title: $('ckt-title').textContent, desc: $('ckt-desc').textContent, uid: uid,
+          banUid: banUid, wjUid: wjUid, dbUid: dbUid
         }));
       } catch (e) {}
     }, 200);
@@ -3514,6 +3987,25 @@ window.addEventListener('message', function (e) {
       wires = (Array.isArray(s.wires) ? s.wires : []).filter(function (w) {
         return w && w.a && w.b && ids[w.a.id] && ids[w.b.id];
       });
+      breadboards = (Array.isArray(s.breadboards) ? s.breadboards : []).filter(function (ban) {
+        return ban && /^ban-\d+$/.test(ban.id) && (ban.lieshu === 30 || ban.lieshu === 63) &&
+               (ban.rot === 0 || ban.rot === 90) && isFinite(ban.x) && isFinite(ban.y);
+      });
+      wujian = (Array.isArray(s.wujian) ? s.wujian : []).filter(function (wj) {
+        return wj && /^wj-\d+$/.test(wj.id) && WUZHONG[wj.kind] &&
+               isFinite(wj.x) && isFinite(wj.y) && (wj.rot === 0 || wj.rot === 90 || wj.rot === 180 || wj.rot === 270) &&
+               Array.isArray(wj.yinjiao) && wj.yinjiao.length === WUZHONG[wj.kind].yinjiao.length;
+      });
+      /* 重算一次引脚孔地址，丢弃指向已删除板/非法孔的地址 */
+      wujian.forEach(function (wj) { wjXiFu(wj); });
+      var banIdSet = {};
+      breadboards.forEach(function (ban) { banIdSet[ban.id] = 1; });
+      dubangxian = (Array.isArray(s.dubangxian) ? s.dubangxian : []).filter(function (db) {
+        if (!db || !db.kongA || !db.kongB || db.kongA === db.kongB) return false;
+        var xa = jieXiDizhi(db.kongA), xb = jieXiDizhi(db.kongB);
+        return xa && xb && banIdSet[xa.id] && banIdSet[xb.id] &&
+               !!kongWeiZhiByDizhi(db.kongA) && !!kongWeiZhiByDizhi(db.kongB);
+      });
       currentPreset = s.preset || '';
       var maxUid = 0;
       components.forEach(function (c) {
@@ -3521,12 +4013,44 @@ window.addEventListener('message', function (e) {
         if (m) maxUid = Math.max(maxUid, parseInt(m[1], 10));
       });
       uid = Math.max(s.uid || 1, maxUid + 1);
-      selected = null; selectedWire = null; pendingPin = null;
+      var maxBan = 0;
+      breadboards.forEach(function (ban) {
+        var bm = /^ban-(\d+)$/.exec(ban.id);
+        if (bm) maxBan = Math.max(maxBan, parseInt(bm[1], 10));
+      });
+      banUid = Math.max(s.banUid || 1, maxBan + 1);
+      var maxWj = 0;
+      wujian.forEach(function (wj) {
+        var wm = /^wj-(\d+)$/.exec(wj.id);
+        if (wm) maxWj = Math.max(maxWj, parseInt(wm[1], 10));
+      });
+      wjUid = Math.max(s.wjUid || 1, maxWj + 1);
+      var maxDb = 0;
+      dubangxian.forEach(function (db) {
+        var dm = /^db-(\d+)$/.exec(db.id);
+        if (dm) maxDb = Math.max(maxDb, parseInt(dm[1], 10));
+      });
+      dbUid = Math.max(s.dbUid || 1, maxDb + 1);
+      dbDiyiji = null;
+      wangLuoZang();
+      selected = null; selectedWire = null; selectedBan = null; pendingPin = null;
+      selectedWj = null; selectedDb = null;
       $('ckt-title').textContent = s.title || '自由搭建';
       $('ckt-desc').textContent = s.desc || '';
       syncPresetButtons();
+      /* 视角：优先恢复上次的相机，没有记录才自动适应 */
+      var huiFou = false;
+      try {
+        var vs = JSON.parse(localStorage.getItem(VIEW_KEY) || 'null');
+        if (vs && isFinite(vs.x) && isFinite(vs.y) && isFinite(vs.k) &&
+            vs.k >= ZUIXIAO_SUOFANG && vs.k <= ZUIDA_SUOFANG) {
+          view = { x: vs.x, y: vs.y, k: vs.k };
+          viewTouched = vs.touched !== false;
+          huiFou = true;
+        }
+      } catch (e2) {}
       render();
-      fitView(1.6);
+      if (huiFou && viewTouched) applyView(); else fitView(1.6);
       return true;
     } catch (e) { return false; }
   }
@@ -3687,20 +4211,248 @@ window.addEventListener('message', function (e) {
       maxShift: +maxShift.toFixed(2) };
   };
 
+  /* ================= 小地图（缩略导航 + 视口框 + 点击跳转） ================= */
+  var miniHe = $('minimap'), miniCanvas = $('minimap-canvas'), miniBtn = $('btn-minimap');
+  var miniYinCang = true, miniW = 0, miniH = 0, miniDpr = 1, miniTuoZhuai = false;
+  var miniDing = false, miniDingShi = 0;   /* 按钮固定（钉住）/ 缩放后自动收起的定时器 */
+  var miniChiCunHuanCun = null;            /* 小地图 CSS 尺寸缓存，窗口大小变化才重算 */
+  var miniCtx = miniCanvas ? miniCanvas.getContext('2d') : null;
+  /* 离屏画布：元件分布只在结构变化时重画一次，平移缩放时直接贴图，避免每帧重画上千个方块 */
+  var miniJingTai = document.createElement('canvas');
+  var miniJingTaiCtx = miniJingTai.getContext('2d');
+  var miniJingTaiAng = true;
+
+  /* 全部元件的世界包围盒，外加留白；空画布时给原点附近一个默认范围 */
+  function miniBianjie() {
+    if (!components.length && !breadboards.length) return { minX: -220, minY: -220, maxX: 220, maxY: 220 };
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    components.forEach(function (c) {
+      var e = compExtent(c.kind, c.rot);
+      minX = Math.min(minX, c.x - e.hw); maxX = Math.max(maxX, c.x + e.hw);
+      minY = Math.min(minY, c.y - e.hh); maxY = Math.max(maxY, c.y + e.hh);
+    });
+    breadboards.forEach(function (ban) {
+      var r = banJuXing(ban);
+      minX = Math.min(minX, r.left); maxX = Math.max(maxX, r.right);
+      minY = Math.min(minY, r.top); maxY = Math.max(maxY, r.bottom);
+    });
+    var liuBai = Math.max(36, (maxX - minX) * 0.08, (maxY - minY) * 0.08);
+    return { minX: minX - liuBai, minY: minY - liuBai, maxX: maxX + liuBai, maxY: maxY + liuBai };
+  }
+  /* 世界→小地图投影：等比缩放并居中，返回比例尺与原点偏移；结果缓存，结构变化才重算 */
+  var miniTouyingHuanCun = null;
+  function miniTouying() {
+    if (miniTouyingHuanCun && !miniJingTaiAng) return miniTouyingHuanCun;
+    var bj = miniBianjie();
+    var s = Math.min((miniW - 8) / (bj.maxX - bj.minX), (miniH - 8) / (bj.maxY - bj.minY));
+    var ox = (miniW - (bj.maxX - bj.minX) * s) / 2;
+    var oy = (miniH - (bj.maxY - bj.minY) * s) / 2;
+    miniTouyingHuanCun = { s: s, ox: ox, oy: oy, bj: bj };
+    return miniTouyingHuanCun;
+  }
+  function miniSize() {
+    if (!miniHe || !miniCanvas || !miniCtx) return false;
+    /* 小地图 CSS 尺寸是固定的，缓存下来，避免每次缩放都触发强制重排 */
+    if (!miniChiCunHuanCun) {
+      var rc = miniCanvas.getBoundingClientRect();
+      miniChiCunHuanCun = { width: rc.width, height: rc.height };
+    }
+    var r = miniChiCunHuanCun;
+    if (r.width < 2 || r.height < 2) return false;
+    miniW = r.width; miniH = r.height;
+    miniDpr = Math.min(2, window.devicePixelRatio || 1);
+    var cw = Math.round(miniW * miniDpr), ch = Math.round(miniH * miniDpr);
+    if (miniCanvas.width !== cw || miniCanvas.height !== ch) {
+      miniCanvas.width = cw; miniCanvas.height = ch;
+      if (miniJingTai.width !== cw || miniJingTai.height !== ch) {
+        miniJingTai.width = cw; miniJingTai.height = ch;
+      }
+      miniJingTaiAng = true;
+    }
+    miniCtx.setTransform(miniDpr, 0, 0, miniDpr, 0, 0);
+    miniJingTaiCtx.setTransform(miniDpr, 0, 0, miniDpr, 0, 0);
+    return true;
+  }
+  /* 离屏静态层：背景 + 每个元件的小方块（选中元件强调色），结构变化时才重画 */
+  function huaJingTai() {
+    var t = miniTouying();
+    miniJingTaiCtx.clearRect(0, 0, miniW, miniH);
+    miniJingTaiCtx.fillStyle = 'rgba(120,140,160,.10)';
+    miniJingTaiCtx.fillRect(0, 0, miniW, miniH);
+    components.forEach(function (c) {
+      var e = compExtent(c.kind, c.rot);
+      var x1 = (c.x - e.hw - t.bj.minX) * t.s + t.ox;
+      var y1 = (c.y - e.hh - t.bj.minY) * t.s + t.oy;
+      var kuan = Math.max(2, e.hw * 2 * t.s), gao = Math.max(2, e.hh * 2 * t.s);
+      miniJingTaiCtx.fillStyle = selected === c.id ? 'rgba(99,183,230,.95)' : 'rgba(214,224,236,.62)';
+      miniJingTaiCtx.fillRect(x1, y1, kuan, gao);
+    });
+    miniJingTaiAng = false;
+  }
+  /* 每帧调用：贴静态层 + 只重画当前视口框，开销与元件数量无关 */
+  function huaXiaoDiTu() {
+    if (miniYinCang || !miniCtx || !miniSize()) return;
+    if (miniJingTaiAng) huaJingTai();
+    miniCtx.clearRect(0, 0, miniW, miniH);
+    miniCtx.drawImage(miniJingTai, 0, 0, miniW, miniH);
+    var t = miniTouying();
+    /* 当前主视口对应的世界矩形映射成框 */
+    var kou = shijieShikou();
+    var x1 = (kou.left - t.bj.minX) * t.s + t.ox;
+    var y1 = (kou.top - t.bj.minY) * t.s + t.oy;
+    var x2 = (kou.right - t.bj.minX) * t.s + t.ox;
+    var y2 = (kou.bottom - t.bj.minY) * t.s + t.oy;
+    miniCtx.strokeStyle = 'rgba(99,183,230,.95)';
+    miniCtx.lineWidth = 1.4;
+    miniCtx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+  }
+  /* 点击/拖动小地图：把对应世界点移到主视口中心 */
+  function miniTiaoZhuan(e) {
+    var r = miniCanvas.getBoundingClientRect();
+    var mx = e.clientX - r.left, my = e.clientY - r.top;
+    var t = miniTouying();
+    var wx = (mx - t.ox) / t.s + t.bj.minX;
+    var wy = (my - t.oy) / t.s + t.bj.minY;
+    var bj = genBuJu();
+    view.x = bj.width / 2 - wx * view.k;
+    view.y = bj.height / 2 - wy * view.k;
+    viewTouched = true;
+    applyView();
+  }
+  if (miniCanvas) {
+    miniCanvas.addEventListener('pointerdown', function (e) {
+      miniTuoZhuai = true;
+      if (miniDingShi) { clearTimeout(miniDingShi); miniDingShi = 0; }
+      try { miniCanvas.setPointerCapture(e.pointerId); } catch (x) {}
+      miniTiaoZhuan(e);
+    });
+    miniCanvas.addEventListener('pointermove', function (e) { if (miniTuoZhuai) miniTiaoZhuan(e); });
+    miniCanvas.addEventListener('pointerup', function () {
+      miniTuoZhuai = false;
+      if (!miniDing) xiaoDiTuSuofang();   /* 松手后重新计时，稍后自动收起 */
+    });
+    miniCanvas.addEventListener('pointercancel', function () {
+      miniTuoZhuai = false;
+      if (!miniDing) xiaoDiTuSuofang();
+    });
+  }
+  /* 缩放时弹出小地图，停手 1.3 秒后自动收起（钉住或正在拖动时不收起） */
+  function xiaoDiTuSuofang() {
+    if (miniDing) return;
+    if (miniDingShi) clearTimeout(miniDingShi);
+    if (miniYinCang) {
+      miniYinCang = false;
+      if (miniHe) miniHe.classList.remove('hidden');
+      huaXiaoDiTu();
+    }
+    miniDingShi = setTimeout(function () {
+      miniDingShi = 0;
+      if (miniDing || miniTuoZhuai) return;
+      miniYinCang = true;
+      if (miniHe) miniHe.classList.add('hidden');
+    }, 1300);
+  }
+  function qieHuanXiaoDiTu() {
+    miniDing = !miniDing;
+    if (miniDing) {
+      if (miniDingShi) { clearTimeout(miniDingShi); miniDingShi = 0; }
+      miniYinCang = false;
+      if (miniHe) miniHe.classList.remove('hidden');
+      if (miniBtn) miniBtn.classList.add('on');
+      huaXiaoDiTu();
+    } else {
+      miniYinCang = true;
+      if (miniHe) miniHe.classList.add('hidden');
+      if (miniBtn) miniBtn.classList.remove('on');
+    }
+  }
+  if (miniBtn) miniBtn.addEventListener('click', qieHuanXiaoDiTu);
+  /* 现在默认收起、只在缩放时弹出，不再按屏幕宽度决定初始展开 */
+  window.addEventListener('resize', function () {
+    bujuHuanCun = null;
+    miniChiCunHuanCun = null;
+    huaXiaoDiTu();
+  });
+  window.__miniDebug = function () {
+    return { yincang: miniYinCang, w: miniW, h: miniH, dpr: miniDpr,
+      tuozhuai: miniTuoZhuai, bij: miniBianjie() };
+  };
+
   function render(skipParams) {
+    window.__renderCount = (window.__renderCount || 0) + 1;
+    miniJingTaiAng = true;   /* 元件分布可能变化，离屏静态层待重画 */
+    biaoqianKai = view.k >= BIAOQIAN_K;
     hidePinTip();
     if (selectedWire && wires.indexOf(selectedWire) < 0) selectedWire = null;
     while (svgRoot.firstChild) svgRoot.removeChild(svgRoot.firstChild);
+    /* 面包板用的两道渐变：板体竖向微渐变 + 凹槽内阴影，让白塑料看起来有厚度 */
+    var ckDefs = svg('defs', null, svgRoot);
+    var qian = svg('linearGradient', { id: 'ban-jianbian', x1: '0', y1: '0', x2: '0', y2: '1' }, ckDefs);
+    svg('stop', { offset: '0', 'stop-color': '#f2f0ea' }, qian);
+    svg('stop', { offset: '.55', 'stop-color': '#e9e6df' }, qian);
+    svg('stop', { offset: '1', 'stop-color': '#dbd7cf' }, qian);
+    var cao = svg('linearGradient', { id: 'ban-cao-jianbian', x1: '0', y1: '0', x2: '0', y2: '1' }, ckDefs);
+    svg('stop', { offset: '0', 'stop-color': '#868278' }, cao);
+    svg('stop', { offset: '.22', 'stop-color': '#aca89e' }, cao);
+    svg('stop', { offset: '1', 'stop-color': '#bdb9af' }, cao);
+    /* 电阻本体横向圆柱渐变（中间亮、两端暗，做出圆柱感） */
+    var dz = svg('linearGradient', { id: 'wj-dianzu-jianbian', x1: '0', y1: '0', x2: '0', y2: '1' }, ckDefs);
+    svg('stop', { offset: '0', 'stop-color': '#e3c19a' }, dz);
+    svg('stop', { offset: '.5', 'stop-color': '#d4ad80' }, dz);
+    svg('stop', { offset: '1', 'stop-color': '#bd925f' }, dz);
+    /* 蜂鸣器/电机/电位器本体的金属与塑料质感渐变 */
+    var hei = svg('radialGradient', { id: 'wj-hei-jianbian', cx: '.35', cy: '.3', r: '.8' }, ckDefs);
+    svg('stop', { offset: '0', 'stop-color': '#3b434d' }, hei);
+    svg('stop', { offset: '.6', 'stop-color': '#252a31' }, hei);
+    svg('stop', { offset: '1', 'stop-color': '#171a1f' }, hei);
+    var dianjiGb = svg('radialGradient', { id: 'wj-dianji-jianbian', cx: '.35', cy: '.3', r: '.8' }, ckDefs);
+    svg('stop', { offset: '0', 'stop-color': '#a7aeb9' }, dianjiGb);
+    svg('stop', { offset: '.55', 'stop-color': '#7d858f' }, dianjiGb);
+    svg('stop', { offset: '1', 'stop-color': '#5a626d' }, dianjiGb);
+    var lan = svg('linearGradient', { id: 'wj-lan-jianbian', x1: '0', y1: '0', x2: '0', y2: '1' }, ckDefs);
+    svg('stop', { offset: '0', 'stop-color': '#5578ad' }, lan);
+    svg('stop', { offset: '.55', 'stop-color': '#3f6396' }, lan);
+    svg('stop', { offset: '1', 'stop-color': '#2e4c78' }, lan);
+    /* 点亮光晕的柔化滤镜：实心圆糊开成柔光，颜色跟随各元件本色，边缘不再有硬边 */
+    var haloJin = svg('filter', { id: 'wj-halo', x: '-70%', y: '-70%', width: '240%', height: '240%' }, ckDefs);
+    svg('feGaussianBlur', { stdDeviation: '3.4' }, haloJin);
+    var haloKuan = svg('filter', { id: 'wj-halo-kuan', x: '-90%', y: '-90%', width: '280%', height: '280%' }, ckDefs);
+    svg('feGaussianBlur', { stdDeviation: '8' }, haloKuan);
+    /* 细碎图形（数码管段）用小半径模糊，糊太开会看不出笔画形状 */
+    var haloXi = svg('filter', { id: 'wj-halo-xi', x: '-40%', y: '-40%', width: '180%', height: '180%' }, ckDefs);
+    svg('feGaussianBlur', { stdDeviation: '1.5' }, haloXi);
     scene = svg('g', { id: 'viewport' }, svgRoot);
-    $('canvas-hint').hidden = components.length > 0;
-    /* 先画导线 */
+    /* 四个分层按 z 序一次性建好，后续绘制只往对应层里挂 */
+    cengWire = svg('g', { id: 'ceng-wire' }, scene);
+    cengComp = svg('g', { id: 'ceng-comp' }, scene);
+    cengGuide = svg('g', { id: 'ceng-guide' }, scene);
+    cengFlow = svg('g', { id: 'ceng-flow' }, scene);
+    /* 视口裁剪：在可见世界矩形外扩一圈边距作为本次绘制范围，屏外对象不建 DOM */
+    var cullKou = shijieShikou();
+    var cullBianJu = 160;
+    lastCullRect = {
+      left: cullKou.left - cullBianJu, right: cullKou.right + cullBianJu,
+      top: cullKou.top - cullBianJu, bottom: cullKou.bottom + cullBianJu
+    };
+    var cullTongji = {
+      jianZong: components.length, jianHua: 0, jianTi: 0,
+      xianZong: wires.length, xianHua: 0, xianTi: 0,
+      banZong: breadboards.length, banHua: 0, banTi: 0,
+      wjZong: wujian.length, wjHua: 0, wjTi: 0,
+      dbZong: dubangxian.length, dbHua: 0, dbTi: 0
+    };
+    window.__cullTongji = function () { return cullTongji; };
+    $('canvas-hint').hidden = components.length > 0 || breadboards.length > 0 || wujian.length > 0;
+    /* 先画导线（落在 cengWire 层；屏外导线直接跳过） */
     wires.forEach(function (w) {
       var a = compAt(w.a.id), b = compAt(w.b.id);
       if (!a || !b) return;
+      if (!wireZaiCull(w, lastCullRect)) { cullTongji.xianTi++; return; }
       var d = cktWirePath(w);
       if (!d) return;
+      cullTongji.xianHua++;
       var line = svg('path', { d: d, 'class': 'wire' + (selectedWire === w ? ' selected' : ''),
-        'data-wa': w.a.id + ':' + w.a.pin, 'data-wb': w.b.id + ':' + w.b.pin }, scene);
+        'data-wa': w.a.id + ':' + w.a.pin, 'data-wb': w.b.id + ':' + w.b.pin }, cengWire);
       (function (wv, ln) {
         ln.addEventListener('click', function (e) {
           e.stopPropagation();
@@ -3779,11 +4531,35 @@ window.addEventListener('message', function (e) {
         if ((na && activeNets[na]) || (nb && activeNets[nb])) p.classList.add('net');
       });
     }
-    /* 再画元件 */
-    components.forEach(function (c) { drawComponent(c, ledCurrents[c.id]); });
-    /* 对齐辅助线（拖动时显示） */
-    guideXEl = svg('line', { 'class': 'guide', visibility: 'hidden' }, scene);
-    guideYEl = svg('line', { 'class': 'guide', visibility: 'hidden' }, scene);
+    /* 先算一次面包板连通结论：元件渲染（LED 亮灭、数码管段亮、短路闪烁）要用 */
+    qjJieguo = wujian.length ? wjQiuJie() : null;
+    /* 先画面包板（落在 cengComp 层底部，元件随后画在其上方；屏外板不建 DOM） */
+    breadboards.forEach(function (ban) {
+      if (!banZaiCull(ban, lastCullRect)) { cullTongji.banTi++; return; }
+      cullTongji.banHua++;
+      drawBreadboard(ban);
+    });
+    /* 再画元件（落在 cengComp 层；屏外元件不建 DOM，但统计仍计入） */
+    components.forEach(function (c) {
+      if (!compZaiCull(c, lastCullRect)) { cullTongji.jianTi++; return; }
+      cullTongji.jianHua++;
+      drawComponent(c, ledCurrents[c.id]);
+    });
+    /* 实物元件画在面包板之上（屏外不建 DOM） */
+    wujian.forEach(function (wj) {
+      if (!wjZaiCull(wj, lastCullRect)) { cullTongji.wjTi++; return; }
+      cullTongji.wjHua++;
+      drawWujian(wj);
+    });
+    /* 杜邦线最后画，压在最上层 */
+    dubangxian.forEach(function (db) {
+      if (!dbZaiCull(db, lastCullRect)) { cullTongji.dbTi++; return; }
+      cullTongji.dbHua++;
+      drawDubanxian(db);
+    });
+    /* 对齐辅助线（拖动时显示，落在 cengGuide 层） */
+    guideXEl = svg('line', { 'class': 'guide', visibility: 'hidden' }, cengGuide);
+    guideYEl = svg('line', { 'class': 'guide', visibility: 'hidden' }, cengGuide);
     /* 画电流动画（若可解） */
     var energized = false;
     if (sol && sol.ok) {
@@ -3807,12 +4583,127 @@ window.addEventListener('message', function (e) {
     scheduleSaveCircuit();
   }
 
+  /* 面包板：白塑料本底 + 方孔阵列 + 中间 DIP 凹槽 + 上下红蓝电源轨 + 列号/行标 */
+  function drawBreadboard(ban) {
+    var ang = ban.rot || 0;
+    var g = svg('g', {
+      'class': 'breadboard' + (selectedBan === ban.id ? ' selected' : ''),
+      transform: 'translate(' + ban.x + ',' + ban.y + ') rotate(' + ang + ')'
+    }, cengComp);
+    var hw0 = banHW0(ban.lieshu), hh0 = banHH0();
+    var lieshu = ban.lieshu, guiN = guiKongShu(lieshu);
+    /* 板体与侧向拼接凸舌（凸舌在右、凹槽在左，对应真实板的互锁卡扣） */
+    svg('rect', { x: -hw0, y: -hh0, width: hw0 * 2, height: hh0 * 2, rx: 8, 'class': 'ban-body' }, g);
+    svg('rect', { x: -hw0 + 1.6, y: -hh0 + 1.6, width: (hw0 - 1.6) * 2, height: (hh0 - 1.6) * 2,
+      rx: 7, 'class': 'ban-bian' }, g);
+    [-0.52, 0, 0.52].forEach(function (p) {
+      var ty = p * hh0;
+      svg('rect', { x: hw0 - 2, y: ty - 7, width: 8, height: 14, rx: 2.5, 'class': 'ban-tab' }, g);
+      svg('rect', { x: -hw0, y: ty - 6, width: 5, height: 12, rx: 2.5, 'class': 'ban-kou' }, g);
+    });
+    /* 中间 DIP 凹槽（内凹，两端各留一段实体） */
+    svg('rect', { x: -hw0 + 26, y: -CAO_KUAN / 2, width: (hw0 - 26) * 2, height: CAO_KUAN,
+      rx: 7, 'class': 'ban-cao' }, g);
+    /* 凹槽上沿压暗、下沿留亮，模拟“凹进去”的阴影 */
+    svg('line', { x1: -hw0 + 26, y1: -CAO_KUAN / 2, x2: hw0 - 26, y2: -CAO_KUAN / 2,
+      stroke: 'rgba(0,0,0,.32)', 'stroke-width': 1 }, g);
+    svg('line', { x1: -hw0 + 26, y1: CAO_KUAN / 2, x2: hw0 - 26, y2: CAO_KUAN / 2,
+      stroke: 'rgba(255,255,255,.42)', 'stroke-width': 1 }, g);
+    /* 上下电源轨：红/蓝线条（比孔数更长，一直画到板边附近）+ 正负号 */
+    function guiZu(y, se) {
+      var banBian = hw0 - 16;
+      svg('line', { x1: -banBian, y1: y, x2: banBian, y2: y, 'class': 'ban-tiao ' + se }, g);
+      var fu = (se === 'zheng') ? '+' : '−';
+      svg('text', { x: -banBian - 3, y: y + 2.8, 'class': 'ban-ji ' + se }, g).textContent = fu;
+      svg('text', { x: banBian + 3, y: y + 2.8, 'class': 'ban-ji ' + se }, g).textContent = fu;
+    }
+    guiZu(-(GUI_WAI + KONG_BAN + 6), 'zheng');
+    guiZu(-(GUI_NEI - KONG_BAN - 6), 'fu');
+    guiZu(GUI_WAI + KONG_BAN + 6, 'zheng');
+    guiZu(GUI_NEI - KONG_BAN - 6, 'fu');
+    /* 孔：全部方孔，带全局地址供后续插拔与求解 */
+    function huaKong(qu, lie, wei) {
+      var p = kongBenDi(ban, qu, lie, wei);
+      var dizhi = kongDizhi(ban, qu, lie, wei);
+      var kongClass = 'ban-kong' + (dizhi === dbDiyiji ? ' db-dengdai' : '');
+      svg('rect', { x: p.x - KONG_BAN, y: p.y - KONG_BAN, width: KONG_BAN * 2, height: KONG_BAN * 2,
+        rx: 1, 'class': kongClass, 'data-kong': dizhi }, g);
+    }
+    [QU_SHANG, QU_XIA].forEach(function (qu) {
+      for (var lie = 0; lie < lieshu; lie++) {
+        for (var wei = 0; wei < 5; wei++) huaKong(qu, lie, wei);
+      }
+    });
+    GUI_QUAN.forEach(function (qu) {
+      for (var i = 0; i < guiN; i++) huaKong(qu, i, 0);
+    });
+    /* 列号印在板上下的白边里（真板就是这么印的），行标 a–e / f–j 贴在板左右两端；
+       缩得太小（看不清）就不再印，避免糊成一团，阈值变化时重画一次 */
+    if (biaoqianKai) {
+      [-1, 1].forEach(function (fang) {
+        var ny = fang < 0 ? -hh0 + 10 : hh0 - 5;
+        for (var c2 = 0; c2 < lieshu; c2++) {
+          svg('text', { x: (c2 - (lieshu - 1) / 2) * KONG_JU, y: ny, 'class': 'ban-num' }, g)
+            .textContent = String(c2 + 1);
+        }
+      });
+      'abcdefghij'.split('').forEach(function (zi, k) {
+        var qu = (k < 5) ? QU_SHANG : QU_XIA;
+        var hang = (k < 5) ? k : (k - 5);   /* 行号 0..4，0 是最靠凹槽的一行 */
+        var yy = kongBenDi(ban, qu, 0, hang).y - 6;
+        svg('text', { x: -hw0 + 8, y: yy, 'class': 'ban-num' }, g).textContent = zi;
+        svg('text', { x: hw0 - 8, y: yy, 'class': 'ban-num' }, g).textContent = zi;
+      });
+    }
+    /* 板名不印在板上（真板白边只印列号），改由悬停提示与底部状态条说明 */
+    /* 选中 */
+    g.addEventListener('click', function (e) {
+      e.stopPropagation();
+      selectedBan = ban.id;
+      selected = null; selectedWire = null;
+      render();
+    });
+    /* 拖动 + 磁吸 */
+    var dragging = false, dragMoved = false, sx = 0, sy = 0, ox = 0, oy = 0, dragSnap = null;
+    g.addEventListener('pointerdown', function (e) {
+      if (spaceDown || e.button !== 0) return;
+      dragging = true; dragMoved = false;
+      dotPaused = true;
+      selectedBan = ban.id;
+      selected = null; selectedWire = null;
+      sx = e.clientX; sy = e.clientY; ox = ban.x; oy = ban.y;
+      dragSnap = snapshot();
+      try { g.setPointerCapture(e.pointerId); } catch (x) {}
+    });
+    g.addEventListener('pointermove', function (e) {
+      if (!dragging) return;
+      var dx = (e.clientX - sx) / view.k, dy = (e.clientY - sy) / view.k;
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) dragMoved = true;
+      var pos = banCiXi(ban, ox + dx, oy + dy);
+      ban.x = pos.x; ban.y = pos.y;
+      g.setAttribute('transform', 'translate(' + ban.x + ',' + ban.y + ') rotate(' + (ban.rot || 0) + ')');
+      showGuides(pos.gx, pos.gy);
+    });
+    function endBanDrag() {
+      if (!dragging) return;
+      dragging = false;
+      dotPaused = false;
+      wakeDots();
+      hideGuides();
+      if (dragMoved && dragSnap) pushSnapshot(dragSnap);
+      dragSnap = null;
+      render();
+    }
+    g.addEventListener('pointerup', endBanDrag);
+    g.addEventListener('pointercancel', endBanDrag);
+  }
+
   function drawComponent(c, ledCur) {
     var ang = c.rot || 0;
     var g = svg('g', {
       'class': 'comp' + (selected === c.id ? ' selected' : ''),
       transform: 'translate(' + c.x + ',' + c.y + ') rotate(' + ang + ')'
-    }, scene);
+    }, cengComp);
     /* 位号/参数/引脚字母跟着元件移动，但文字本身保持水平，旋转后仍然可读 */
     function upright(t, x, y) {
       if (ang) t.setAttribute('transform', 'rotate(' + (-ang) + ' ' + x + ' ' + y + ')');
@@ -3979,15 +4870,311 @@ window.addEventListener('message', function (e) {
     g.addEventListener('pointercancel', endDrag);
   }
 
+  /* ================= 实物元件渲染 ================= */
+  var qjJieguo = null;   /* 当前帧的面包板连通结论（wjQiuJie 结果） */
+  function drawWujian(wj) {
+    var ang = wj.rot || 0;
+    var g = svg('g', {
+      'class': 'wujian' + (selectedWj === wj.id ? ' selected' : ''),
+      transform: 'translate(' + wj.x + ',' + wj.y + ') rotate(' + ang + ')'
+    }, cengComp);
+    function ying(x, y, rx, ry, op) {
+      svg('ellipse', { cx: x, cy: y, rx: rx, ry: ry, fill: '#080a0d', 'fill-opacity': op == null ? '.16' : op }, g);
+    }
+    /* 引脚：深色投影线 + 亮金属芯线，末端一个小圆环表示插进孔里的金属脚 */
+    function lead(x1, y1, x2, y2) {
+      svg('line', { x1: x1, y1: y1, x2: x2, y2: y2, 'class': 'wj-lead-yin' }, g);
+      svg('line', { x1: x1, y1: y1, x2: x2, y2: y2, 'class': 'wj-lead' }, g);
+      svg('circle', { cx: x2, cy: y2, r: 2.1, 'class': 'wj-jian' }, g);
+    }
+    /* 元件自带的金属焊盘（四脚按键、开关这类引脚藏在本体下面的零件） */
+    function hanPan(x, y, r) {
+      svg('rect', { x: x - r, y: y - r, width: r * 2, height: r * 2, rx: r * .5,
+        fill: '#a3abb5', stroke: '#5e6670', 'stroke-width': .8 }, g);
+    }
+    var kd = wj.kind;
+    if (kd === 'dianzu') {
+      ying(0, 3, 27, 7.5, .18);
+      lead(-40, 0, -26, 0); lead(26, 0, 40, 0);
+      /* 米色圆柱本体：渐变做出圆柱感，上加一道细高光 */
+      svg('rect', { x: -26, y: -8.6, width: 52, height: 17.2, rx: 6,
+        fill: 'url(#wj-dianzu-jianbian)', stroke: '#a3793f', 'stroke-width': .9 }, g);
+      svg('rect', { x: -22, y: -6.9, width: 44, height: 4.2, rx: 2.1, fill: '#fff', 'fill-opacity': '.26' }, g);
+      /* 四色环按阻值算：前两环数字、第三环倍率、第四环金色误差 */
+      var huan = seHuan(wj.r);
+      [-18.5, -12, -5.5].forEach(function (hx, i) {
+        svg('rect', { x: hx, y: -8.6, width: 3.1, height: 17.2, fill: huan[i] }, g);
+      });
+      svg('rect', { x: 17.5, y: -8.6, width: 3.4, height: 17.2, fill: huan[3] }, g);
+      /* 放大到能看清时在电阻下方标出阻值，和色环互相印证 */
+      if (biaoqianKai) {
+        svg('text', { x: 0, y: 19, 'text-anchor': 'middle', 'class': 'wj-zhi' }, g).textContent = geShiZou(wj.r);
+      }
+    } else if (kd === 'led') {
+      /* 5mm 圆头 LED 的俯视：外圈光晕 + 透镜 + 左上高光 + 阴极平边。
+         通电点亮时光晕外扩、镜片更亮、中心出现白热；接反/缺电阻用虚线环提示。 */
+      var ledLiang = !!(qjJieguo && qjJieguo.liang && qjJieguo.liang[wj.id]);
+      var ledFan = qjJieguo && qjJieguo.fan ? qjJieguo.fan[wj.id] : null;
+      ying(0, 3, 17, 14, .22);
+      if (ledLiang) {
+        /* 两层柔光糊出来的光晕：外层大而淡、内层贴着透镜，整体像真的在发光 */
+        svg('circle', { cx: 0, cy: 0, r: 17, fill: wj.yanse, 'fill-opacity': '.42',
+          filter: 'url(#wj-halo-kuan)' }, g);
+        svg('circle', { cx: 0, cy: 0, r: 14.6, fill: wj.yanse, 'fill-opacity': '.85',
+          filter: 'url(#wj-halo)' }, g);
+      } else {
+        /* 未通电只留极淡一圈塑料壳的边，绝不能看起来像“微亮” */
+        svg('circle', { cx: 0, cy: 0, r: 16.4, fill: wj.yanse, 'fill-opacity': '.08' }, g);
+      }
+      svg('circle', { cx: 0, cy: 0, r: 14.8, fill: wj.yanse,
+        'fill-opacity': ledLiang ? '1' : '.95',
+        stroke: ledLiang ? wj.yanse : 'rgba(0,0,0,.3)', 'stroke-width': .9 }, g);
+      /* 通电后透镜中心淡淡过曝，只用很轻的一层白，保住原本的颜色饱和度 */
+      if (ledLiang) svg('circle', { cx: 0, cy: 0, r: 12.6, fill: '#fff', 'fill-opacity': '.14' }, g);
+      /* 透镜边缘一圈更亮的环，避免看起来是纯色圆饼 */
+      svg('circle', { cx: 0, cy: 0, r: 13.2, fill: 'none', stroke: '#fff',
+        'stroke-opacity': ledLiang ? '.4' : '.18', 'stroke-width': 1.1 }, g);
+      /* 内部支架（下缘一道浅浅的反光），其余保持干净 */
+      svg('rect', { x: -8, y: 9.2, width: 16, height: 2.2, rx: 1.1, fill: '#fff', 'fill-opacity': '.12' }, g);
+      /* 左上玻璃反光 */
+      svg('ellipse', { cx: -5.6, cy: -5.9, rx: 3.6, ry: 3, fill: '#fff',
+        'fill-opacity': ledLiang ? '.52' : '.55' }, g);
+      /* 阴极侧平边（右侧） */
+      svg('rect', { x: 12.7, y: -7, width: 2.2, height: 14, rx: 1, fill: '#fff',
+        'fill-opacity': ledLiang ? '.75' : '.5' }, g);
+      if (ledFan === 'fan') {
+        svg('circle', { cx: 0, cy: 0, r: 19.6, fill: 'none', stroke: '#e04436',
+          'stroke-width': 1.5, 'stroke-dasharray': '3.2 3.2' }, g);
+      } else if (ledFan === 'queR') {
+        svg('circle', { cx: 0, cy: 0, r: 19.6, fill: 'none', stroke: '#e0a336',
+          'stroke-width': 1.5, 'stroke-dasharray': '3.2 3.2' }, g);
+      }
+    } else if (kd === 'erjiguan') {
+      /* DO-35 玻璃封装：黑本体 + 阴极银环，引脚跨 4 列（与实物一致） */
+      ying(0, 2, 16, 6.5, .18);
+      lead(-40, 0, -15, 0); lead(15, 0, 40, 0);
+      svg('rect', { x: -15, y: -7.5, width: 30, height: 15, rx: 2.4,
+        fill: '#262a31', stroke: '#0c0e12', 'stroke-width': .9 }, g);
+      svg('rect', { x: -13, y: -6, width: 26, height: 3.6, rx: 1.8, fill: '#fff', 'fill-opacity': '.14' }, g);
+      svg('rect', { x: 8.6, y: -7.5, width: 5.2, height: 15, fill: '#cfd4db' }, g);
+      svg('rect', { x: 8.6, y: -7.5, width: 1.1, height: 15, fill: '#f3f6f9' }, g);
+    } else if (kd === 'anjian') {
+      /* 6x6 轻触按键：四角金属焊盘 + 方座 + 圆钮 */
+      ying(0, 3, 14, 13, .2);
+      [[-10, -10], [10, -10], [-10, 10], [10, 10]].forEach(function (p) { hanPan(p[0], p[1], 4.1); });
+      svg('rect', { x: -11.8, y: -11.8, width: 23.6, height: 23.6, rx: 2.4,
+        fill: '#3b424c', stroke: '#20242a', 'stroke-width': .9 }, g);
+      svg('rect', { x: -11.8, y: -11.8, width: 23.6, height: 4, rx: 2, fill: '#fff', 'fill-opacity': '.09' }, g);
+      svg('circle', { cx: 0, cy: 0, r: 8, fill: wj.anxia ? '#22272e' : '#6b7480',
+        stroke: '#2d333b', 'stroke-width': 1 }, g);
+      if (!wj.anxia) svg('circle', { cx: -2.4, cy: -2.6, r: 3.1, fill: '#fff', 'fill-opacity': '.22' }, g);
+    } else if (kd === 'kaiguan') {
+      /* 滑动开关：金属罩 + 滑轨 + 拨钮 */
+      ying(0, 3, 16, 9, .18);
+      hanPan(-10, 0, 2.8); hanPan(10, 0, 2.8);
+      svg('rect', { x: -15, y: -7.6, width: 30, height: 15.2, rx: 2,
+        fill: '#3c434d', stroke: '#20252b', 'stroke-width': .9 }, g);
+      svg('rect', { x: -15, y: -7.6, width: 30, height: 3, fill: '#fff', 'fill-opacity': '.1' }, g);
+      svg('rect', { x: -10, y: -3.2, width: 20, height: 6.4, rx: 3.2, fill: '#262b32' }, g);
+      var knobX = wj.bihe ? 5.4 : -5.4;
+      svg('rect', { x: knobX - 4, y: -5.2, width: 8, height: 10.4, rx: 2,
+        fill: '#c9ced6', stroke: '#8d949d', 'stroke-width': .8 }, g);
+      svg('rect', { x: knobX - 2.4, y: -4.4, width: 2, height: 8.8, rx: 1, fill: '#fff', 'fill-opacity': '.5' }, g);
+    } else if (kd === 'fengmingqi') {
+      /* 有源蜂鸣器：黑塑料壳 + 顶面金属感 + 一圈出音孔；通电时右侧出两道声波 */
+      var fmXiang = !!(qjJieguo && qjJieguo.zhuan && qjJieguo.zhuan[wj.id]);
+      ying(0, 4, 23, 20, .22);
+      svg('circle', { cx: 0, cy: 0, r: 20, fill: 'url(#wj-hei-jianbian)', stroke: '#0b0d11', 'stroke-width': 1 }, g);
+      svg('circle', { cx: 0, cy: 0, r: 16.2, fill: 'none', stroke: '#3f4650', 'stroke-width': 1.2 }, g);
+      for (var a0 = 0; a0 < 8; a0++) {
+        var aa = a0 * Math.PI / 4, hx = Math.cos(aa) * 11, hy = Math.sin(aa) * 11;
+        svg('circle', { cx: hx, cy: hy, r: 1.8, fill: '#0a0c0f' }, g);
+        svg('circle', { cx: hx, cy: hy - .5, r: .7, fill: '#fff', 'fill-opacity': '.18' }, g);
+      }
+      svg('circle', { cx: 0, cy: 0, r: 3.2, fill: '#0b0d10' }, g);
+      if (fmXiang) {
+        [25, 30].forEach(function (r0, i) {
+          svg('path', { d: 'M' + (r0 * .72) + ' ' + (-r0 * .62) + ' A' + r0 + ' ' + r0 +
+            ' 0 0 1 ' + (r0 * .72) + ' ' + (r0 * .62) + ' ',
+            fill: 'none', stroke: '#f0be64', 'stroke-width': 1.6, 'stroke-opacity': i ? .5 : .85 }, g);
+        });
+      }
+    } else if (kd === 'dianji') {
+      /* 130 直流电机：金属圆罐 + 环形压痕 + 输出轴；通电时轴上出现转动弧 */
+      var djZhuan = !!(qjJieguo && qjJieguo.zhuan && qjJieguo.zhuan[wj.id]);
+      ying(0, 4, 25, 21, .22);
+      lead(-30, 0, -24, 0); lead(24, 0, 30, 0);
+      svg('circle', { cx: 0, cy: 0, r: 24, fill: 'url(#wj-dianji-jianbian)',
+        stroke: '#444b55', 'stroke-width': 1.2 }, g);
+      svg('circle', { cx: 0, cy: 0, r: 17.6, fill: 'none', stroke: '#525a65', 'stroke-width': 1 }, g);
+      svg('circle', { cx: 0, cy: 0, r: 21.6, fill: 'none', stroke: '#fff', 'stroke-opacity': '.14', 'stroke-width': 1.2 }, g);
+      /* 输出轴：从罐体上缘伸出 */
+      svg('rect', { x: -3, y: -34, width: 6, height: 11, rx: 1.6,
+        fill: '#c2c8d0', stroke: '#8f97a2', 'stroke-width': .8 }, g);
+      svg('rect', { x: -1.4, y: -33, width: 2.2, height: 9, rx: 1, fill: '#fff', 'fill-opacity': '.45' }, g);
+      if (djZhuan) {
+        /* 通电：轴上叠一个逆时针方向的转动弧，一眼看出电机在转 */
+        svg('path', { d: 'M-9 -24 A11 11 0 0 1 9 -24', fill: 'none',
+          stroke: '#f0be64', 'stroke-width': 1.6, 'stroke-opacity': '.9' }, g);
+        svg('path', { d: 'M9 -27.5 L9 -20.5 L14 -24 Z', fill: '#f0be64', 'fill-opacity': '.9' }, g);
+      }
+    } else if (kd === 'dianweiqi') {
+      /* 3296 微调电位器：蓝色方体 + 米白刻度盘 + 一字槽随阻值转 */
+      ying(0, 4, 27, 24, .2);
+      lead(-20, 14, -20, 20); lead(0, 14, 0, 20); lead(20, 14, 20, 20);
+      svg('rect', { x: -26, y: -24, width: 52, height: 38, rx: 3,
+        fill: 'url(#wj-lan-jianbian)', stroke: '#254063', 'stroke-width': 1 }, g);
+      svg('rect', { x: -24, y: -22, width: 48, height: 4, rx: 1.6, fill: '#fff', 'fill-opacity': '.14' }, g);
+      svg('circle', { cx: 0, cy: -5, r: 13.4, fill: '#ded9cd', stroke: '#a9a498', 'stroke-width': 1 }, g);
+      var jiao = (-135 + 270 * (wj.hua == null ? .5 : wj.hua)) * Math.PI / 180;
+      svg('line', { x1: -Math.cos(jiao) * 8.4, y1: -5 - Math.sin(jiao) * 8.4,
+        x2: Math.cos(jiao) * 8.4, y2: -5 + Math.sin(jiao) * 8.4,
+        stroke: '#3b4350', 'stroke-width': 2.4, 'stroke-linecap': 'round' }, g);
+      svg('circle', { cx: 0, cy: -5, r: 2.1, fill: '#9c9789' }, g);
+      /* 蓝色侧壁上印阻值代码（和实物 3296 一样） */
+      if (biaoqianKai) {
+        svg('text', { x: -22, y: -16.6, 'class': 'wj-ma' }, g).textContent = sanWeiMa(wj.r);
+      }
+    } else if (kd === 'dianchi') {
+      /* 9V 层叠电池（俯视）：金色壳 + 白标签 + 顶部两极。
+         电源短路时整只电池套一圈闪烁红环（CSS 动画）。 */
+      var dianchiDuan = !!(qjJieguo && qjJieguo.duanChi && qjJieguo.duanChi[wj.id]);
+      ying(0, 4, 29, 24, .22);
+      if (dianchiDuan) {
+        /* 先糊一层红光当外发光，再叠一圈实线，闪起来才像警报而不是选中框 */
+        svg('rect', { x: -33, y: -25, width: 66, height: 50, rx: 7,
+          'class': 'wj-duanlu-ring', filter: 'url(#wj-halo-kuan)' }, g);
+        svg('rect', { x: -33, y: -25, width: 66, height: 50, rx: 7, 'class': 'wj-duanlu-ring' }, g);
+      }
+      svg('rect', { x: -28, y: -20, width: 56, height: 40, rx: 4,
+        fill: '#c9a23f', stroke: '#96762a', 'stroke-width': 1 }, g);
+      svg('rect', { x: -28, y: -20, width: 56, height: 9, rx: 4, fill: '#fff', 'fill-opacity': '.18' }, g);
+      svg('rect', { x: -21, y: -9, width: 42, height: 19, rx: 2, fill: '#f3efe1', 'fill-opacity': '.95' }, g);
+      svg('text', { x: 0, y: 5, 'text-anchor': 'middle', 'class': 'wj-zi' }, g).textContent = '9V';
+      /* 顶部两个扣接端子（＋圆头、−方头） */
+      svg('circle', { cx: 12, cy: -23, r: 4.6, fill: '#bcc3cc', stroke: '#7c848f', 'stroke-width': .9 }, g);
+      svg('circle', { cx: 12, cy: -24.2, r: 2.4, fill: '#eef2f6', 'fill-opacity': '.55' }, g);
+      svg('rect', { x: -18, y: -27, width: 11, height: 7, rx: 1.6,
+        fill: '#bcc3cc', stroke: '#7c848f', 'stroke-width': .9 }, g);
+    } else if (kd === 'shumaguan') {
+      /* 横向 DIP 一位数码管：黑本体 + 内窗 + 七段红字 + 小数点。
+         未通电时各段是暗红的本体色，对应段脚接通后才真正发亮。 */
+      var smLiang = (qjJieguo && qjJieguo.duanLiang && qjJieguo.duanLiang[wj.id]) || null;
+      ying(0, 4, 35, 27, .22);
+      WUZHONG.shumaguan.yinjiao.forEach(function (yp) {
+        var zaiBian = yp.y < 0 ? -25 : 25;
+        lead(yp.x, zaiBian, yp.x, yp.y);
+      });
+      svg('rect', { x: -34, y: -25, width: 68, height: 50, rx: 4,
+        fill: '#191c21', stroke: '#07080a', 'stroke-width': 1.2 }, g);
+      svg('rect', { x: -29, y: -19.5, width: 58, height: 39, rx: 3, fill: '#0e1013' }, g);
+      svg('rect', { x: -31, y: -23, width: 62, height: 3, rx: 1.5, fill: '#fff', 'fill-opacity': '.09' }, g);
+      var duan = function (x, y, w, h, ming) {
+        var on = !!(smLiang && smLiang[ming]);
+        if (on) {
+          /* 亮段先铺一层窄模糊的红，做出“发光”的溢出感又保住笔画形状 */
+          svg('rect', { x: x - 1, y: y - 1, width: w + 2, height: h + 2, rx: 2,
+            fill: '#ff6a50', 'fill-opacity': '.6', filter: 'url(#wj-halo-xi)' }, g);
+        }
+        svg('rect', { x: x, y: y, width: w, height: h, rx: 1.6,
+          fill: on ? '#e84034' : '#4a1d16', 'fill-opacity': on ? '.95' : '1' }, g);
+        if (on) {
+          svg('rect', { x: x + .8, y: y + .8, width: Math.max(1, w - 1.6), height: Math.max(1, h - 1.6),
+            rx: 1.2, fill: '#ff7b62', 'fill-opacity': '.55' }, g);
+        } else {
+          svg('rect', { x: x + .8, y: y + .8, width: Math.max(1, w - 1.6), height: Math.max(1, h - 1.6),
+            rx: 1.2, fill: '#63261e', 'fill-opacity': '.55' }, g);
+        }
+      };
+      duan(-11, -14.5, 22, 4.4, 'a');   /* a 上横 */
+      duan(8.2, -11, 4.4, 10, 'b');     /* b 右上 */
+      duan(8.2, 1, 4.4, 10, 'c');       /* c 右下 */
+      duan(-11, 10.5, 22, 4.4, 'd');    /* d 下横 */
+      duan(-12.6, 1, 4.4, 10, 'e');     /* e 左下 */
+      duan(-12.6, -11, 4.4, 10, 'f');   /* f 左上 */
+      duan(-11, -2, 22, 4.4, 'g');      /* g 中横 */
+      var dpOn = !!(smLiang && smLiang.dp);
+      svg('circle', { cx: 22, cy: 13, r: 2.3, fill: dpOn ? '#e84034' : '#3c1611' }, g);
+    }
+    /* 选中/拖动 */
+    g.addEventListener('click', function (e) {
+      e.stopPropagation();
+      selectedWj = wj.id;
+      selected = null; selectedBan = null; selectedWire = null;
+      render();
+    });
+    var dragging = false, dragMoved = false, sx = 0, sy = 0, ox = 0, oy = 0, dragSnap = null;
+    g.addEventListener('pointerdown', function (e) {
+      if (spaceDown || e.button !== 0) return;
+      dragging = true; dragMoved = false;
+      dotPaused = true;
+      selectedWj = wj.id;
+      selected = null; selectedBan = null; selectedWire = null;
+      sx = e.clientX; sy = e.clientY; ox = wj.x; oy = wj.y;
+      dragSnap = snapshot();
+      try { g.setPointerCapture(e.pointerId); } catch (x) {}
+    });
+    g.addEventListener('pointermove', function (e) {
+      if (!dragging) return;
+      var dx = (e.clientX - sx) / view.k, dy = (e.clientY - sy) / view.k;
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) dragMoved = true;
+      wj.x = ox + dx; wj.y = oy + dy;
+      wjXiFu(wj);
+      g.setAttribute('transform', 'translate(' + wj.x + ',' + wj.y + ') rotate(' + (wj.rot || 0) + ')');
+    });
+    function endWjDrag() {
+      if (!dragging) return;
+      dragging = false;
+      dotPaused = false;
+      wakeDots();
+      if (dragMoved && dragSnap) pushSnapshot(dragSnap);
+      dragSnap = null;
+      render();
+    }
+    g.addEventListener('pointerup', endWjDrag);
+    g.addEventListener('pointercancel', endWjDrag);
+  }
+
+  /* 杜邦线渲染与裁剪（阶段 4c 完善，先给占位实现保证渲染闭环） */
+  function dbZaiCull(db, ju) {
+    var a = kongWeiZhiByDizhi(db.kongA), b = kongWeiZhiByDizhi(db.kongB);
+    if (!a || !b) return false;
+    var minX = Math.min(a.x, b.x), maxX = Math.max(a.x, b.x);
+    var minY = Math.min(a.y, b.y), maxY = Math.max(a.y, b.y);
+    return !(maxX < ju.left || minX > ju.right || maxY < ju.top || minY > ju.bottom);
+  }
+  function drawDubanxian(db) {
+    var a = kongWeiZhiByDizhi(db.kongA), b = kongWeiZhiByDizhi(db.kongB);
+    if (!a || !b) return;
+    var d = 'M' + a.x + ' ' + a.y + ' L' + b.x + ' ' + b.y;
+    var g = svg('g', { 'class': 'dubang-zu', 'data-dbid': db.id }, cengWire);
+    /* 加粗的透明命中区，方便点中细线 */
+    svg('path', { d: d, 'class': 'dubang-hit', stroke: '#fff', 'stroke-opacity': 0 }, g);
+    var xian = svg('path', { d: d, 'class': 'dubang' + (selectedDb === db.id ? ' selected' : ''),
+      stroke: db.yanse, 'data-dba': db.kongA, 'data-dbb': db.kongB }, g);
+    xian.addEventListener('click', function (e) {
+      e.stopPropagation();
+      selectedDb = db.id;
+      selectedWj = null; selectedBan = null; selected = null; selectedWire = null;
+      dbDiyiji = null;
+      $('ckt-status').textContent = '已选中杜邦线，Delete 删除';
+      render();
+    });
+  }
+
   /* 拖动中只重画导线，避免重建元件打断拖动 */
   function renderWiresOnly() {
+    /* 裁剪后部分导线没有 DOM，按 data-wa|data-wb 建映射，避免按序号错位 */
     var paths = svgRoot.querySelectorAll('path.wire');
-    var idx = 0;
+    var luceng = {};
+    Array.prototype.forEach.call(paths, function (p) {
+      luceng[p.getAttribute('data-wa') + '|' + p.getAttribute('data-wb')] = p;
+    });
     wires.forEach(function (w) {
       var a = compAt(w.a.id), b = compAt(w.b.id);
       if (!a || !b) return;
       var d = cktWirePath(w);
-      var p = paths[idx++];
+      var p = luceng[w.a.id + ':' + w.a.pin + '|' + w.b.id + ':' + w.b.pin];
       if (p && d) p.setAttribute('d', d);
     });
   }
@@ -4015,12 +5202,122 @@ window.addEventListener('message', function (e) {
     sol.currents.forEach(function (cur) {
       var c = compAt(cur.id);
       if (!c || Math.abs(cur.current) < 1e-9) return;
-      var label = svg('text', { x: c.x, y: c.y - 32, 'class': 'measure', 'text-anchor': 'middle' }, scene);
+      var label = svg('text', { x: c.x, y: c.y - 32, 'class': 'measure', 'text-anchor': 'middle' }, cengFlow);
       label.textContent = (cur.current >= 0 ? '→ ' : '← ') + C.fmtI(Math.abs(cur.current));
     });
   }
 
   /* ================= 参数面板 ================= */
+  /* 孔地址的中文化简写，给参数面板与提示用 */
+  function kongJianCheng(dizhi) {
+    var xi = jieXiDizhi(dizhi);
+    if (!xi) return '未插孔';
+    var quMing = {};
+    quMing[QU_ZHENG_SHANG] = '正极上轨'; quMing[QU_FU_SHANG] = '负极上轨';
+    quMing[QU_ZHENG_XIA] = '正极下轨'; quMing[QU_FU_XIA] = '负极下轨';
+    quMing[QU_SHANG] = '上区'; quMing[QU_XIA] = '下区';
+    var chu = '板' + String(xi.id).replace('ban-', '') + ' ' + (quMing[xi.qu] || xi.qu) + ' ' + (xi.lie + 1) + '列';
+    if (!shiGuiQu(xi.qu)) {
+      chu += ' ' + (xi.qu === QU_SHANG ? 'abcdefg'[xi.wei] : 'fghijkl'[xi.wei]);
+    }
+    return chu;
+  }
+  /* 选中插在面包板上的实物元件时的参数面板 */
+  function renderWjParams(wj, host) {
+    var kd = wj.kind;
+    el('div', '', WUZHONG[kd].label + ' · ' + wj.id, host)
+      .style.cssText = 'font-size:11px;color:var(--accent);margin-bottom:10px;font-family:var(--mono)';
+    var info = el('div', 'wire-info', null, host);
+    WUZHONG[kd].yinjiao.forEach(function (yj, i) {
+      var r = el('div', 'wi-row', null, info);
+      el('span', null, (yj.ming ? yj.ming + ' 脚' : '引脚 ' + (i + 1)), r);
+      var y = wj.yinjiao && wj.yinjiao[i];
+      el('b', null, y && y.kong ? kongJianCheng(y.kong) : '未插孔', r);
+    });
+    /* 阻值类：文本输入 + 滑块 */
+    if (kd === 'dianzu' || kd === 'dianweiqi') {
+      var rz = el('div', 'param-row', null, host);
+      var lab = el('label', null, '阻值（可输入 10k / 4R7）', rz);
+      var inp = el('input', null, null, rz);
+      inp.type = 'text'; inp.value = C.fmtR(wj.r).replace(' ', '');
+      inp.addEventListener('change', function () {
+        var v = C.parseValue(this.value);
+        if (isFinite(v) && v > 0) {
+          if (v !== wj.r) { pushHistory(); wj.r = v; wangLuoZang(); }
+          this.value = C.fmtR(wj.r).replace(' ', '');
+          render();
+        } else this.value = C.fmtR(wj.r).replace(' ', '');
+      });
+      var hz = el('div', 'param-row', null, host);
+      var hl = el('label', null, '快速调节', hz);
+      var hv = el('span', 'pv', C.fmtR(wj.r), hl);
+      var hs = el('input', null, null, hz);
+      hs.type = 'range';
+      if (kd === 'dianzu') { hs.min = 10; hs.max = 100000; hs.step = 10; } else { hs.min = 100; hs.max = 10000; hs.step = 100; }
+      hs.value = wj.r;
+      hs.addEventListener('input', function () {
+        wj.r = parseFloat(this.value) || 1;
+        hv.textContent = C.fmtR(wj.r);
+        wangLuoZang();
+        render(true);
+      });
+      if (kd === 'dianweiqi') {
+        var hw = el('div', 'param-row', null, host);
+        var hwl = el('label', null, '旋钮位置', hw);
+        var hwv = el('span', 'pv', Math.round((wj.hua == null ? 0.5 : wj.hua) * 100) + '%', hwl);
+        var hws = el('input', null, null, hw);
+        hws.type = 'range'; hws.min = 0; hws.max = 100; hws.step = 1;
+        hws.value = Math.round((wj.hua == null ? 0.5 : wj.hua) * 100);
+        hws.addEventListener('input', function () {
+          wj.hua = parseFloat(this.value) / 100;
+          hwv.textContent = this.value + '%';
+          wangLuoZang();
+          render(true);
+        });
+      }
+    } else if (kd === 'led') {
+      el('div', '', '发光颜色', host).style.cssText = 'font-size:10px;color:var(--faint);margin:10px 0 6px;font-family:var(--mono)';
+      var grid = el('div', '', null, host);
+      grid.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap';
+      [['红', '#ff4d3d'], ['绿', '#3fd06a'], ['蓝', '#3f8fdc'], ['黄', '#ffd23f'], ['白', '#f2f5f9']].forEach(function (p) {
+        var b = el('button', '', null, grid);
+        b.style.cssText = 'width:22px;height:22px;border-radius:50%;padding:0;cursor:pointer;background:' + p[1] +
+          ';border:2px solid ' + (wj.yanse === p[1] ? '#fff' : 'rgba(255,255,255,.14)');
+        b.title = p[0];
+        b.onclick = function () { pushHistory(); wj.yanse = p[1]; render(); scheduleSaveCircuit(); };
+      });
+      el('div', 'formula', '长脚是阳极（A），短脚是阴极（K）；接反了不亮。', host);
+    } else if (kd === 'kaiguan') {
+      var kb = el('button', 'ghost', wj.bihe ? '拨回断开位置' : '拨到闭合位置', host);
+      kb.style.marginTop = '10px';
+      kb.onclick = function () { pushHistory(); wj.bihe = !wj.bihe; wangLuoZang(); render(); scheduleSaveCircuit(); };
+      el('div', 'formula', '闭合后两个引脚在器件内部导通，等价于一根导线。', host);
+    } else if (kd === 'anjian') {
+      var ab = el('button', 'ghost', wj.anxia ? '松开按键' : '按住按键', host);
+      ab.style.marginTop = '10px';
+      ab.onclick = function () { pushHistory(); wj.anxia = !wj.anxia; wangLuoZang(); render(); scheduleSaveCircuit(); };
+      el('div', 'formula', '四脚轻触键：同侧两脚常通，按下后四脚全通。', host);
+    } else if (kd === 'shumaguan') {
+      var gy = el('div', 'param-row', null, host);
+      el('label', null, '公共极接法', gy);
+      var gb = el('button', 'ghost', wj.gonggong === 'gongyang' ? '共阳（COM 接 +）' : '共阴（COM 接 −）', gy);
+      gb.onclick = function () {
+        pushHistory();
+        wj.gonggong = wj.gonggong === 'gongyang' ? 'gongyin' : 'gongyang';
+        wangLuoZang(); render(); scheduleSaveCircuit();
+      };
+      el('div', 'formula', '共阴：段脚是阳极，COM 接负极；共阳反过来。每段都要串限流电阻。', host);
+    } else if (kd === 'dianchi') {
+      el('div', 'formula', '9V 层叠电池：圆头是正极（＋），方头是负极（−）。', host);
+    } else if (kd === 'erjiguan') {
+      el('div', 'formula', '有方向：银环那一端是阴极（K），反向不导通。', host);
+    } else if (kd === 'fengmingqi') {
+      el('div', 'formula', '有源蜂鸣器：＋ 脚接电源正，− 脚接地，通电即响。', host);
+    } else if (kd === 'dianji') {
+      el('div', 'formula', '直流电机：正接正转，反接反转。', host);
+    }
+  }
+
   function renderWireParams(w, host) {
     var a = compAt(w.a.id), b = compAt(w.b.id);
     if (!a || !b) {
@@ -4060,6 +5357,11 @@ window.addEventListener('message', function (e) {
       return;
     }
     if (titleEl) titleEl.textContent = '元件参数';
+    if (selectedWj && wjAt(selectedWj)) {
+      if (titleEl) titleEl.textContent = '实物元件参数';
+      renderWjParams(wjAt(selectedWj), host);
+      return;
+    }
     if (!selected || !compAt(selected)) {
       el('div', 'empty-note', '选中画布上的元件或导线，这里显示它的详情', host);
       return;
@@ -4210,6 +5512,37 @@ window.addEventListener('message', function (e) {
 
     if (presetHandled) return;
 
+    /* 面包板上有元件时，右栏改为显示教学级连通结论 */
+    if (wujian.length) {
+      var qj = qjJieguo || wjQiuJie();
+      var ztMing = {
+        ok: '✓ 回路成立', duanlu: '⚠ 电源短路', duanlu2: '⚠ 电源经导线直通',
+        wudian: '未接电源', budian: '回路不成立', kong: '未求解'
+      };
+      var row0 = el('div', 'ro-item', null, host);
+      el('span', 'ro-k', '面包板', row0);
+      var ztWen = ztMing[qj.zt] || qj.zt;
+      if (qj.zt === 'duanlu2' && qj.fuLei) ztWen = '⚠ 负载直通，没有限流';
+      el('span', 'ro-v' + (qj.zt === 'ok' ? ' hl' : ''), ztWen, row0);
+      if (qj.dianchi) item('电源', (qj.dianchiLiebiao && qj.dianchiLiebiao.length > 1 ? qj.dianchiLiebiao.length + ' 块 · ' : '') + '9V 层叠电池');
+      wujian.forEach(function (wj) {
+        if (wj.kind === 'dianchi') return;
+        var zt = '';
+        if (qj.liang && qj.liang[wj.id]) zt = '点亮';
+        else if (qj.zhuan && qj.zhuan[wj.id]) zt = wj.kind === 'dianji' ? '转动' : '发声';
+        else if (qj.fan && qj.fan[wj.id]) {
+          zt = { fan: '接反', queR: '缺限流电阻', buquan: '回路不完整' }[qj.fan[wj.id]];
+        } else if (qj.duanDao && qj.duanDao[wj.id]) zt = '正向导通';
+        else if (qj.duanLiang && qj.duanLiang[wj.id]) zt = '亮段 ' + Object.keys(qj.duanLiang[wj.id]).sort().join('');
+        if (zt) item(WUZHONG[wj.kind].label, zt, /点亮|导通|亮段|发声|转动/.test(zt));
+      });
+      qj.tishi.forEach(function (t) {
+        el('div', 'warn-box' + (qj.zt === 'duanlu' || qj.zt === 'duanlu2' ? ' danger' : ''), t, host);
+      });
+      el('div', 'formula', '教学级判定：只看回路通不通、极性对不对，不计算电流数值。', host);
+      return;
+    }
+
     /* 自由搭建：用通用求解器 */
     if (!sol || !sol.ok) {
       el('div', 'empty-note', sol ? (sol.error || '电路未闭合，无法求解') : '搭好电路后，这里显示电压、电流和功率', host);
@@ -4310,6 +5643,622 @@ window.addEventListener('message', function (e) {
     });
   })();
 
+  /* 面包板 id 与元件库入口 */
+  var banUid = 1;
+  function nextBanId() { return 'ban-' + (banUid++); }
+  (function initBanPalette() {
+    var host = $('palette-breadboard');
+    if (!host) return;
+    /* 图标里的小孔点阵 */
+    var dotSvg = '';
+    [-16, 0, 16].forEach(function (dx) {
+      [-9, -5, 5, 9].forEach(function (dy) {
+        dotSvg += '<circle cx="' + dx + '" cy="' + dy + '" r="1.6" fill="currentColor"/>';
+      });
+    });
+    [{ lieshu: 63, ming: '全尺寸 830 点' }, { lieshu: 30, ming: '半尺寸 400 点' }].forEach(function (kuan) {
+      var b = el('button', 'pal-item', null, host);
+      b.type = 'button';
+      b.innerHTML = '<svg viewBox="-30 -24 60 48">' +
+        '<rect x="-26" y="-16" width="52" height="32" rx="4" fill="none" stroke="currentColor" stroke-width="2"/>' +
+        '<line x1="-26" y1="0" x2="26" y2="0" stroke="currentColor" stroke-width="2"/>' +
+        dotSvg + '</svg>' + kuan.ming;
+      b.addEventListener('click', function () {
+        var r = svgRoot.getBoundingClientRect();
+        var center = (r.width && r.height) ? scenePoint(r.left + r.width / 2, r.top + r.height / 2) : { x: 0, y: 0 };
+        var ban = { id: nextBanId(), x: center.x, y: center.y, lieshu: kuan.lieshu, rot: 0 };
+        pushHistory();
+        breadboards.push(ban);
+        selectedBan = ban.id; selected = null; selectedWire = null;
+        wangLuoZang();
+        $('ckt-status').textContent = '已放置 ' + kuan.ming + '，拖动靠近另一块可磁吸拼接';
+        render();
+      });
+    });
+  })();
+
+  /* 实物元件库入口：点一下放到画布中心并自动吸附到最近面包板孔 */
+  (function initWjPalette() {
+    var host = $('palette-wujian');
+    if (!host) return;
+    var tuxiang = {
+      dianzu: '<rect x="-20" y="-7" width="40" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M-26 0h6M20 0h6" stroke="currentColor" stroke-width="2"/>',
+      led: '<circle r="11" fill="none" stroke="currentColor" stroke-width="2"/><path d="M-26 0h15M11 0h15" stroke="currentColor" stroke-width="2"/>',
+      erjiguan: '<rect x="-9" y="-6" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M-26 0h17M9 0h17" stroke="currentColor" stroke-width="2"/>',
+      anjian: '<rect x="-12" y="-12" width="24" height="24" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><circle r="6" fill="none" stroke="currentColor" stroke-width="2"/>',
+      kaiguan: '<rect x="-14" y="-7" width="28" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="-9" y="-5" width="8" height="10" fill="currentColor"/>',
+      fengmingqi: '<circle r="15" fill="none" stroke="currentColor" stroke-width="2"/><circle r="7" fill="none" stroke="currentColor" stroke-width="2"/>',
+      dianji: '<circle r="16" fill="none" stroke="currentColor" stroke-width="2"/><path d="M0-22v8" stroke="currentColor" stroke-width="2"/>',
+      dianweiqi: '<rect x="-20" y="-16" width="40" height="32" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><circle r="8" fill="none" stroke="currentColor" stroke-width="2"/>',
+      dianchi: '<rect x="-16" y="-24" width="32" height="44" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>',
+      shumaguan: '<rect x="-28" y="-16" width="56" height="32" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M-20 -16v-6M0 -16v-6M20 -16v-6M-20 16v6M0 16v6M20 16v6" stroke="currentColor" stroke-width="2"/>'
+    };
+    ['dianzu', 'led', 'erjiguan', 'anjian', 'kaiguan', 'dianchi', 'fengmingqi', 'dianji', 'dianweiqi', 'shumaguan'].forEach(function (kind) {
+      var b = el('button', 'pal-item', null, host);
+      b.type = 'button';
+      b.innerHTML = '<svg viewBox="-30 -28 60 56">' + tuxiang[kind] + '</svg>' + WUZHONG[kind].label;
+      b.addEventListener('click', function () {
+        var r = svgRoot.getBoundingClientRect();
+        var center = (r.width && r.height) ? scenePoint(r.left + r.width / 2, r.top + r.height / 2) : { x: 0, y: 0 };
+        /* 每多放一个就错开一点，避免新元件全叠在同一个点上 */
+        var pian = wujian.length % 6;
+        var wx = center.x + pian * 26, wy = center.y - pian * 26;
+        pushHistory();
+        var wj = fangWujian(kind, wx, wy);
+        wujian.push(wj);
+        selectedWj = wj.id; selected = null; selectedBan = null; selectedWire = null;
+        var rushu = wj.yinjiao.filter(function (yj) { return yj.kong; }).length;
+        $('ckt-status').textContent = '已放置 ' + WUZHONG[kind].label +
+          (rushu ? '，' + rushu + ' 个引脚已入孔' : '，先放一块面包板再拖过去');
+        scheduleSaveCircuit();
+        render();
+      });
+    });
+  })();
+
+  /* 杜邦线颜色选择按钮 */
+  (function initDbYanse() {
+    var yanseArr = ['#e04436', '#f5a623', '#ffd23f', '#34c759', '#2ea8ff', '#8a5cf6', '#22242b', '#f2f2f2'];
+    var he = $('db-yanse');
+    if (!he) return;
+    yanseArr.forEach(function (ys) {
+      var btn = document.createElement('button');
+      btn.style.background = ys;
+      if (ys === dbYanse) btn.classList.add('on');
+      btn.addEventListener('click', function () {
+        dbYanse = ys;
+        he.querySelectorAll('button').forEach(function (b) { b.classList.remove('on'); });
+        btn.classList.add('on');
+      });
+      he.appendChild(btn);
+    });
+  })();
+
+  /* 点孔建立杜邦线：点第一个孔进入待连，再点另一个孔完成 */
+  function dianKong(dizhi) {
+    if (!dbDiyiji) {
+      dbDiyiji = dizhi;
+      $('ckt-status').textContent = '再点一个孔完成杜邦线（Esc 取消）';
+      render();
+      return;
+    }
+    if (dbDiyiji === dizhi) {
+      dbDiyiji = null;
+      $('ckt-status').textContent = '已取消杜邦线';
+      render();
+      return;
+    }
+    dubangxian.push({ id: nextDbId(), kongA: dbDiyiji, kongB: dizhi, yanse: dbYanse });
+    dbDiyiji = null;
+    selectedDb = null;
+    wangLuoZang();
+    $('ckt-status').textContent = '杜邦线已连接';
+    scheduleSaveCircuit();
+    render();
+  }
+
+  /* ===== 孔网络（并查集）：板内同组孔 + 杜邦线两端合并，供悬停高亮同网络 ===== */
+  var wangLuoHuanCun = null, wangLuoZhiWen = '';
+  /* 电路状态指纹：板/线/元件的孔位、朝向、开关与旋钮状态都算进去。
+     指纹一变，孔网络与求解结果就自动作废——比在每个改动点手动调 wangLuoZang 更可靠。 */
+  function qjZhiWen() {
+    var s = breadboards.map(function (b) { return b.id + ',' + b.x + ',' + b.y + ',' + b.rot; }).join('|');
+    s += '#' + dubangxian.map(function (db) { return db.kongA + '>' + db.kongB; }).join(',');
+    s += '#' + wujian.map(function (wj) {
+      return wj.id + ',' + wj.kind + ',' + wj.x + ',' + wj.y + ',' + (wj.rot || 0) +
+        ',' + (wj.bihe ? 1 : 0) + (wj.anxia ? 1 : 0) + ',' + (wj.hua == null ? '' : wj.hua) +
+        ',' + (wj.gonggong || '') + ',' + (wj.r == null ? '' : wj.r) +
+        ':' + wj.yinjiao.map(function (y) { return y.kong || '-'; }).join('|');
+    }).join(';');
+    return s;
+  }
+  function wangLuoZang() { wangLuoHuanCun = null; wangLuoZhiWen = ''; qjZang(); }
+  /* 元件某个引脚落在哪个孔组；没插孔返回 null */
+  function wjPinZu(wj, idx) {
+    var yj = wj.yinjiao && wj.yinjiao[idx];
+    var kong = yj && yj.kong;
+    if (!kong) return null;
+    var xi = jieXiDizhi(kong), ban = xi ? banAt(xi.id) : null;
+    if (!ban) return null;
+    return kongZuKey(ban, xi.qu, xi.lie);
+  }
+  /* 元件内部“金属直连”的引脚组：闭合的开关、按下的按键、数码管两个公共极，
+     在器件内部就是同一块金属，直接并成一个网络。电阻/LED/二极管这类有压降的
+     元件不在这里合并——它们是一条“元件边”，交给求解器按方向判断。 */
+  function wjDaoTiFenZu(wj) {
+    if (wj.kind === 'kaiguan') return wj.bihe ? [[0, 1]] : [];
+    if (wj.kind === 'anjian') {
+      var zu = [[0, 2], [1, 3]];                 /* 同侧两脚内部常通，对角不通 */
+      if (wj.anxia) zu.push([0, 1], [2, 3]);     /* 按下后四脚全通 */
+      return zu;
+    }
+    if (wj.kind === 'shumaguan') return [[2, 7]]; /* 两个 COM 脚内部相连 */
+    return [];
+  }
+  /* 枚举所有孔地址及其组键：返回 [{ dizhi, zu }] */
+  function suoYouKongZu() {
+    var arr = [];
+    breadboards.forEach(function (ban) {
+      var guiN = guiKongShu(ban.lieshu);
+      [QU_SHANG, QU_XIA].forEach(function (qu) {
+        for (var lie = 0; lie < ban.lieshu; lie++) {
+          for (var wei = 0; wei < 5; wei++) {
+            arr.push({ dizhi: kongDizhi(ban, qu, lie, wei), zu: kongZuKey(ban, qu, lie) });
+          }
+        }
+      });
+      GUI_QUAN.forEach(function (qu) {
+        for (var i = 0; i < guiN; i++) {
+          arr.push({ dizhi: kongDizhi(ban, qu, i, 0), zu: kongZuKey(ban, qu, i) });
+        }
+      });
+    });
+    return arr;
+  }
+  function wangLuoTu() {
+    var zw = qjZhiWen();
+    if (wangLuoHuanCun && wangLuoZhiWen === zw) return wangLuoHuanCun;
+    var liebiao = suoYouKongZu();
+    var fu = {};
+    function find(x) {
+      var r = x;
+      while (fu[r] !== r) r = fu[r];
+      var p = x;
+      while (p !== r) { var nxt = fu[p]; fu[p] = r; p = nxt; }
+      return r;
+    }
+    function union(a, b) {
+      if (fu[a] === undefined) fu[a] = a;
+      if (fu[b] === undefined) fu[b] = b;
+      var ra = find(a), rb = find(b);
+      if (ra !== rb) fu[rb] = ra;
+    }
+    liebiao.forEach(function (it) { union(it.zu, it.zu); });
+    /* 杜邦线两端的组键合并 */
+    dubangxian.forEach(function (db) {
+      var xa = jieXiDizhi(db.kongA), xb = jieXiDizhi(db.kongB);
+      if (!xa || !xb || !banAt(xa.id) || !banAt(xb.id)) return;
+      var za = kongZuKey(banAt(xa.id), xa.qu, xa.lie);
+      var zb = kongZuKey(banAt(xb.id), xb.qu, xb.lie);
+      union(za, zb);
+    });
+    /* 元件内部的金属直连（闭合开关、按下按键、数码管公共极）也并进同一网络 */
+    wujian.forEach(function (wj) {
+      wjDaoTiFenZu(wj).forEach(function (zu) {
+        var base = wjPinZu(wj, zu[0]);
+        if (!base) return;
+        zu.forEach(function (idx) {
+          var zu2 = wjPinZu(wj, idx);
+          if (zu2) union(base, zu2);
+        });
+      });
+    });
+    var tu = {};
+    var wangId = {};
+    var xu = 0;
+    liebiao.forEach(function (it) {
+      var gen = find(it.zu);
+      if (wangId[gen] === undefined) wangId[gen] = xu++;
+      tu[it.dizhi] = wangId[gen];
+    });
+    wangLuoHuanCun = tu;
+    wangLuoZhiWen = zw;
+    return tu;
+  }
+
+  /* ================== 教学级连通求解器（阶段 5） ==================
+     只回答教学问题：回路成不成立、灯亮不亮、接没接反、缺不缺限流电阻、有没有电源短路。
+     不做 SPICE 式数值仿真——真实电压电流属于右栏原理图求解器的活。 */
+  var qjHuanCun = null, qjZhiWenCun = '';
+  function qjZang() { qjHuanCun = null; qjZhiWenCun = ''; }
+  /* 元件两端的“元件边”：za/zb 是两端所在孔组；fang=1 表示有方向，za 为阳极/正端。
+     lei='zuzhi' 的边用来判定“回路里到底有没有限流电阻”。 */
+  function wjBianLiebiao() {
+    var bian = [];
+    function jia(wj, ia, ib, lei, fang, can) {
+      var za = wjPinZu(wj, ia), zb = wjPinZu(wj, ib);
+      if (!za || !zb) return;      /* 有一脚没插孔，这条边不成立 */
+      if (za === zb) return;       /* 两端同网＝被导线短接，交给短路判定 */
+      bian.push({ wj: wj, lei: lei, za: za, zb: zb, fang: fang ? 1 : 0, can: can || {} });
+    }
+    wujian.forEach(function (wj) {
+      if (wj.kind === 'dianzu') {
+        jia(wj, 0, 1, 'zuzhi', 0, { r: wj.r });
+      } else if (wj.kind === 'led') {
+        jia(wj, 0, 1, 'led', 1, { yanse: wj.yanse });
+      } else if (wj.kind === 'erjiguan') {
+        jia(wj, 0, 1, 'erjiguan', 1, {});
+      } else if (wj.kind === 'fengmingqi') {
+        jia(wj, 0, 1, 'fengmingqi', 1, {});
+      } else if (wj.kind === 'dianji') {
+        jia(wj, 0, 1, 'dianji', 1, {});
+      } else if (wj.kind === 'dianweiqi') {
+        /* 电位器：两固定脚之间是全额阻值，中间脚按旋钮位置分成两段 */
+        var hua = Math.max(0, Math.min(1, wj.hua == null ? 0.5 : wj.hua));
+        jia(wj, 0, 2, 'zuzhi', 0, { r: Math.max(1, Math.round(wj.r * (1 - hua))) });
+        jia(wj, 2, 1, 'zuzhi', 0, { r: Math.max(1, Math.round(wj.r * hua)) });
+      } else if (wj.kind === 'shumaguan') {
+        /* 数码管：每个段脚与公共极之间是一只 LED，共阴段脚是阳极，共阳反过来 */
+        var com = wjPinZu(wj, 2) ? 2 : 7;
+        var gy = wj.gonggong === 'gongyang';
+        WUZHONG.shumaguan.yinjiao.forEach(function (yj, idx) {
+          if (!yj.duan) return;
+          if (gy) jia(wj, com, idx, 'duan', 1, { duan: yj.duan });
+          else jia(wj, idx, com, 'duan', 1, { duan: yj.duan });
+        });
+      }
+    });
+    return bian;
+  }
+  /* 求解入口：返回结论对象（带缓存，结构变动时由 wangLuoZang() 失效）
+     板上有多块电池时逐块求解再合并，各自带的小电路都能单独出结论 */
+  function wjQiuJie() {
+    var zw = qjZhiWen();
+    if (qjHuanCun && qjZhiWenCun === zw) return qjHuanCun;
+    var jieguo = {
+      zt: 'kong', tishi: [], liang: {}, duanDao: {}, zhuan: {}, fan: {},
+      duanLiang: {}, dianchi: null, dianchiLiebiao: [], duanChi: {}, tongDao: {}
+    };
+    var dcs = wujian.filter(function (wj) { return wj.kind === 'dianchi'; });
+    if (!dcs.length) {
+      jieguo.zt = 'wudian';
+      jieguo.tishi.push('板上还没有电池，先放一块 9V 电池');
+      qjHuanCun = jieguo; qjZhiWenCun = zw; return jieguo;
+    }
+    jieguo.dianchi = dcs[0].id;
+    jieguo.dianchiLiebiao = dcs.map(function (d) { return d.id; });
+    /* 先把“孔组键”映射成并查集合并后的网络号：跨杜邦线的联通才算同一个节点 */
+    var tu = wangLuoTu();
+    var zuDaoWang = {};
+    Object.keys(tu).forEach(function (dz) {
+      var xi = jieXiDizhi(dz), ban = xi ? banAt(xi.id) : null;
+      if (ban) zuDaoWang[kongZuKey(ban, xi.qu, xi.lie)] = tu[dz];
+    });
+    function wang(z) { return zuDaoWang[z] === undefined ? z : zuDaoWang[z]; }
+    var bianQuan = wjBianLiebiao();
+    /* 元件两端换成网络号；两端落在同一网络＝被导线短接，不参与导通 */
+    var bian = [];
+    bianQuan.forEach(function (e) {
+      var a = wang(e.za), b = wang(e.zb);
+      if (a !== b) bian.push({ wj: e.wj, lei: e.lei, fang: e.fang, can: e.can, za: a, zb: b });
+    });
+    /* 邻接表：无向元件两头都能走，有向元件只允许 za→zb */
+    var lin = {};
+    bian.forEach(function (e) {
+      (lin[e.za] = lin[e.za] || []).push({ e: e, dao: e.zb, ke: 1 });
+      (lin[e.zb] = lin[e.zb] || []).push({ e: e, dao: e.za, ke: e.fang ? 0 : 1 });
+    });
+    /* 一块电池的求解：从它的正极网枚举到负极网的简单路径 */
+    function qiuYiGe(dc) {
+      var r = {
+        zt: 'kong', tishi: [], liang: {}, duanDao: {}, zhuan: {}, duanLiang: {},
+        queR: {}, fanSet: {}, tongDao: {}, zhengLen: 0, youR: false, fuLei: false
+      };
+      var zp = wang(wjPinZu(dc, 0)), zn = wang(wjPinZu(dc, 1));
+      if (!zp || !zn) {
+        r.zt = 'wudian';
+        r.tishi.push('电池引脚没插进孔，先把电池摆到孔上');
+        return r;
+      }
+      if (zp === zn) {
+        r.zt = 'duanlu';
+        r.tishi.push(wjPinZu(dc, 0) === wjPinZu(dc, 1)
+          ? '电池正负极插在同一个孔组里，这是电源短路'
+          : '电池正负极被导线（或电源轨）直接连通，这是电源短路');
+        return r;
+      }
+      /* 电池没短路再看板上有没有可用的元件：优先级低于短路判定 */
+      if (!bianQuan.length) {
+        r.zt = 'budian';
+        r.tishi.push('板上还没有插元件，接不出回路');
+        return r;
+      }
+      if (!bian.length) {
+        r.zt = 'duanlu2';
+        r.tishi.push('元件的两个引脚插在同一组孔里，等于被导线短接');
+        return r;
+      }
+      var zheng = [], fanLu = [];
+      var yiZou = {};
+      var MAX_LU = 400, MAX_SHEN = 12;
+      (function dfs(net, lu, guoR) {
+        if (zheng.length + fanLu.length > MAX_LU) return;
+        if (lu.length > MAX_SHEN) return;
+        if (net === zn) { zheng.push({ lu: lu.slice(), guoR: guoR }); return; }
+        var lins = lin[net] || [];
+        for (var i = 0; i < lins.length; i++) {
+          var st = lins[i];
+          if (yiZou[st.dao]) continue;
+          if (!st.ke) {
+            fanLu.push({ wjId: st.e.wj.id, lei: st.e.lei, duan: st.e.can.duan });
+            continue;
+          }
+          yiZou[st.dao] = 1;
+          lu.push(st);
+          dfs(st.dao, lu, guoR || st.e.lei === 'zuzhi');
+          lu.pop();
+          yiZou[st.dao] = 0;
+        }
+      })(zp, [], false);
+      r.zhengLen = zheng.length;
+      r.youR = zheng.some(function (p) { return p.guoR; });
+      r.fuLei = zheng.some(function (p) {
+        return p.lu.some(function (st) { return st.e.lei !== 'zuzhi'; });
+      });
+      /* 有效路径上的元件：LED 按“有没有串电阻”分点亮/缺电阻，其余给工作态 */
+      zheng.forEach(function (p) {
+        p.lu.forEach(function (st) {
+          var e = st.e;
+          if (e.lei === 'zuzhi') { r.tongDao[e.wj.id] = 1; return; }
+          if (e.lei === 'led') {
+            if (p.guoR) r.liang[e.wj.id] = 1;
+            else r.queR[e.wj.id] = 1;
+          } else if (e.lei === 'erjiguan') {
+            r.duanDao[e.wj.id] = 1;
+          } else if (e.lei === 'fengmingqi' || e.lei === 'dianji') {
+            r.zhuan[e.wj.id] = 1;
+          } else if (e.lei === 'duan') {
+            var d = r.duanLiang[e.wj.id] = r.duanLiang[e.wj.id] || {};
+            d[e.can.duan] = 1;
+          }
+        });
+      });
+      fanLu.forEach(function (f) { if (!r.fanSet[f.wjId]) r.fanSet[f.wjId] = f; });
+      /* 单块电池自己的总状态 */
+      var liangN = Object.keys(r.liang).length;
+      var zhuanN = Object.keys(r.zhuan).length;
+      var duanN = Object.keys(r.duanLiang).length;
+      if (zheng.length && (liangN || zhuanN || duanN || Object.keys(r.duanDao).length)) {
+        r.zt = 'ok';
+        r.tishi.push('回路成立：电源 → 负载 → 地，电流走通了');
+      } else if (zheng.length && r.youR) {
+        /* 有电阻在通路里，电流不会失控：只是没有“看得出反应”的负载 */
+        r.zt = 'ok';
+        r.tishi.push('回路已接通，电流经过电阻，但板上没有 LED/蜂鸣器/电机这类能看出反应的元件');
+      } else if (zheng.length) {
+        r.zt = 'duanlu2';
+        r.tishi.push(r.fuLei
+          ? '电路是通的，但负载两端没有限流电阻，等于直接短路，实际会把元件烧掉'
+          : '电源到地之间只有导线和开关，中间没有任何负载，属于短路');
+      } else {
+        r.zt = 'budian';
+      }
+      return r;
+    }
+    /* 逐块电池求解，工作态取并集；异常只在“没被别的电池点亮”时才算数 */
+    var ztDeng = { duanlu: 5, ok: 4, duanlu2: 3, budian: 2, wudian: 1, kong: 0 };
+    var zuiHao = 'kong';
+    var fanHou = {};
+    var youRQuan = false, fuLeiQuan = false, tishiJi = {};
+    dcs.forEach(function (dc) {
+      var r = qiuYiGe(dc);
+      if (ztDeng[r.zt] > ztDeng[zuiHao]) zuiHao = r.zt;
+      if (r.zt === 'duanlu') jieguo.duanChi[dc.id] = 1;
+      if (r.youR) youRQuan = true;
+      if (r.fuLei) fuLeiQuan = true;
+      Object.keys(r.liang).forEach(function (id) { jieguo.liang[id] = 1; });
+      Object.keys(r.duanDao).forEach(function (id) { jieguo.duanDao[id] = 1; });
+      Object.keys(r.zhuan).forEach(function (id) { jieguo.zhuan[id] = 1; });
+      Object.keys(r.tongDao).forEach(function (id) { jieguo.tongDao[id] = 1; });
+      Object.keys(r.duanLiang).forEach(function (id) {
+        var d = jieguo.duanLiang[id] = jieguo.duanLiang[id] || {};
+        Object.keys(r.duanLiang[id]).forEach(function (k) { d[k] = 1; });
+      });
+      Object.keys(r.queR).forEach(function (id) { fanHou[id] = 'queR'; });
+      Object.keys(r.fanSet).forEach(function (id) { if (!fanHou[id]) fanHou[id] = 'fan'; });
+      r.tishi.forEach(function (t) { tishiJi[t] = 1; });
+    });
+    /* 没进任何有效路径的 LED，再区分“缺电阻 / 接反 / 没接完整” */
+    wujian.forEach(function (wj) {
+      if (wj.kind !== 'led') return;
+      if (jieguo.liang[wj.id]) return;
+      jieguo.fan[wj.id] = fanHou[wj.id] || 'buquan';
+    });
+    jieguo.zt = zuiHao;
+    jieguo.fuLei = fuLeiQuan;
+    /* 总提示按最终状态给一次，再补异常项 */
+    if (zuiHao === 'ok') {
+      var youXian = Object.keys(jieguo.liang).length || Object.keys(jieguo.zhuan).length ||
+        Object.keys(jieguo.duanLiang).length || Object.keys(jieguo.duanDao).length;
+      jieguo.tishi.push(youXian
+        ? '回路成立：电源 → 负载 → 地，电流走通了'
+        : '回路已接通，电流经过电阻，但板上没有 LED/蜂鸣器/电机这类能看出反应的元件');
+    } else if (zuiHao === 'duanlu2') {
+      jieguo.tishi.push(fuLeiQuan
+        ? '电路是通的，但负载两端没有限流电阻，等于直接短路，实际会把元件烧掉'
+        : '电源到地之间只有导线和开关，中间没有任何负载，属于短路');
+    } else {
+      Object.keys(tishiJi).forEach(function (t) { jieguo.tishi.push(t); });
+    }
+    var fans = Object.keys(jieguo.fan);
+    if (fans.length) {
+      if (fans.some(function (id) { return jieguo.fan[id] === 'fan'; })) {
+        jieguo.tishi.push('有 LED 接反了：长脚（阳极）要朝电池正极那一侧');
+      }
+      if (fans.some(function (id) { return jieguo.fan[id] === 'queR'; })) {
+        jieguo.tishi.push('回路里没有限流电阻，LED 会过流烧掉，串一只 220Ω~1kΩ');
+      }
+      if (fans.some(function (id) { return jieguo.fan[id] === 'buquan'; })) {
+        jieguo.tishi.push('还有 LED 没接进完整回路，检查两端是否都插在孔里');
+      }
+    }
+    /* 有效路径全都“不带电阻”时，二极管同样会被过流烧毁，补一句通用提醒 */
+    if (Object.keys(jieguo.duanDao).length && !youRQuan) {
+      jieguo.tishi.push('二极管回路里也没有限流电阻，实际搭电路要串一只电阻');
+    }
+    qjHuanCun = jieguo;
+    qjZhiWenCun = zw;
+    return jieguo;
+  }
+
+  /* 悬停孔：高亮同网络所有孔（pointerover 冒泡，板组不拦截指针事件） */
+  var xuanfuWang = null;
+  function qingWangGaoliang() {
+    if (xuanfuWang === null) return;
+    var els = document.querySelectorAll('.ban-kong.wang-tong');
+    Array.prototype.forEach.call(els, function (el) { el.classList.remove('wang-tong'); });
+    xuanfuWang = null;
+  }
+  svgRoot.addEventListener('pointerover', function (e) {
+    var kongEl = e.target && e.target.closest ? e.target.closest('[data-kong]') : null;
+    if (!kongEl) { qingWangGaoliang(); return; }
+    var dizhi = kongEl.getAttribute('data-kong');
+    var tu = wangLuoTu();
+    var wid = tu[dizhi];
+    if (wid === undefined) { qingWangGaoliang(); return; }
+    if (xuanfuWang === wid) return;
+    qingWangGaoliang();
+    xuanfuWang = wid;
+    Object.keys(tu).forEach(function (dz) {
+      if (tu[dz] !== wid) return;
+      var el = document.querySelector('[data-kong="' + dz + '"]');
+      if (el) el.classList.add('wang-tong');
+    });
+  });
+  svgRoot.addEventListener('pointerleave', qingWangGaoliang);
+
+  /* 面包板孔点击：在捕获阶段委托（板组的 click 处理会 stopPropagation，
+     冒泡阶段挂在 svgRoot 上收不到）。捕获阶段 e.target 已确定为孔元素；
+     真实点击若被指针捕获重定向到板组，再用 elementFromPoint 兜底。
+     scene 在 render() 内才创建，故挂到顶层 svgRoot，第三参数 true 走捕获 */
+  svgRoot.addEventListener('click', function (e) {
+    var kongEl = e.target && e.target.closest ? e.target.closest('[data-kong]') : null;
+    if (!kongEl) {
+      var el = document.elementFromPoint(e.clientX, e.clientY);
+      kongEl = el && el.closest ? el.closest('[data-kong]') : null;
+    }
+    if (kongEl) {
+      e.stopPropagation();
+      dianKong(kongEl.getAttribute('data-kong'));
+    }
+  }, true);
+
+
+  /* 面包板调试钩子：IIFE 封闭，外部经这些只读接口观测孔模型与连通分组 */
+  window.__banLieBiao = function () {
+    return breadboards.map(function (ban) {
+      return { id: ban.id, lieshu: ban.lieshu, rot: ban.rot, x: ban.x, y: ban.y };
+    });
+  };
+  window.__banKongZu = function (dizhi) {
+    var xi = jieXiDizhi(dizhi), ban = xi ? banAt(xi.id) : null;
+    if (!ban) return null;
+    return kongZuKey(ban, xi.qu, xi.lie);
+  };
+  window.__banKongWeiZhi = function (dizhi) {
+    var xi = jieXiDizhi(dizhi), ban = xi ? banAt(xi.id) : null;
+    if (!ban) return null;
+    return kongWeiZhi(ban, xi.qu, xi.lie, xi.wei);
+  };
+  window.__banZuiJinKong = function (banId, wx, wy) {
+    var ban = banAt(banId);
+    if (!ban) return null;
+    return zuiJinKong(ban, wx, wy);
+  };
+  /* 实物元件 / 杜邦线只读观测钩子 */
+  window.__wjLiebiao = function () {
+    return wujian.map(function (wj) {
+      return { id: wj.id, kind: wj.kind, x: wj.x, y: wj.y, rot: wj.rot,
+        yinjiao: wj.yinjiao.map(function (y) { return y.kong; }) };
+    });
+  };
+  window.__dbLiebiao = function () {
+    return dubangxian.map(function (db) {
+      return { id: db.id, kongA: db.kongA, kongB: db.kongB, yanse: db.yanse };
+    });
+  };
+  /* 测试钩子：返回孔地址 → 网络 id 的映射 */
+  window.__wangLuo = function () { return wangLuoTu(); };
+  /* 测试钩子：教学级求解结论（只给纯数据，避免外部改到内部对象） */
+  window.__qj = function () {
+    var r = wjQiuJie();
+    return {
+      zt: r.zt, tishi: r.tishi.slice(), dianchi: r.dianchi,
+      liang: Object.keys(r.liang), zhuan: Object.keys(r.zhuan),
+      duanDao: Object.keys(r.duanDao),
+      fan: JSON.parse(JSON.stringify(r.fan)),
+      duanLiang: JSON.parse(JSON.stringify(r.duanLiang))
+    };
+  };
+  window.__qjZang = function () { wangLuoZang(); render(); };
+  /* 测试钩子：选中一个实物元件（等价于在画布上单击它），参数面板随之切换 */
+  window.__xuanZhongWj = function (id) {
+    if (!wjAt(id)) return false;
+    selectedWj = id; selected = null; selectedBan = null; selectedWire = null;
+    render();
+    return true;
+  };
+  /* 测试钩子：直接连一根杜邦线（等价于点两个孔） */
+  window.__lianKong = function (a, b, ys) {
+    if (!kongWeiZhiByDizhi(a) || !kongWeiZhiByDizhi(b) || a === b) return null;
+    var db = { id: nextDbId(), kongA: a, kongB: b, yanse: ys || dbYanse };
+    dubangxian.push(db);
+    wangLuoZang();
+    render();
+    scheduleSaveCircuit();
+    return db.id;
+  };
+  /* 测试钩子：把某类元件按第 0 脚旋转后插到指定孔（相当于一次精确的“拖入并吸附”） */
+  window.__chaWujian = function (kind, kongDizhi, rot) {
+    if (!WUZHONG[kind]) return null;
+    var p = kongWeiZhiByDizhi(kongDizhi);
+    if (!p) return null;
+    var wj = { id: nextWjId(), kind: kind, x: 0, y: 0, rot: rot || 0 };
+    if (WUZHONG[kind].def) {
+      Object.keys(WUZHONG[kind].def).forEach(function (k) { wj[k] = WUZHONG[kind].def[k]; });
+    }
+    wj.yinjiao = [];
+    var yj0 = WUZHONG[kind].yinjiao[0];
+    var pr = xuanZhuanDian(yj0.x, yj0.y, wj.rot);
+    wj.x = p.x - pr.x;
+    wj.y = p.y - pr.y;
+    wjXiFu(wj);
+    wujian.push(wj);
+    wangLuoZang();
+    render();
+    scheduleSaveCircuit();
+    return wj.id;
+  };
+  /* 相机测试钩子：直接设置相机（世界中心点 + 缩放）并应用 */
+  /* 相机测试钩子：把世界点 (x,y) 摆到画布正中央，缩放 k 倍 */
+  window.__sheZhiXiangji = function (x, y, k) {
+    var r = genBuJu();
+    view.k = k;
+    view.x = r.width / 2 - x * k;
+    view.y = r.height / 2 - y * k;
+    viewTouched = true;
+    applyView();
+    return { x: view.x, y: view.y, k: view.k };
+  };
+  window.__xiangji = function () { return { x: view.x, y: view.y, k: view.k }; };
+  /* 测试钩子：在指定世界坐标直接放置一个实物元件并返回其数据 */
+  window.__fangWujianAt = function (kind, x, y) {
+    var wj = fangWujian(kind, x, y);
+    wujian.push(wj);
+    render();
+    return window.__wjLiebiao()[window.__wjLiebiao().length - 1];
+  };
+
   svgRoot.addEventListener('click', function () {
     if (suppressCanvasClick) { suppressCanvasClick = false; return; }
     if (pendingPin) { pendingPin = null; $('ckt-status').textContent = '已取消连线'; render(); }
@@ -4323,11 +6272,15 @@ window.addEventListener('message', function (e) {
     if (PRESETS[currentPreset]) loadPreset(currentPreset);
   };
   $('btn-clear-ckt').onclick = function () {
-    if (components.length || wires.length) pushHistory();
-    components = []; wires = []; selected = null; selectedWire = null; pendingPin = null;
+    if (components.length || wires.length || breadboards.length || wujian.length || dubangxian.length) pushHistory();
+    components = []; wires = []; breadboards = []; wujian = []; dubangxian = [];
+    selected = null; selectedWire = null; selectedBan = null; pendingPin = null;
+    selectedWj = null; selectedDb = null; dbDiyiji = null; dbUid = 1;
+    wangLuoZang();
     currentPreset = '';
     $('ckt-title').textContent = '自由搭建'; $('ckt-desc').textContent = '从左边元件库取元件';
     syncPresetButtons();
+    scheduleSaveCircuit();
     render();
   };
 
@@ -4335,14 +6288,20 @@ window.addEventListener('message', function (e) {
   $('btn-undo').onclick = undo;
   $('btn-redo').onclick = redo;
   function zoomByButton(factor) {
-    var r = svgRoot.getBoundingClientRect();
+    var r = genBuJu();
     zoomAt(r.left + r.width / 2, r.top + r.height / 2, factor);
+    xiaoDiTuSuofang();
   }
   $('btn-zoom-in').onclick = function () { zoomByButton(1.2); };
   $('btn-zoom-out').onclick = function () { zoomByButton(1 / 1.2); };
-  $('btn-zoom-reset').onclick = resetView;
+  $('btn-zoom-reset').onclick = function () { resetView(); xiaoDiTuSuofang(); };
+  $('btn-hand').onclick = function () {
+    zhuashouOn = !zhuashouOn;
+    syncZhuashou();
+    $('ckt-status').textContent = zhuashouOn ? '抓手工具：拖动可平移画布，再点一次退出' : '已退出抓手工具';
+  };
   var fitBtn = $('btn-zoom-fit');
-  if (fitBtn) fitBtn.onclick = function () { fitView(1.6); };
+  if (fitBtn) fitBtn.onclick = function () { fitView(1.6); xiaoDiTuSuofang(); };
   var fitTimer = 0;
   window.addEventListener('resize', function () {
     if (viewTouched) return;
@@ -4353,10 +6312,58 @@ window.addEventListener('message', function (e) {
   svgRoot.addEventListener('wheel', function (e) {
     e.preventDefault();
     zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.12 : 1 / 1.12);
+    xiaoDiTuSuofang();
   }, { passive: false });
 
+  /* ================= 手机双指手势：捏合缩放 + 双指拖动平移 =================
+     触摸指针在捕获阶段先登记；凑够两根就进入双指模式，把事件拦在 svgRoot，
+     不让元件/面包板再去处理拖动。单指仍然是“点选 + 拖元件”，与鼠标一致。 */
+  var zhiZhen = {}, shuangZhi = null;
+  function zhiTaiQing(e) {
+    if (e && e.pointerId != null) delete zhiZhen[e.pointerId];
+    if (Object.keys(zhiZhen).length < 2) shuangZhi = null;
+  }
   svgRoot.addEventListener('pointerdown', function (e) {
-    if (!(spaceDown || e.button === 1)) return;
+    if (e.pointerType !== 'touch') return;
+    zhiZhen[e.pointerId] = { x: e.clientX, y: e.clientY };
+    var ids = Object.keys(zhiZhen);
+    if (ids.length === 2) {
+      var a = zhiZhen[ids[0]], b = zhiZhen[ids[1]];
+      var d = Math.hypot(b.x - a.x, b.y - a.y);
+      shuangZhi = { d: d, d0: d, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  }, true);
+  svgRoot.addEventListener('pointermove', function (e) {
+    if (e.pointerType !== 'touch' || !(e.pointerId in zhiZhen)) return;
+    zhiZhen[e.pointerId] = { x: e.clientX, y: e.clientY };
+    if (!shuangZhi) return;
+    e.stopPropagation();
+    var ids = Object.keys(zhiZhen);
+    if (ids.length < 2) return;
+    var a = zhiZhen[ids[0]], b = zhiZhen[ids[1]];
+    var mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    var d = Math.hypot(b.x - a.x, b.y - a.y);
+    /* 两指间距变化 → 以两指中点为锚点缩放 */
+    if (shuangZhi.d > 4 && d > 4 && Math.abs(d / shuangZhi.d - 1) > 0.002) {
+      zoomAt(mx, my, d / shuangZhi.d);
+      xiaoDiTuSuofang();
+    }
+    /* 两指中点位移 → 平移 */
+    if (Math.abs(mx - shuangZhi.mx) > 0.5 || Math.abs(my - shuangZhi.my) > 0.5) {
+      view.x += mx - shuangZhi.mx;
+      view.y += my - shuangZhi.my;
+      viewTouched = true;
+      applyView();
+    }
+    shuangZhi.d = d; shuangZhi.mx = mx; shuangZhi.my = my;
+  }, true);
+  svgRoot.addEventListener('pointerup', zhiTaiQing, true);
+  svgRoot.addEventListener('pointercancel', zhiTaiQing, true);
+
+  svgRoot.addEventListener('pointerdown', function (e) {
+    if (!(spaceDown || e.button === 1 || (zhuashouOn && e.button === 0))) return;
     e.preventDefault();
     panDrag = { sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y, moved: false };
     dotPaused = true;
@@ -4456,6 +6463,56 @@ window.addEventListener('message', function (e) {
     $('ckt-status').textContent = '已旋转 90°';
     render();
   }
+  function deleteSelectedBan() {
+    var ban = banAt(selectedBan);
+    if (!ban) return;
+    pushHistory();
+    breadboards = breadboards.filter(function (x) { return x !== ban; });
+    selectedBan = null;
+    wangLuoZang();
+    $('ckt-status').textContent = '已删除面包板';
+    render();
+  }
+  function rotateSelectedBan() {
+    var ban = banAt(selectedBan);
+    if (!ban) return;
+    pushHistory();
+    ban.rot = (ban.rot === 90) ? 0 : 90;
+    $('ckt-status').textContent = '已旋转 90°';
+    render();
+  }
+  function deleteSelectedWj() {
+    var wj = wjAt(selectedWj);
+    if (!wj) return;
+    pushHistory();
+    wujian = wujian.filter(function (x) { return x !== wj; });
+    selectedWj = null;
+    $('ckt-status').textContent = '已删除 ' + WUZHONG[wj.kind].label;
+    scheduleSaveCircuit();
+    render();
+  }
+  function rotateSelectedWj() {
+    var wj = wjAt(selectedWj);
+    if (!wj) return;
+    pushHistory();
+    wj.rot = ((wj.rot || 0) + 90) % 360;
+    wjXiFu(wj);
+    $('ckt-status').textContent = '已旋转 90°';
+    scheduleSaveCircuit();
+    render();
+  }
+  function deleteSelectedDb() {
+    var db = null;
+    for (var i = 0; i < dubangxian.length; i++) if (dubangxian[i].id === selectedDb) db = dubangxian[i];
+    if (!db) return;
+    pushHistory();
+    dubangxian = dubangxian.filter(function (x) { return x !== db; });
+    selectedDb = null;
+    wangLuoZang();
+    $('ckt-status').textContent = '已删除杜邦线';
+    scheduleSaveCircuit();
+    render();
+  }
   document.addEventListener('keydown', function (e) {
     var mod = e.ctrlKey || e.metaKey;
     var k = e.key;
@@ -4472,8 +6529,11 @@ window.addEventListener('message', function (e) {
     if (k === 'Escape') {
       if (wireDrag) cancelWireDrag();
       var hadPending = !!pendingPin;
-      if (selected || selectedWire || hadPending) {
-        selected = null; selectedWire = null; pendingPin = null;
+      if (zhuashouOn) { zhuashouOn = false; syncZhuashou(); }
+      if (dbDiyiji) { dbDiyiji = null; $('ckt-status').textContent = '已取消杜邦线'; render(); return; }
+      if (selected || selectedWire || selectedBan || selectedWj || selectedDb || hadPending) {
+        selected = null; selectedWire = null; selectedBan = null; pendingPin = null;
+        selectedWj = null; selectedDb = null;
         $('ckt-status').textContent = '已取消';
         render();
       }
@@ -4481,21 +6541,36 @@ window.addEventListener('message', function (e) {
     }
     if (k === 'Delete' || k === 'Backspace') {
       if (selectedWire) { e.preventDefault(); deleteWire(selectedWire); return; }
+      if (selectedDb) { e.preventDefault(); deleteSelectedDb(); return; }
       if (selected) { e.preventDefault(); deleteSelected(); return; }
+      if (selectedWj) { e.preventDefault(); deleteSelectedWj(); return; }
+      if (selectedBan) { e.preventDefault(); deleteSelectedBan(); return; }
     }
-    if (!selected) return;
-    if (mod && (k === 'd' || k === 'D')) { e.preventDefault(); duplicateSelected(); return; }
-    if (k === 'r' || k === 'R') { e.preventDefault(); rotateSelected(); return; }
-    if (k.indexOf('Arrow') === 0) {
-      var c = compAt(selected);
-      if (!c) return;
+    if (mod && (k === 'd' || k === 'D')) { if (selected) { e.preventDefault(); duplicateSelected(); } return; }
+    if (k === 'r' || k === 'R') {
       e.preventDefault();
+      if (selected) rotateSelected();
+      else if (selectedWj) rotateSelectedWj();
+      else if (selectedBan) rotateSelectedBan();
+      return;
+    }
+    if (k.indexOf('Arrow') === 0) {
       var step = e.shiftKey ? 10 : 1;
+      var c = compAt(selected), ban = banAt(selectedBan);
+      if (!c && !ban) return;
+      e.preventDefault();
       beginNudge();
-      if (k === 'ArrowLeft') c.x -= step;
-      else if (k === 'ArrowRight') c.x += step;
-      else if (k === 'ArrowUp') c.y -= step;
-      else if (k === 'ArrowDown') c.y += step;
+      if (c) {
+        if (k === 'ArrowLeft') c.x -= step;
+        else if (k === 'ArrowRight') c.x += step;
+        else if (k === 'ArrowUp') c.y -= step;
+        else if (k === 'ArrowDown') c.y += step;
+      } else {
+        if (k === 'ArrowLeft') ban.x -= step;
+        else if (k === 'ArrowRight') ban.x += step;
+        else if (k === 'ArrowUp') ban.y -= step;
+        else if (k === 'ArrowDown') ban.y += step;
+      }
       render();
     }
   });
