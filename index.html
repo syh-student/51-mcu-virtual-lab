@@ -1775,6 +1775,35 @@ body.zoomed .appbar { display: none; }
   color: rgba(var(--fg-rgb), .2);
 }
 
+/* 板载器件：DS1302 时钟 / XPT2046 模数。面板本身不滚动，内层控件保持紧凑 */
+.side { overflow-y: auto; overflow-x: hidden; }
+.side > .panel { flex: 0 0 auto; }      /* 侧栏整体滚动，别把端口面板压成 2px */
+.ports-panel { min-height: 150px; }
+.console-panel { min-height: 150px; }
+.dev-panel { flex: none; }
+.dev-panel.collapsed .dev-body { display: none; }
+.dev-body { display: flex; flex-direction: column; gap: 9px; padding: 10px 12px 12px; }
+.dev-card {
+  padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 9px;
+  background: var(--panel-soft);
+}
+.dev-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
+.dev-head b { font-size: 10.5px; font-weight: 600; color: var(--ink); }
+.dev-head span { margin-left: auto; font-family: var(--mono); font-size: 10px; color: var(--accent); }
+.dev-row { display: flex; align-items: center; gap: 8px; }
+.dev-check { display: flex; align-items: center; gap: 5px; font-size: 9.5px; color: var(--muted); cursor: pointer; }
+.dev-check input { accent-color: var(--accent); }
+.dev-row .ghost { margin-left: auto; font-size: 9px; padding: 2px 8px; }
+.ir-row { gap: 5px; margin-top: 4px; }
+.ir-row .ghost { margin-left: 0; flex: 1; padding: 3px 2px; font-size: 9px; }
+.dev-range {
+  display: grid; grid-template-columns: 34px minmax(0, 1fr) 44px;
+  align-items: center; gap: 7px; margin: 4px 0; font-size: 9.5px; color: var(--muted);
+}
+.dev-range input { width: 100%; accent-color: var(--accent); }
+.dev-range b { font-family: var(--mono); font-size: 9px; font-weight: 400; color: var(--ink); text-align: right; }
+.dev-note { margin-top: 5px; font-size: 8.5px; line-height: 1.5; color: var(--faint); }
+
 .watch-panel { flex: 0 1 auto; min-height: 74px; height: 148px; }
 .watch { flex: 1; min-height: 0; overflow: auto; padding: 9px 14px 11px; }
 .w-row { display: flex; gap: 10px; font-family: var(--mono); font-size: 10.5px; line-height: 1.9; }
@@ -3932,7 +3961,54 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
     </div>
     <div class="slot" id="slot-board-main"></div>
     <aside class="side">
-      <div class="panel">
+      <div class="panel dev-panel">
+        <div class="panel-h">
+          <span class="idx">08</span><h2>板载器件</h2><span class="sp"></span>
+          <span class="hint">DS1302 / XPT / DS18B20 / 595 / 红外</span>
+          <button id="dev-toggle" class="ghost" type="button">收起</button>
+        </div>
+        <div class="panel-b dev-body">
+          <div class="dev-card">
+            <div class="dev-head"><b>DS1302 时钟</b><span id="rtc-time">--</span></div>
+            <div class="dev-row">
+              <label class="dev-check"><input type="checkbox" id="rtc-batt" checked> 备用电池</label>
+              <button id="rtc-sync" class="ghost" type="button">写入电脑时间</button>
+            </div>
+            <div class="dev-note">IO=P3.4 · CE=P3.5 · SCLK=P3.6</div>
+          </div>
+          <div class="dev-card">
+            <div class="dev-head"><b>XPT2046 模数</b><span id="xpt-out">—</span></div>
+            <label class="dev-range">电位器 <input id="xpt-pot" type="range" min="0" max="100" value="50"><b id="xpt-pot-v">50%</b></label>
+            <label class="dev-range">热敏 <input id="xpt-ntc" type="range" min="-20" max="80" value="25"><b id="xpt-ntc-v">25℃</b></label>
+            <label class="dev-range">光敏 <input id="xpt-ldr" type="range" min="0" max="1000" value="500"><b id="xpt-ldr-v">500lx</b></label>
+            <div class="dev-note">AIN0 电位器 · AIN1 热敏 · AIN2 光敏</div>
+          </div>
+          <div class="dev-card">
+            <div class="dev-head"><b>DS18B20 温度</b><span id="ds-temp-v">25.0℃</span></div>
+            <label class="dev-range">温度 <input id="ds-temp" type="range" min="-55" max="125" step="0.5" value="25"><b id="ds-temp-b">25.0℃</b></label>
+            <div class="dev-note">DQ=P3.7 · 单总线 · 支持负温</div>
+          </div>
+          <div class="dev-card">
+            <div class="dev-head"><b>LM358 电压表</b><span id="dac-v">0.00 V</span></div>
+            <div class="dev-note">P2.1 PWM · 占空比 <span id="dac-duty">0.0%</span> · 低通后的平均电压</div>
+          </div>
+          <div class="dev-card">
+            <div class="dev-head"><b>74HC595 点阵</b><span>8×8</span></div>
+            <div class="dev-note">SER=P3.4 · RCLK=P3.5 · SRCLK=P3.6 · P0 行选低有效</div>
+          </div>
+          <div class="dev-card">
+            <div class="dev-head"><b>红外遥控</b><span id="ir-out">NEC</span></div>
+            <div class="dev-row ir-row">
+              <button class="ghost" type="button" data-ir="45">电源</button>
+              <button class="ghost" type="button" data-ir="46">音量+</button>
+              <button class="ghost" type="button" data-ir="47">静音</button>
+              <button class="ghost" type="button" data-ir="44">数字1</button>
+            </div>
+            <div class="dev-note">P3.2 · NEC · 轮询或定时器都能解码</div>
+          </div>
+        </div>
+      </div>
+      <div class="panel ports-panel">
         <div class="panel-h">
           <span class="idx">04</span><h2>端口监视</h2><span class="sp"></span>
         </div>
@@ -4351,6 +4427,18 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
     e = e.replace(/\bdefined\s+([A-Za-z_]\w*)/g, function (_, n) {
       return macros[n] ? '1' : '0';
     });
+    /* 宏先展开成它的数值，#if VERSION >= 2 这种写法才能算出结果。
+       只展开对象式宏；函数式宏在 #if 里没有意义，留给下面按 0 处理。 */
+    for (var round = 0; round < 4; round++) {
+      var before = e;
+      e = e.replace(/\b([A-Za-z_]\w*)\b/g, function (name) {
+        var m = macros[name];
+        if (!m || m.params) return name;
+        var body = String(m.body || '').replace(/\/\/.*$/, '').trim();
+        return body ? '(' + body + ')' : '1';
+      });
+      if (e === before) break;
+    }
     e = e.replace(/\b[A-Za-z_]\w*\b/g, '0');
     try {
       var st = { tokens: ifTokenize(e), i: 0 };
@@ -4478,14 +4566,41 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
         i += 2; continue;
       }
       if (c === '#') { while (i < n && src[i] !== '\n') i++; continue; }
-      if (/[0-9]/.test(c)) {
-        var s = '', hex = false;
+      var prevTk = toks.length ? toks[toks.length - 1] : null;
+      /* .5 这种浮点只在表达式位置成立；P3.0 的点号留给后面的成员解析 */
+      var dotStartsFloat = c === '.' && /[0-9]/.test(src[i + 1] || '')
+        && !(prevTk && (prevTk.t === 'id' || prevTk.t === 'num' || prevTk.v === ')' || prevTk.v === ']'));
+      if (/[0-9]/.test(c) || dotStartsFloat) {
+        var s = '', hex = false, fl = false;
         if (c === '0' && (src[i + 1] === 'x' || src[i + 1] === 'X')) { hex = true; i += 2; }
-        while (i < n && /[0-9a-fA-F]/.test(src[i])) s += src[i++];
-        while (i < n && /[uUlL]/.test(src[i])) i++;
-        var val = hex ? parseInt(s, 16) : parseInt(s, 10);
+        if (hex) {
+          while (i < n && /[0-9a-fA-F]/.test(src[i])) s += src[i++];
+        } else {
+          if (c === '.') { fl = true; s += src[i++]; }
+          while (i < n && /[0-9]/.test(src[i])) s += src[i++];
+          if (!fl && src[i] === '.' && /[0-9]/.test(src[i + 1] || '')) {
+            fl = true; s += src[i++];
+            while (i < n && /[0-9]/.test(src[i])) s += src[i++];
+          } else if (!fl && src[i] === '.' && !/[A-Za-z_]/.test(src[i + 1] || '')) {
+            fl = true; s += src[i++];      /* 16. 这种写法 */
+          }
+          if (src[i] === 'e' || src[i] === 'E') {
+            var ej = i + 1;
+            if (src[ej] === '+' || src[ej] === '-') ej++;
+            if (/[0-9]/.test(src[ej] || '')) {
+              fl = true;
+              s += src.slice(i, ej);
+              i = ej;
+              while (i < n && /[0-9]/.test(src[i])) s += src[i++];
+            }
+          }
+        }
+        while (i < n && /[uUlLfF]/.test(src[i])) { if (/[fF]/.test(src[i])) fl = true; i++; }
+        var val = hex ? parseInt(s, 16) : (fl ? parseFloat(s) : parseInt(s, 10));
         if (isNaN(val)) throw new VmError('数字格式有误', line);
-        toks.push({ t: 'num', v: val, line: line });
+        var numTok = { t: 'num', v: val, line: line };
+        if (fl) numTok.f = true;     /* 浮点常量：除法不能按整数截断 */
+        toks.push(numTok);
         continue;
       }
       if (c === "'") {
@@ -4583,6 +4698,21 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
     }
     return { base: base || 'int', unsigned: unsigned, mods: mods };
   };
+  /* 判断 “(” 后面是不是类型：用来区分强制转换和普通括号表达式 */
+  Parser.prototype.isCastAhead = function () {
+    if (!this.is('(')) return false;
+    var k = 1, saw = false;
+    for (;;) {
+      var tk = this.peek(k);
+      if (!tk || tk.t !== 'id') break;
+      if (TYPE_WORD.test(tk.v) || BASE_WORD.test(tk.v)
+        || Object.prototype.hasOwnProperty.call(this.typedefs, tk.v)) {
+        saw = true; k++; continue;
+      }
+      break;
+    }
+    return saw && this.peek(k) && this.peek(k).v === ')';
+  };
   /* struct { 类型 名字[长度]; ... } */
   Parser.prototype.parseFields = function () {
     this.expect('{');
@@ -4659,19 +4789,25 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
       this.expect('='); this.next(); this.expect(';');
       return { t: 'sfr', name: sn, line: line };
     }
+    /* 指针声明的星号在名字前面：unsigned char *p; */
+    var gptr = false;
+    while (this.is('*')) { this.next(); gptr = true; }
     var name = this.next().v;
     if (this.is('(')) {
       this.next();
       var params = [];
       if (!this.is(')')) {
         do {
-          var pt = this.parseType();
-          while (this.is('*')) this.next();
+          var pt = this.parseType(), pptr = false;
+          while (this.is('*')) { this.next(); pptr = true; }
           var pn = '';
           if (this.peek().t === 'id') pn = this.next().v;
           var isArr = false;
           if (this.is('[')) { this.next(); while (!this.is(']')) this.next(); this.next(); isArr = true; }
-          params.push({ name: pn, type: pt, isArr: isArr });
+          params.push({
+            name: pn, isArr: isArr,
+            type: pptr ? { base: pt.base, unsigned: pt.unsigned, mods: pt.mods, name: pt.name, ptr: true } : pt
+          });
         } while (this.is(',') && this.next());
       }
       this.expect(')');
@@ -4682,14 +4818,14 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
       return { t: 'func', name: name, params: params, body: fbody, interrupt: interrupt,
                stat: !!(type.mods && type.mods.indexOf('static') >= 0), line: line };
     }
-    var vars = [this.parseVarDecl(type, name)];
+    var vars = [this.parseVarDecl(type, name, gptr)];
     while (this.is(',') && this.next()) vars.push(this.parseVarDecl(type));
     this.expect(';');
     return { t: 'globaldecl', vars: vars, line: line };
   };
 
-  Parser.prototype.parseVarDecl = function (type, knownName) {
-    var ptr = false;
+  Parser.prototype.parseVarDecl = function (type, knownName, knownPtr) {
+    var ptr = !!knownPtr;
     while (this.is('*')) { this.next(); ptr = true; }
     var name = knownName || this.next().v;
     var size = null, init = null;
@@ -4702,6 +4838,7 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
     /* static 局部变量：函数退出后不销毁，讲义里 Timer0_Routine 里的 T0Count 就是它 */
     var stat = !!(type && type.mods && type.mods.indexOf('static') >= 0);
     var ext = !!(type && type.mods && type.mods.indexOf('extern') >= 0);
+    if (ptr) type = { base: type.base, unsigned: type.unsigned, mods: type.mods, name: type.name, fields: type.fields, ptr: true };
     return { name: name, size: size, init: init, ptr: ptr, type: type, stat: stat, ext: ext };
   };
   Parser.prototype.parseInit = function () {
@@ -4852,6 +4989,12 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
   };
   Parser.prototype.parseUnary = function () {
     var v = this.peek().v, line = this.line();
+    if (v === '(' && this.isCastAhead()) {
+      this.next();
+      var ctype = this.parseType();
+      this.expect(')');
+      return { t: 'cast', type: ctype, e: this.parseUnary(), line: line };
+    }
     if (v === '+' || v === '-' || v === '!' || v === '~') {
       this.next();
       return { t: 'un', op: v, e: this.parseUnary(), line: line };
@@ -4860,8 +5003,14 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
       this.next();
       return { t: 'pre', op: v, e: this.parseUnary(), line: line };
     }
-    if (v === '*' || v === '&') {
-      throw new VmError('虚拟机暂不支持指针运算符 “' + v + '”，请改用数组下标写法', line);
+    /* 取地址与解引用：指针值在运行时就是“指向某个变量/数组元素的引用” */
+    if (v === '&') {
+      this.next();
+      return { t: 'addr', e: this.parseUnary(), line: line };
+    }
+    if (v === '*') {
+      this.next();
+      return { t: 'deref', e: this.parseUnary(), line: line };
     }
     return this.parsePostfix();
   };
@@ -4888,7 +5037,12 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
         var line3 = this.line();
         this.next();
         var fname = this.next().v;
-        e = { t: 'member', obj: e, name: fname, line: line3 };
+        /* P3.0 这种点号写法：等价于 P3_0，课程代码里偶尔会这么写 */
+        if (e.t === 'id' && /^P[0-3]$/.test(e.v) && /^[0-7]$/.test(String(fname))) {
+          e = { t: 'id', v: e.v + '_' + fname, line: line3 };
+        } else {
+          e = { t: 'member', obj: e, name: fname, line: line3 };
+        }
       } else if (this.is('++') || this.is('--')) {
         var op = this.next().v;
         e = { t: 'post', op: op, e: e, line: this.line() };
@@ -4898,7 +5052,12 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
   };
   Parser.prototype.parsePrimary = function () {
     var tk = this.peek();
-    if (tk.t === 'num') { this.next(); return { t: 'num', v: tk.v, line: tk.line }; }
+    if (tk.t === 'num') {
+      this.next();
+      var numNode = { t: 'num', v: tk.v, line: tk.line };
+      if (tk.f) numNode.f = true;      /* 保留浮点标记，除法要靠它 */
+      return numNode;
+    }
     if (tk.t === 'str') { this.next(); return { t: 'str', v: tk.v, line: tk.line }; }
     if (tk.t === 'id') { this.next(); return { t: 'id', v: tk.v, line: tk.line }; }
     if (tk.v === '(') { this.next(); var e = this.parseExpr(); this.expect(')'); return e; }
@@ -4909,17 +5068,34 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
   function truthy(v) { return Array.isArray(v) ? v.length > 0 : !!v; }
   function coerce(type, v) {
     if (v === undefined || v === null) return 0;
+    /* 数组赋给指针 = 指向首元素；这一步必须在“对象原样保留”之前 */
+    if (type && type.ptr && Array.isArray(v)) return { __ref: true, kind: 'elem', arr: v, idx: 0 };
     if (typeof v === 'object') return v;      /* 数组和结构体原样保留 */
     if (!type) return v;
     var b = type.base;
     if (b === 'char') return v & 0xFF;
-    if (b === 'int' || b === 'long') return v & 0xFFFF;
+    /* C51 的 int 是 16 位有符号：赋值时按补码截断，DS18B20 的负温要靠它 */
+    if (b === 'int') {
+      v = v & 0xFFFF;
+      return type.unsigned ? v : (v << 16) >> 16;
+    }
+    if (b === 'long') return v & 0xFFFF;
     if (b === 'bit') return v ? 1 : 0;
     return v;
   }
+  /* 表达式是不是浮点：除法靠它决定要不要按整数截断 */
+  function exprIsFloat(vm, n) {
+    if (!n || typeof n !== 'object') return false;
+    if (n.t === 'num') return !!n.f;
+    if (n.t === 'cast') return !!(n.type && n.type.base === 'float');
+    if (n.t === 'id') return vm.typeOfName(n.v) === 'float';
+    if (n.t === 'un') return exprIsFloat(vm, n.e);
+    if (n.t === 'bin') return exprIsFloat(vm, n.left) || exprIsFloat(vm, n.right);
+    if (n.t === 'cond') return exprIsFloat(vm, n.a) || exprIsFloat(vm, n.b);
+    return false;
+  }
   /* 结构体的默认值：数值 0、数组全 0、嵌套结构体递归 */
-  function structDefault(type) {
-    var o = {};
+  function structDefault(type) {    var o = {};
     (type.fields || []).forEach(function (f) {
       var n = f.size && f.size.t === 'num' ? f.size.v : 1;
       var one = (f.type && f.type.base === 'struct')
@@ -5060,6 +5236,19 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
     }
     return null;
   };
+  /* 变量的声明类型（只看浮点/整数，够 exprIsFloat 用） */
+  VM.prototype.typeOfName = function (name) {
+    for (var i = this.frames.length - 1; i >= 0; i--) {
+      var f = this.frames[i];
+      if (f.types && Object.prototype.hasOwnProperty.call(f.types, name)) {
+        return f.types[name] && f.types[name].base;
+      }
+    }
+    var sk = this.staticKey(name);
+    if (this.stype[sk]) return this.stype[sk].base;
+    if (this.gtypes[name]) return this.gtypes[name].base;
+    return '';
+  };
   VM.prototype.getVar = function (name, line) {
     var f = this.findFrame(name);
     if (f) return f.vars[name];
@@ -5137,7 +5326,9 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
     return (this.sfr.TMOD >> (nm === 'T0' ? 0 : 4)) & 3;
   };
   VM.prototype.timerSpan = function (nm) {
-    return this.timerMode(nm) === 2 ? 256 : 65536;
+    var m = this.timerMode(nm);
+    /* 模式 0 是 13 位（TH 8 位 + TL 低 5 位），模式 2 是 8 位自动重装 */
+    return m === 2 ? 256 : (m === 0 ? 8192 : 65536);
   };
   VM.prototype.timerCount = function (nm) {
     var tm = this.timers[nm];
@@ -5148,16 +5339,19 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
     var tb = TIMER_BYTE[name], nm = tb[0], hi = tb[1];
     var tm = this.timers[nm];
     if (!tm.on) return this.sfr[name] & 0xFF;
+    var mode = this.timerMode(nm);
     var cnt = this.timerCount(nm) % this.timerSpan(nm);
+    if (mode === 0) return hi ? ((cnt >> 5) & 0xFF) : (cnt & 0x1F);
     return hi ? ((cnt >> 8) & 0xFF) : (cnt & 0xFF);
   };
   VM.prototype.writeTimerByte = function (name, val) {
     var tb = TIMER_BYTE[name], nm = tb[0], hi = tb[1], b = val & 0xFF;
     this.sfr[name] = b;
     var tm = this.timers[nm];
-    var span = this.timerSpan(nm);
+    var span = this.timerSpan(nm), mode = this.timerMode(nm);
     var cur = tm.on ? (this.timerCount(nm) % span) : tm.init;
-    cur = hi ? (((cur & 0x00FF) | (b << 8)) % span) : ((cur & 0xFF00) | b);
+    if (mode === 0) cur = hi ? ((b << 5) | (cur & 0x1F)) : ((cur & ~0x1F) | (b & 0x1F));
+    else cur = hi ? (((cur & 0x00FF) | (b << 8)) % span) : ((cur & 0xFF00) | b);
     tm.init = cur;
     tm.t0 = this.vtime;      /* 写初值 = 从这一刻重新开始计数 */
   };
@@ -5168,7 +5362,7 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
       var mode = this.timerMode(nm);
       var hi = this.sfr[nm === 'T0' ? 'TH0' : 'TH1'] & 0xFF;
       var lo = this.sfr[nm === 'T0' ? 'TL0' : 'TL1'] & 0xFF;
-      tm.init = (mode === 2 ? lo : ((hi << 8) | lo)) % this.timerSpan(nm);
+      tm.init = (mode === 2 ? lo : (mode === 0 ? ((hi << 5) | (lo & 0x1F)) : ((hi << 8) | lo))) % this.timerSpan(nm);
       tm.t0 = this.vtime;
       tm.on = true;
     } else {
@@ -5306,6 +5500,35 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
     else if (ref.kind === 'member') ref.obj[ref.name] = v;
     else ref.arr[ref.idx] = typeof v === 'number' ? v : 0;
   };
+  /* 指针自增 / 加减偏移：只对 "指向数组元素" 的指针有意义，越界直接报错 */
+  VM.prototype.ptrStep = function (p, d, line) {
+    if (p.kind !== 'elem') throw new VmError('只有指向数组元素的指针才能做加减', line || this.line);
+    var i = p.idx + (d | 0);
+    if (i < 0 || i >= p.arr.length) {
+      throw new VmError('指针移出了数组范围（下标 ' + i + '，数组长度 ' + p.arr.length + '）', line || this.line);
+    }
+    return { __ref: true, kind: 'elem', arr: p.arr, idx: i, line: p.line };
+  };
+  VM.prototype.incValue = function (v, d, line) {
+    if (v && v.__ref) return this.ptrStep(v, d, line);
+    return v + d;
+  };
+  VM.prototype.ptrOp = function (op, a, b) {
+    var pa = !!(a && a.__ref), pb = !!(b && b.__ref);
+    if (op === '+' && pa) return this.ptrStep(a, b, this.line);
+    if (op === '-' && pa && !pb) return this.ptrStep(a, -b, this.line);
+    if (op === '-' && pa && pb) {
+      if (a.kind !== 'elem' || b.kind !== 'elem' || a.arr !== b.arr) {
+        throw new VmError('两个指针相减时，必须指向同一个数组', this.line);
+      }
+      return a.idx - b.idx;
+    }
+    if (op === '==' || op === '!=') {
+      var eq = pa && pb && a.kind === b.kind && a.arr === b.arr && a.idx === b.idx && a.name === b.name;
+      return (op === '==' ? eq : !eq) ? 1 : 0;
+    }
+    throw new VmError('指针只能做加减偏移或相等比较', this.line);
+  };
 
   VM.prototype._initGlobals = function* (ast) {
     for (var i = 0; i < ast.body.length; i++) {
@@ -5341,12 +5564,11 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
         for (var i = 0; i < v.init.items.length; i++) items.push(yield* this.evalExpr(v.init.items[i]));
         val = items;
       } else {
-        var r = yield* this.evalExpr(v.init);
-        if (size !== null && !Array.isArray(r)) val = r;
-        else val = r;
+        val = yield* this.evalExpr(v.init);
       }
     }
-    return val;
+    /* 初始化也要按声明类型截断：int n = 0xFFF6; 必须得到 -10 */
+    return coerce(v.type, val);
   };
 
   VM.prototype.callFunction = function* (name, args, line) {
@@ -5357,7 +5579,7 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
     var frame = newFrame(name, line);
     for (var i = 0; i < f.params.length; i++) {
       var p = f.params[i];
-      frame.vars[p.name] = p.isArr || Array.isArray(args[i]) ? args[i] : coerce(p.type, args[i]);
+      frame.vars[p.name] = p.isArr && Array.isArray(args[i]) ? args[i] : coerce(p.type, args[i]);
       frame.types[p.name] = p.type;
     }
     this.frames.push(frame);
@@ -5379,12 +5601,16 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
   VM.prototype.tick = function* (line) {
     this.line = line;
     this.stepCount++;
+    if (this.hw && this.hw.service) this.hw.service(this);   /* 单总线等“按语句数计时”的器件 */
     if (!this.inIsr) {
       if (this.timers.T0.on || this.timers.T1.on) yield* this.serviceTimers();
       yield* this.serviceExternals();     /* 电平触发/标志位轮询式代码也要它喂 */
       if (this.rxQueue.length) yield* this.serviceSerial();
     }
-    if (this.stepCount % 200 === 0) yield { wait: 1, line: line };
+    /* 语句时间：平均 5us（12MHz 下一条语句几个机器周期）。
+       以前是每 200 条语句一次跳 1ms，红外 560us/1690us 这种时序会被抹成 1ms 网格；
+       现在每 10 条让出 50us，平均速度不变，但分辨率够解红外和单总线。 */
+    if (this.stepCount % 10 === 0) yield { wait: 0.05, line: line };
     else yield { step: 1, line: line };
   };
 
@@ -5501,6 +5727,12 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
 
   VM.prototype.evalRef = function* (n) {
     if (n.t === 'id') return { kind: 'var', name: n.v, line: n.line };
+    if (n.t === 'deref') {
+      var pv = yield* this.evalExpr(n.e);
+      if (pv && pv.__ref) return pv;
+      if (Array.isArray(pv)) return { kind: 'elem', arr: pv, idx: 0, line: n.line };
+      throw new VmError('“*” 前面不是指针：仿真里的指针要由 &变量、&数组元素或字符串得到', n.line);
+    }
     if (n.t === 'member') {
       var base = yield* this.evalExpr(n.obj);
       if (!base || typeof base !== 'object' || Array.isArray(base)) {
@@ -5514,6 +5746,11 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
     if (n.t === 'index') {
       var arr = yield* this.evalExpr(n.obj);
       var idx = yield* this.evalExpr(n.index);
+      if (arr && arr.__ref) {
+        if (arr.kind !== 'elem') throw new VmError('这个指针没有可用的下标（只有指向数组元素的指针能这样用）', n.line);
+        idx = arr.idx + (idx | 0);
+        arr = arr.arr;
+      }
       if (!Array.isArray(arr)) throw new VmError('只有数组才能用下标', n.line);
       idx = idx | 0;
       if (idx < 0 || idx >= arr.length) {
@@ -5534,6 +5771,14 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
         codes.push(0);
         return codes;
       case 'id': return this.getVar(n.v, n.line);
+      case 'cast': return coerce(n.type, yield* this.evalExpr(n.e));
+      case 'addr':
+        var r = yield* this.evalRef(n.e);
+        r.__ref = true;                 /* 指针值 = 带标记的引用 */
+        return r;
+      case 'deref':
+        ref = yield* this.evalRef(n);
+        return this.refGet(ref);
       case 'index':
       case 'member':
         ref = yield* this.evalRef(n);
@@ -5562,13 +5807,13 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
         throw new VmError('不支持的一元运算符 ' + n.op, n.line);
       case 'pre':
         ref = yield* this.evalRef(n.e);
-        a = this.refGet(ref) + (n.op === '++' ? 1 : -1);
+        a = this.incValue(this.refGet(ref), n.op === '++' ? 1 : -1, n.line);
         this.refSet(ref, a);
-        return this.refGet(ref);
+        return a;
       case 'post':
         ref = yield* this.evalRef(n.e);
         old = this.refGet(ref);
-        this.refSet(ref, old + (n.op === '++' ? 1 : -1));
+        this.refSet(ref, this.incValue(old, n.op === '++' ? 1 : -1, n.line));
         return old;
       case 'bin':
         if (n.op === '&&') {
@@ -5583,20 +5828,21 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
         }
         a = yield* this.evalExpr(n.left);
         b = yield* this.evalExpr(n.right);
-        return this.binOp(n.op, a, b);
+        return this.binOp(n.op, a, b, exprIsFloat(this, n));
       default:
         throw new VmError('暂不支持的表达式 ' + n.t, n.line);
     }
   };
 
-  VM.prototype.binOp = function (op, a, b) {
+  VM.prototype.binOp = function (op, a, b, isFloat) {
+    if ((a && a.__ref) || (b && b.__ref)) return this.ptrOp(op, a, b);
     switch (op) {
       case '+': return a + b;
       case '-': return a - b;
       case '*': return a * b;
       case '/':
         if (b === 0) throw new VmError('除以 0：请检查除数是否可能为零', this.line);
-        return Math.trunc(a / b);
+        return isFloat ? a / b : Math.trunc(a / b);
       case '%':
         if (b === 0) throw new VmError('对 0 取余', this.line);
         return a % b;
@@ -5938,6 +6184,15 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
 
   var KEY_BITS = { K1: 1, K2: 0, K3: 2, K4: 3 };
 
+  /* DS1302 的走时状态放在 createHardware 外面：重新编译/复位不该把时钟清零，
+     就像板上那颗备用电池还在。 */
+  var RTC = {
+    base: Date.UTC(2026, 10, 28, 12, 0, 0),
+    lastVtime: 0,
+    battery: true,
+    wp: 0
+  };
+
   function createHardware() {
     var hw = {
       leds: [0, 0, 0, 0, 0, 0, 0, 0],          // 1 = 点亮
@@ -5959,6 +6214,324 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
       traceCompacted: false,
       traceLimit: 60000
     };
+
+    RTC.lastVtime = 0;      /* 每次构建从 0 开始计虚拟时间，时间基准由“电池”保留 */
+
+    /* ---------------- DS1302 时钟 + XPT2046 模数 ----------------
+       两台都是边沿驱动：CE/SCLK 或 CS/DCLK 一变就推进一位，
+       不依赖微秒延时，所以不用改虚拟机的时间模型。 */
+    hw.ds1302 = { ce: 0, sclk: 0, mode: 'idle', bits: 0, cmd: 0, data: 0, out: 0, outBit: 0 };
+    hw.xpt = { pot: 50, ntc: 25, ldr: 500, ext: 2.5 };
+    hw.xptBus = { phase: 'idle', bits: 0, cmd: 0, data16: 0, outIdx: 0, skip: 0 };
+    hw.ds18b20 = {
+      temp: 25, phase: 'idle', bits: 0, byte: 0, queue: [], outBit: 0,
+      fallStep: 0, presenceUntil: 0, releaseAt: 0, matchBits: 0,
+      rom: [0x28, 0xAA, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06]
+    };
+    /* 8×8 点阵：74HC595 列数据（SER=P3.4 / RCLK=P3.5 / SRCLK=P3.6），P0 行选低有效 */
+    hw.dot8 = { ser: 1, shift: 0, latch: 0, seen: -1e9, fb: [0, 0, 0, 0, 0, 0, 0, 0] };
+    /* LM358：P2.1 的 PWM 经低通后的平均值（只做测量，不影响程序） */
+    hw.dac = { level: 1, riseAt: 0, high: 0, start: 0, duty: 0, vout: 0 };
+    /* 红外：虚拟遥控器发的 NEC 帧，按虚拟时间在 P3.2 上输出 */
+    hw.ir = { active: false, frame: [], start: 0, idx: 0, total: 0, code: 0 };
+
+    function bcd(n) { return ((n / 10 | 0) << 4) | (n % 10); }
+    function unbcd(b) { return (b >> 4) * 10 + (b & 0x0F); }
+    function rtcSync(vm) {
+      if (!vm) return;
+      var dt = vm.vtime - RTC.lastVtime;
+      if (dt > 0 && RTC.battery) RTC.base += dt;
+      RTC.lastVtime = vm.vtime;
+    }
+    function rtcFields() {
+      var d = new Date(RTC.base);
+      var wd = d.getUTCDay();
+      return {
+        year: d.getUTCFullYear() % 100,
+        month: d.getUTCMonth() + 1,
+        date: d.getUTCDate(),
+        hour: d.getUTCHours(),
+        minute: d.getUTCMinutes(),
+        second: d.getUTCSeconds(),
+        day: wd === 0 ? 7 : wd
+      };
+    }
+    function rtcRead(reg, vm) {
+      rtcSync(vm);
+      var f = rtcFields();
+      if (reg === 0) return bcd(f.second) & 0x7F;
+      if (reg === 1) return bcd(f.minute);
+      if (reg === 2) return bcd(f.hour);
+      if (reg === 3) return bcd(f.date);
+      if (reg === 4) return bcd(f.month);
+      if (reg === 5) return f.day;
+      if (reg === 6) return bcd(f.year);
+      if (reg === 7) return RTC.wp ? 0x80 : 0x00;
+      return 0;
+    }
+    function rtcWrite(reg, raw, vm) {
+      if (reg === 7) { RTC.wp = raw & 0x80; return; }
+      if (RTC.wp) return;
+      rtcSync(vm);
+      var f = rtcFields(), v = unbcd(raw & 0xFF);
+      if (reg === 0) f.second = v & 0x7F;
+      else if (reg === 1) f.minute = v & 0x7F;
+      else if (reg === 2) f.hour = v & 0x3F;
+      else if (reg === 3) f.date = v & 0x3F;
+      else if (reg === 4) f.month = v & 0x1F;
+      else if (reg === 5) f.day = (v & 7) || 1;
+      else if (reg === 6) f.year = v & 0xFF;
+      RTC.base = Date.UTC(2000 + f.year, f.month - 1, f.date, f.hour, f.minute, f.second);
+      RTC.lastVtime = vm ? vm.vtime : RTC.lastVtime;
+    }
+    function dsEdge(oldV, newV, vm) {
+      var ds = hw.ds1302;
+      var ceOld = (oldV >> 5) & 1, ce = (newV >> 5) & 1;
+      var clkOld = (oldV >> 6) & 1, clk = (newV >> 6) & 1;
+      var io = (newV >> 4) & 1;
+      if (ce && !ceOld) { ds.ce = 1; ds.mode = 'cmd'; ds.bits = 0; ds.cmd = 0; ds.data = 0; }
+      if (!ce && ceOld) {
+        ds.ce = 0;
+        if (ds.mode === 'write' && ds.bits >= 8) rtcWrite((ds.cmd & 0x1E) >> 1, ds.data, vm);
+        ds.mode = 'idle';
+      }
+      if (!ds.ce) return;
+      if (clk && !clkOld) {
+        if (ds.mode === 'cmd') {
+          ds.cmd |= io << ds.bits;
+          ds.bits++;
+          if (ds.bits === 8) {
+            if (ds.cmd & 1) {
+              ds.mode = 'read';
+              ds.out = rtcRead((ds.cmd & 0x1E) >> 1, vm);
+              ds.outBit = 0;
+            } else { ds.mode = 'write'; ds.bits = 0; ds.data = 0; }
+          }
+        } else if (ds.mode === 'write') {
+          ds.data |= io << ds.bits;
+          ds.bits++;
+        }
+      } else if (!clk && clkOld && ds.mode === 'read') {
+        var bitv = ds.outBit < 8 ? ((ds.out >> ds.outBit) & 1) : 0;
+        ds.outBit++;
+        if (vm) vm.setInputBit('P3', 4, bitv);
+      }
+    }
+    function xptValue(cmd) {
+      var x = hw.xpt, ch = cmd & 0xF0;
+      if (ch === 0x90) return Math.round(x.pot / 100 * 4095);
+      if (ch === 0xA0) return Math.round(x.ldr / 1000 * 4095);
+      if (ch === 0xD0) return Math.round((80 - x.ntc) / 100 * 4095);
+      if (ch === 0xE0) return Math.round(x.ext / 5 * 4095);
+      return 0;
+    }
+    function xptEdge(oldV, newV, vm) {
+      var s = hw.xptBus;
+      var csOld = (oldV >> 5) & 1, cs = (newV >> 5) & 1;
+      var clkOld = (oldV >> 6) & 1, clk = (newV >> 6) & 1;
+      var din = (newV >> 4) & 1;
+      if (!cs && csOld) { s.phase = 'cmd'; s.bits = 0; s.cmd = 0; s.outIdx = 0; s.skip = 0; }
+      if (cs && !csOld) { s.phase = 'idle'; if (vm) vm.setInputBit('P3', 7, 1); }
+      if (cs) return;
+      if (clk && !clkOld) {
+        if (s.phase === 'cmd') {
+          s.cmd |= din << (7 - s.bits);
+          s.bits++;
+          if (s.bits === 8) {
+            s.phase = 'data';
+            s.data16 = (xptValue(s.cmd) & 0x0FFF) << 4;
+            s.outIdx = 0;
+            s.skip = 1;       /* 命令字最后那个下降沿是转换间隙，不算数据位 */
+          }
+        }
+      } else if (!clk && clkOld && s.phase === 'data') {
+        if (s.skip > 0) { s.skip--; if (vm) vm.setInputBit('P3', 7, 1); return; }
+        var bitv = s.outIdx < 16 ? ((s.data16 >> (15 - s.outIdx)) & 1) : 0;
+        s.outIdx++;
+        if (vm) vm.setInputBit('P3', 7, bitv);
+      }
+    }
+
+    /* ---------------- DS18B20 单总线 ----------------
+       忙等循环不推进虚拟时间，所以用“语句数”近似时序（江协库实测）：
+       复位低电平约 249 条、写 1 约 6 条、写 0 约 32 条、读时隙约 4 条。 */
+    function ds18NextBit() {
+      var d = hw.ds18b20;
+      if (!d.queue.length) return 1;
+      var b = (d.queue[0] >> d.outBit) & 1;
+      d.outBit++;
+      if (d.outBit >= 8) { d.queue.shift(); d.outBit = 0; }
+      return b;
+    }
+    function ds18Scratchpad() {
+      var t = Math.round((hw.ds18b20.temp || 0) * 16);
+      return [t & 0xFF, (t >> 8) & 0xFF, 0x4B, 0x46, 0x7F, 0xFF, 0x0C, 0x10, 0x00];
+    }
+    function ds18Edge(oldV, newV, vm) {
+      var d = hw.ds18b20;
+      var a = (oldV >> 7) & 1, b = (newV >> 7) & 1;
+      if (a === b) return;
+      if (b === 0) { d.fallStep = vm ? vm.stepCount : 0; return; }
+      var lowSteps = (vm ? vm.stepCount : 0) - d.fallStep;
+      if (d.presenceUntil) return;
+      if (lowSteps > 100) {
+        /* 复位脉冲：拉低应答；主机约 40 条语句后采样，120 条后释放，赶在命令字节之前 */
+        d.phase = 'rom'; d.bits = 0; d.byte = 0; d.queue = []; d.outBit = 0;
+        d.presenceUntil = (vm ? vm.stepCount : 0) + 120;
+        if (vm) vm.setInputBit('P3', 7, 0);
+        return;
+      }
+      if (d.phase === 'read' || d.phase === 'readrom') {
+        var bit = ds18NextBit();
+        if (bit === 0) {
+          if (vm) vm.setInputBit('P3', 7, 0);
+          d.releaseAt = (vm ? vm.stepCount : 0) + 14;
+        }
+        return;
+      }
+      if (d.phase === 'match') {
+        d.matchBits++;
+        if (d.matchBits >= 64) { d.phase = 'func'; d.bits = 0; d.byte = 0; d.matchBits = 0; }
+        return;
+      }
+      if (d.phase !== 'rom' && d.phase !== 'func') return;
+      var v = lowSteps < 15 ? 1 : 0;
+      d.byte |= v << d.bits;
+      d.bits++;
+      if (d.bits < 8) return;
+      var cmd = d.byte;
+      d.byte = 0; d.bits = 0;
+      if (d.phase === 'rom') {
+        if (cmd === 0xCC) d.phase = 'func';
+        else if (cmd === 0x33) { d.phase = 'readrom'; d.queue = d.rom.slice(); d.outBit = 0; }
+        else if (cmd === 0x55) { d.phase = 'match'; d.matchBits = 0; }
+        else d.phase = 'idle';
+      } else {
+        if (cmd === 0x44) d.phase = 'convert';
+        else if (cmd === 0xBE) { d.phase = 'read'; d.queue = ds18Scratchpad(); d.outBit = 0; }
+        else d.phase = 'idle';
+      }
+    }
+    hw.service = function (vm) {
+      var d = hw.ds18b20;
+      if (d.presenceUntil && vm.stepCount >= d.presenceUntil) {
+        d.presenceUntil = 0;
+        vm.setInputBit('P3', 7, 1);
+      }
+      if (d.releaseAt && vm.stepCount >= d.releaseAt) {
+        d.releaseAt = 0;
+        vm.setInputBit('P3', 7, 1);
+      }
+      if (hw.ir.active) {
+        /* 帧表里的时间是微秒，vtime 是毫秒，先换算再比较 */
+        var e = (vm.vtime - hw.ir.start) * 1000;
+        if (e >= hw.ir.total) {
+          hw.ir.active = false;
+          vm.setInputBit('P3', 2, 1);
+        } else {
+          var seg = hw.ir.frame, k = 0;
+          while (k < seg.length - 1 && seg[k + 1].t <= e) k++;
+          /* 每拍都把电平写回去：帧开始那一刻 P3.2 可能刚被 syncAll 拉高，
+             只按“段变化”写会丢掉引导码的第一个低电平 */
+          hw.ir.idx = k;
+          vm.setInputBit('P3', 2, seg[k].l);
+        }
+      }
+    };
+    hw.setTemp = function (c) {
+      hw.ds18b20.temp = Math.max(-55, Math.min(125, +c || 0));
+    };
+
+    /* 74HC595：SER 在 SRCLK 上升沿移入，RCLK 上升沿锁存到列输出 */
+    function dotEdge(oldV, newV, vm) {
+      var d = hw.dot8;
+      var ser = (newV >> 4) & 1;
+      var srOld = (oldV >> 6) & 1, sr = (newV >> 6) & 1;
+      var rcOld = (oldV >> 5) & 1, rc = (newV >> 5) & 1;
+      if (ser !== ((oldV >> 4) & 1)) d.ser = ser;
+      if (sr && !srOld) { d.shift = ((d.shift << 1) | d.ser) & 0xFF; d.seen = vm ? vm.vtime : 0; }
+      if (rc && !rcOld) { d.latch = d.shift; d.seen = vm ? vm.vtime : 0; }
+    }
+    /* LM358：P2.1 的 PWM 占空比 -> 0~5V，100ms 滚动窗口 */
+    function dacEdge(level, vm) {
+      var d = hw.dac;
+      if (!vm) return;
+      var t = vm.vtime;
+      if (!d.start) { d.start = t; d.riseAt = t; }
+      if (d.level === 1 && level === 0) d.high += Math.max(0, t - d.riseAt);
+      if (level === 1) d.riseAt = t;
+      d.level = level;
+      var total = t - d.start;
+      if (total >= 100) {
+        d.duty = d.high / total;
+        d.vout = d.duty * 5;
+        d.high = 0; d.start = t; d.riseAt = level ? t : 0;
+      } else if (total > 0) {
+        d.duty = (d.high + (level ? t - d.riseAt : 0)) / total;
+        d.vout = d.duty * 5;
+      }
+    }
+    /* 红外遥控：NEC 帧（地址 0x00 + 命令），按虚拟时间输出到 P3.2 */
+    hw.irSend = function (code, vm) {
+      if (!vm) return false;
+      var cmd = code & 0xFF;
+      var bits = [];
+      [0x00, 0xFF, cmd, (~cmd) & 0xFF].forEach(function (b) {
+        for (var i = 0; i < 8; i++) bits.push((b >> i) & 1);
+      });
+      var seg = [{ l: 0, ms: 9000 }, { l: 1, ms: 4500 }];
+      bits.forEach(function (bit) {
+        seg.push({ l: 0, ms: 560 });
+        seg.push({ l: 1, ms: bit ? 1690 : 560 });
+      });
+      seg.push({ l: 0, ms: 560 });
+      seg.push({ l: 1, ms: 120000 });
+      var t = 0;
+      seg.forEach(function (s) { s.t = t; t += s.ms; });
+      hw.ir.frame = seg;
+      hw.ir.start = vm.vtime;
+      hw.ir.idx = 0;
+      hw.ir.total = t;
+      hw.ir.code = cmd;
+      hw.ir.active = true;
+      vm.setInputBit('P3', 2, 0);
+      return true;
+    };
+
+    hw.onP3 = function (oldV, newV, vm) {
+      dsEdge(oldV, newV, vm);
+      xptEdge(oldV, newV, vm);
+      ds18Edge(oldV, newV, vm);
+      dotEdge(oldV, newV, vm);
+    };
+    hw.setXpt = function (v) {
+      if (!v) return;
+      if (v.pot != null) hw.xpt.pot = Math.max(0, Math.min(100, +v.pot || 0));
+      if (v.ntc != null) hw.xpt.ntc = Math.max(-20, Math.min(80, +v.ntc || 0));
+      if (v.ldr != null) hw.xpt.ldr = Math.max(0, Math.min(1000, +v.ldr || 0));
+      if (v.ext != null) hw.xpt.ext = Math.max(0, Math.min(5, +v.ext || 0));
+    };
+    hw.setRtc = function (f, vm) {
+      if (!f) return;
+      var cur = rtcFields();
+      ['year', 'month', 'date', 'hour', 'minute', 'second', 'day'].forEach(function (k) {
+        if (f[k] != null) cur[k] = +f[k];
+      });
+      RTC.base = Date.UTC(2000 + cur.year, cur.month - 1, cur.date, cur.hour, cur.minute, cur.second);
+      RTC.wp = 0;             /* 手动设时间时顺手解除写保护 */
+      RTC.lastVtime = vm ? vm.vtime : 0;
+    };
+    hw.setRtcBattery = function (on, vm) {
+      rtcSync(vm);
+      RTC.battery = !!on;
+      RTC.lastVtime = vm ? vm.vtime : RTC.lastVtime;
+    };
+    hw.ds1302Now = function (vm) { rtcSync(vm); return rtcFields(); };
+    hw.tickRtc = function (ms) {
+      /* 程序没在跑的时候，时钟按真实时间走（真板上的 RTC 本来就不受 MCU 控制） */
+      if (RTC.battery && ms > 0) RTC.base += ms;
+    };
+    hw.rtcBattery = function () { return RTC.battery; };
 
     /* 密集扫描（例如数码管 1ms 扫 8 位）几秒就能攒几万条。
        按时间桶压缩：同一桶内每个端口只留最后一次变化，整次运行的起止时刻和宏观波形都还在，
@@ -6004,6 +6577,17 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
       hw.scanCount = 0;
       hw.trace = [];
       hw.traceCompacted = false;
+      hw.ds1302 = { ce: 0, sclk: 0, mode: 'idle', bits: 0, cmd: 0, data: 0, out: 0, outBit: 0 };
+      hw.xptBus = { phase: 'idle', bits: 0, cmd: 0, data16: 0, outIdx: 0, skip: 0 };
+      hw.ds18b20 = {
+        temp: hw.ds18b20.temp, phase: 'idle', bits: 0, byte: 0, queue: [], outBit: 0,
+        fallStep: 0, presenceUntil: 0, releaseAt: 0, matchBits: 0,
+        rom: [0x28, 0xAA, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06]
+      };
+      hw.dot8 = { ser: 1, shift: 0, latch: 0, seen: -1e9, fb: [0, 0, 0, 0, 0, 0, 0, 0] };
+      hw.dac = { level: 1, riseAt: 0, high: 0, start: 0, duty: 0, vout: 0 };
+      hw.ir = { active: false, frame: [], start: 0, idx: 0, total: 0, code: 0 };
+      /* 时钟走时和 XPT/DS18B20 的设置不清：前者靠备用电池，后两者是用户拧的旋钮 */
     };
 
     hw.syncAll = function (vm) {
@@ -6045,6 +6629,8 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
         hw.updateLeds(vm);
         var enOld = (oldV >> 7) & 1, enNew = (newV >> 7) & 1;
         if (enOld === 1 && enNew === 0) hw.lcdLatch(vm);
+        var daOld = (oldV >> 1) & 1, daNew = (newV >> 1) & 1;
+        if (daOld !== daNew) dacEdge(daNew, vm);
       }
       if (port === 'P1') {
         var bOld = (oldV >> 5) & 1, bNew = (newV >> 5) & 1;
@@ -6056,6 +6642,13 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
         hw.buzzer.level = bNew;
       }
       if (port === 'P0') {
+        /* 最近 20ms 动过 595，就把 P0 当点阵行选（低有效），不再当数码管段码 */
+        if (hw.dot8.seen > -1e8 && vm && (vm.vtime - hw.dot8.seen) < 20) {
+          for (var db = 0; db < 8; db++) {
+            if (((newV >> db) & 1) === 0) hw.dot8.fb[7 - db] = hw.dot8.latch;
+          }
+          return;
+        }
         /* LCD 不会一直占着 P0：20ms 内没有新的 LCD 写操作，就认为程序已经切回数码管扫描。
            以前 lcdActive 一旦置位永不恢复，用过 LCD 的程序再扫数码管会整片不亮。 */
         var fresh = hw.lcdActive && (vm ? (vm.vtime - hw.lcdSeenAt) : 0) < 20;
@@ -6071,6 +6664,7 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
           }
         }
       }
+      if (port === 'P3') hw.onP3(oldV, newV, vm);
     };
 
     /* LCD1602：E 下降沿锁存 */
@@ -7200,6 +7794,7 @@ void main()
   /* 代码在上次 build 之后又改过：旧 VM 不会自动重编译，继续跑的是旧程序 */
   var codeStale = false;
   var ledEls = [], ledHalo = [], segEls = [], dpEls = [], lcdLines = [], keyEls = {}, buzzerEl = null, buzzerText = null;
+  var dotEls = [];
   var portBits = {}, portHex = {};
   var lastGutterLine = -1;
   var storageWarned = false, storageRetryAt = 0, storageNotice = null;
@@ -7546,13 +8141,14 @@ void main()
 
     /* ============ 8×8 点阵 ============ */
     box(svg, 418, 146, 180, 180, 2, '#171a1f', '#08090c');
+    dotEls = [];
     for (var mr = 0; mr < 8; mr++) {
       for (var mc = 0; mc < 8; mc++) {
-        circ(svg, 430 + mc * 22, 158 + mr * 22, 6, '#282d34');
+        dotEls.push(circ(svg, 430 + mc * 22, 158 + mr * 22, 6, '#282d34'));
       }
     }
     silk(svg, 418, 338, '8×8 点阵屏 · 74HC595 驱动', 6.5);
-    hot(414, 142, 188, 188, '8×8 点阵屏：由 74HC595 串行移位驱动。本仿真只还原外观，没有驱动它。');
+    hot(414, 142, 188, 188, '8×8 点阵屏：74HC595 串行移位（SER=P3.4 / RCLK=P3.5 / SRCLK=P3.6），P0 行选低有效。');
 
     /* ============ 8 个 LED（右侧一排） ============ */
     ledEls = []; ledHalo = [];
@@ -7611,7 +8207,7 @@ void main()
     circ(svg, 96, 288, 12, '#c8ced5', '#8b959e', .8);
     circ(svg, 96, 288, 8, '#aab3bb');
     silk(svg, 96, 306, '时钟电池', 5, 'middle', { fill: '#c6dcf5' });
-    hot(82, 272, 116, 82, '时钟芯片 DS1302 与备用电池：接 P3.4~P3.6，可掉电走时。本仿真只还原外观，没有驱动它。');
+    hot(82, 272, 116, 82, '时钟芯片 DS1302 与备用电池：接 P3.4~P3.6，可掉电走时。开发板右侧可调时间、开关备用电池。');
 
     /* ============ 模数 / 数模模块 ============ */
     silk(svg, 34, 394, '模数转换 XPT2046', 5.5, 'start', { fill: '#c6dcf5' });
@@ -7625,7 +8221,7 @@ void main()
     box(svg, 42, 456, 26, 18, 2, '#2a6fbf', '#1b4a7e');
     circ(svg, 55, 465, 5, '#d8dee4');
     box(svg, 78, 458, 26, 12, 1, '#1a1d22');
-    hot(30, 386, 124, 96, '模数 / 数模模块：XPT2046 采集电压做 AD 转换，LM358 运放把 PWM 变成模拟电压。外观还原，未驱动。');
+    hot(30, 386, 124, 96, '模数 / 数模模块：XPT2046 采集电压做 AD（0x94 电位器 / 0xD4 热敏 / 0xA4 光敏），LM358 把 P2.1 的 PWM 变成模拟电压；右侧面板可拧滑块、看电压。');
 
     /* ============ 串口下载 / 电源 ============ */
     silk(svg, 34, 490, 'USB 转串口 CH340', 5.5);
@@ -7683,7 +8279,9 @@ void main()
     silk(svg, 406, 656, '温度传感器', 5, 'start', { fill: '#c6dcf5' });
     circ(svg, 392, 686, 8, '#14181d');
     silk(svg, 406, 690, '红外接收', 5, 'start', { fill: '#c6dcf5' });
-    hot(316, 628, 116, 70, '无线模块接口（NRF24L01）、温度传感器 DS18B20、红外接收头：外观还原，本仿真未驱动。');
+    hot(316, 626, 54, 40, '无线模块接口（NRF24L01）：2×4 排座，外观还原；仿真里没有射频对端，未驱动。');
+    hot(378, 630, 68, 40, '温度传感器 DS18B20：DQ 接 P3.7，单总线。右侧面板可调 -55~125℃，支持负温。');
+    hot(376, 672, 70, 32, '红外接收头：接 P3.2，配合右侧虚拟遥控器发 NEC 帧；程序用轮询或定时器都能解码。');
 
     /* 跳线帽 */
     [[300, 610], [340, 610], [196, 480], [196, 510]].forEach(function (jp) {
@@ -7959,6 +8557,112 @@ void main()
       host.appendChild(row);
     });
   }
+
+  /* ---------------- 板载器件：DS1302 时钟 / XPT2046 模数 ---------------- */
+  var devState = { pot: 50, ntc: 25, ldr: 500, ext: 2.5, temp: 25, batt: true };
+  function devPad(n) { return (n < 10 ? '0' : '') + n; }
+  function applyDevices() {
+    if (!hw) return;
+    hw.setXpt(devState);
+    hw.setTemp(devState.temp);
+    hw.setRtcBattery(devState.batt, vm);
+  }
+  function renderDevices() {
+    var t = $('rtc-time');
+    if (t) {
+      if (!hw) t.textContent = '--';
+      else {
+        var f = hw.ds1302Now(vm);
+        t.textContent = devPad(f.year) + '-' + devPad(f.month) + '-' + devPad(f.date)
+          + ' ' + devPad(f.hour) + ':' + devPad(f.minute) + ':' + devPad(f.second);
+      }
+    }
+    var xo = $('xpt-out');
+    if (xo) xo.textContent = '电位器 ' + devState.pot + '%';
+    var dv = $('dac-v'), dd = $('dac-duty');
+    if (hw && hw.dac) {
+      if (dv) dv.textContent = hw.dac.vout.toFixed(2) + ' V';
+      if (dd) dd.textContent = (hw.dac.duty * 100).toFixed(1) + '%';
+    } else {
+      if (dv) dv.textContent = '0.00 V';
+      if (dd) dd.textContent = '0.0%';
+    }
+  }
+  (function initDevices() {
+    function bindRange(id, key, fmt) {
+      var el = $(id), out = $(id + '-v');
+      if (!el || !el.addEventListener) return;
+      function sync() {
+        devState[key] = +el.value;
+        if (out) out.textContent = fmt(devState[key]);
+        if (hw) hw.setXpt(devState);
+        renderDevices();
+      }
+      el.addEventListener('input', sync);
+      sync();
+    }
+    bindRange('xpt-pot', 'pot', function (v) { return v + '%'; });
+    bindRange('xpt-ntc', 'ntc', function (v) { return v + '℃'; });
+    bindRange('xpt-ldr', 'ldr', function (v) { return v + 'lx'; });
+    var tEl = $('ds-temp'), tOut = $('ds-temp-v'), tB = $('ds-temp-b');
+    if (tEl && tEl.addEventListener) {
+      var syncTemp = function () {
+        devState.temp = +tEl.value;
+        var txt = devState.temp.toFixed(1) + '℃';
+        if (tOut) tOut.textContent = txt;
+        if (tB) tB.textContent = txt;
+        if (hw) hw.setTemp(devState.temp);
+      };
+      tEl.addEventListener('input', syncTemp);
+      syncTemp();
+    }
+    var batt = $('rtc-batt');
+    if (batt && batt.addEventListener) {
+      batt.addEventListener('change', function () {
+        devState.batt = batt.checked;
+        if (hw) hw.setRtcBattery(devState.batt, vm);
+        log(devState.batt ? 'DS1302 备用电池已接上：复位后继续走时。' : 'DS1302 备用电池断开：断电后时间不再走。', 'dim');
+      });
+    }
+    var syncBtn = $('rtc-sync');
+    if (syncBtn && syncBtn.addEventListener) {
+      syncBtn.addEventListener('click', function () {
+        if (!hw) return;
+        var d = new Date();
+        hw.setRtc({
+          year: d.getFullYear() % 100,
+          month: d.getMonth() + 1,
+          date: d.getDate(),
+          hour: d.getHours(),
+          minute: d.getMinutes(),
+          second: d.getSeconds(),
+          day: d.getDay() === 0 ? 7 : d.getDay()
+        }, vm);
+        renderDevices();
+        log('已把电脑当前时间写入 DS1302。', 'dim');
+      });
+    }
+    var irBtns = document.querySelectorAll('[data-ir]');
+    Array.prototype.forEach.call(irBtns, function (b) {
+      if (!b.addEventListener) return;
+      b.addEventListener('click', function () {
+        if (!hw) return;
+        var code = parseInt(b.getAttribute('data-ir'), 16);
+        hw.irSend(code, vm);
+        var out = $('ir-out');
+        if (out) out.textContent = 'NEC 0x' + ('0' + code.toString(16).toUpperCase()).slice(-2);
+        log('红外已发送 NEC 命令 0x' + ('0' + code.toString(16).toUpperCase()).slice(-2), 'dim');
+      });
+    });
+    var devToggle = $('dev-toggle'), devPanel = document.querySelector('.dev-panel');
+    if (devToggle && devPanel && devToggle.addEventListener) {
+      devToggle.addEventListener('click', function () {
+        var on = devPanel.classList.toggle('collapsed');
+        devToggle.textContent = on ? '展开' : '收起';
+      });
+    }
+    renderDevices();
+  })();
 
   /* ---------------- 例程 ---------------- */
   function requestExample(id, goPage) {
@@ -13664,6 +14368,7 @@ void keys_scan()
       codeStale = false;
       rebuildBpKeys();
       hw.syncAll(vm);
+      applyDevices();
       resetRenderCache();
       reapplyMatrix();
       lastGutterLine = -1;
@@ -14643,6 +15348,19 @@ void keys_scan()
     rLed = []; rSeg = []; rLcd = ['', '']; rPortHex = {}; rPortBits = {};
     rBuzzerFill = null; rBuzzerText = null; rVtime = null; rSteps = null;
   }
+  function paintDot8() {
+    if (!hw || !hw.dot8) return;
+    for (var r = 0; r < 8; r++) {
+      for (var c = 0; c < 8; c++) {
+        var el = dotEls[r * 8 + c];
+        if (!el) continue;
+        var on = ((hw.dot8.fb[r] >> (7 - c)) & 1) === 1;
+        if (el._on === on) continue;
+        el._on = on;
+        el.setAttribute('fill', on ? '#ff4a38' : '#282d34');
+      }
+    }
+  }
   function render() {
     var i, b;
     for (i = 0; i < 8; i++) {
@@ -14673,6 +15391,7 @@ void keys_scan()
       if (rBuzzerFill !== fill) { rBuzzerFill = fill; buzzerEl.setAttribute('fill', fill); }
       var btext = '蜂鸣器 翻转 ' + hw.buzzer.flips + ' 次';
       if (rBuzzerText !== btext) { rBuzzerText = btext; buzzerText.textContent = btext; }
+      paintDot8();
     }
     if (vm) {
       ['P0', 'P1', 'P2', 'P3'].forEach(function (p) {
@@ -14700,9 +15419,16 @@ void keys_scan()
 
   /* ---------------- 主循环 ---------------- */
   var lastTs = 0, lastScopeT = -1, lastScopeState = '';
+  var lastDevT = 0, lastRtcReal = 0;
   function frame(ts) {
     var dt = lastTs ? Math.min(60, ts - lastTs) : 16;
     lastTs = ts;
+    /* 程序没跑时 DS1302 按真实时间走；跑起来后由虚拟时间推进，避免重复计时 */
+    if (hw) {
+      var nowReal = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      if (state !== 'running' && lastRtcReal) hw.tickRtc(nowReal - lastRtcReal);
+      lastRtcReal = nowReal;
+    }
     if (state === 'running' && vm && !vm.done) {
       var pr = vm.pump(3000, dt * speed, checkBp);
       checkWin();
@@ -14753,6 +15479,11 @@ void keys_scan()
       lastScopeT = vm ? vm.vtime : -1;
       lastScopeState = state;
       drawScope();
+    }
+    /* 板载器件的时间/滑块读数：只在开发板页每 250ms 刷一次 */
+    if (curPage === 'board' && ts - lastDevT > 250) {
+      lastDevT = ts;
+      renderDevices();
     }
     requestAnimationFrame(frame);
   }

@@ -338,7 +338,54 @@ if (window.c51Desktop && window.c51Desktop.isDesktop) {
     </div>
     <div class="slot" id="slot-board-main"></div>
     <aside class="side">
-      <div class="panel">
+      <div class="panel dev-panel">
+        <div class="panel-h">
+          <span class="idx">08</span><h2>板载器件</h2><span class="sp"></span>
+          <span class="hint">DS1302 / XPT / DS18B20 / 595 / 红外</span>
+          <button id="dev-toggle" class="ghost" type="button">收起</button>
+        </div>
+        <div class="panel-b dev-body">
+          <div class="dev-card">
+            <div class="dev-head"><b>DS1302 时钟</b><span id="rtc-time">--</span></div>
+            <div class="dev-row">
+              <label class="dev-check"><input type="checkbox" id="rtc-batt" checked> 备用电池</label>
+              <button id="rtc-sync" class="ghost" type="button">写入电脑时间</button>
+            </div>
+            <div class="dev-note">IO=P3.4 · CE=P3.5 · SCLK=P3.6</div>
+          </div>
+          <div class="dev-card">
+            <div class="dev-head"><b>XPT2046 模数</b><span id="xpt-out">—</span></div>
+            <label class="dev-range">电位器 <input id="xpt-pot" type="range" min="0" max="100" value="50"><b id="xpt-pot-v">50%</b></label>
+            <label class="dev-range">热敏 <input id="xpt-ntc" type="range" min="-20" max="80" value="25"><b id="xpt-ntc-v">25℃</b></label>
+            <label class="dev-range">光敏 <input id="xpt-ldr" type="range" min="0" max="1000" value="500"><b id="xpt-ldr-v">500lx</b></label>
+            <div class="dev-note">AIN0 电位器 · AIN1 热敏 · AIN2 光敏</div>
+          </div>
+          <div class="dev-card">
+            <div class="dev-head"><b>DS18B20 温度</b><span id="ds-temp-v">25.0℃</span></div>
+            <label class="dev-range">温度 <input id="ds-temp" type="range" min="-55" max="125" step="0.5" value="25"><b id="ds-temp-b">25.0℃</b></label>
+            <div class="dev-note">DQ=P3.7 · 单总线 · 支持负温</div>
+          </div>
+          <div class="dev-card">
+            <div class="dev-head"><b>LM358 电压表</b><span id="dac-v">0.00 V</span></div>
+            <div class="dev-note">P2.1 PWM · 占空比 <span id="dac-duty">0.0%</span> · 低通后的平均电压</div>
+          </div>
+          <div class="dev-card">
+            <div class="dev-head"><b>74HC595 点阵</b><span>8×8</span></div>
+            <div class="dev-note">SER=P3.4 · RCLK=P3.5 · SRCLK=P3.6 · P0 行选低有效</div>
+          </div>
+          <div class="dev-card">
+            <div class="dev-head"><b>红外遥控</b><span id="ir-out">NEC</span></div>
+            <div class="dev-row ir-row">
+              <button class="ghost" type="button" data-ir="45">电源</button>
+              <button class="ghost" type="button" data-ir="46">音量+</button>
+              <button class="ghost" type="button" data-ir="47">静音</button>
+              <button class="ghost" type="button" data-ir="44">数字1</button>
+            </div>
+            <div class="dev-note">P3.2 · NEC · 轮询或定时器都能解码</div>
+          </div>
+        </div>
+      </div>
+      <div class="panel ports-panel">
         <div class="panel-h">
           <span class="idx">04</span><h2>端口监视</h2><span class="sp"></span>
         </div>

@@ -9,6 +9,7 @@
   /* 代码在上次 build 之后又改过：旧 VM 不会自动重编译，继续跑的是旧程序 */
   var codeStale = false;
   var ledEls = [], ledHalo = [], segEls = [], dpEls = [], lcdLines = [], keyEls = {}, buzzerEl = null, buzzerText = null;
+  var dotEls = [];
   var portBits = {}, portHex = {};
   var lastGutterLine = -1;
   var storageWarned = false, storageRetryAt = 0, storageNotice = null;
@@ -355,13 +356,14 @@
 
     /* ============ 8×8 点阵 ============ */
     box(svg, 418, 146, 180, 180, 2, '#171a1f', '#08090c');
+    dotEls = [];
     for (var mr = 0; mr < 8; mr++) {
       for (var mc = 0; mc < 8; mc++) {
-        circ(svg, 430 + mc * 22, 158 + mr * 22, 6, '#282d34');
+        dotEls.push(circ(svg, 430 + mc * 22, 158 + mr * 22, 6, '#282d34'));
       }
     }
     silk(svg, 418, 338, '8×8 点阵屏 · 74HC595 驱动', 6.5);
-    hot(414, 142, 188, 188, '8×8 点阵屏：由 74HC595 串行移位驱动。本仿真只还原外观，没有驱动它。');
+    hot(414, 142, 188, 188, '8×8 点阵屏：74HC595 串行移位（SER=P3.4 / RCLK=P3.5 / SRCLK=P3.6），P0 行选低有效。');
 
     /* ============ 8 个 LED（右侧一排） ============ */
     ledEls = []; ledHalo = [];
@@ -420,7 +422,7 @@
     circ(svg, 96, 288, 12, '#c8ced5', '#8b959e', .8);
     circ(svg, 96, 288, 8, '#aab3bb');
     silk(svg, 96, 306, '时钟电池', 5, 'middle', { fill: '#c6dcf5' });
-    hot(82, 272, 116, 82, '时钟芯片 DS1302 与备用电池：接 P3.4~P3.6，可掉电走时。本仿真只还原外观，没有驱动它。');
+    hot(82, 272, 116, 82, '时钟芯片 DS1302 与备用电池：接 P3.4~P3.6，可掉电走时。开发板右侧可调时间、开关备用电池。');
 
     /* ============ 模数 / 数模模块 ============ */
     silk(svg, 34, 394, '模数转换 XPT2046', 5.5, 'start', { fill: '#c6dcf5' });
@@ -434,7 +436,7 @@
     box(svg, 42, 456, 26, 18, 2, '#2a6fbf', '#1b4a7e');
     circ(svg, 55, 465, 5, '#d8dee4');
     box(svg, 78, 458, 26, 12, 1, '#1a1d22');
-    hot(30, 386, 124, 96, '模数 / 数模模块：XPT2046 采集电压做 AD 转换，LM358 运放把 PWM 变成模拟电压。外观还原，未驱动。');
+    hot(30, 386, 124, 96, '模数 / 数模模块：XPT2046 采集电压做 AD（0x94 电位器 / 0xD4 热敏 / 0xA4 光敏），LM358 把 P2.1 的 PWM 变成模拟电压；右侧面板可拧滑块、看电压。');
 
     /* ============ 串口下载 / 电源 ============ */
     silk(svg, 34, 490, 'USB 转串口 CH340', 5.5);
@@ -492,7 +494,9 @@
     silk(svg, 406, 656, '温度传感器', 5, 'start', { fill: '#c6dcf5' });
     circ(svg, 392, 686, 8, '#14181d');
     silk(svg, 406, 690, '红外接收', 5, 'start', { fill: '#c6dcf5' });
-    hot(316, 628, 116, 70, '无线模块接口（NRF24L01）、温度传感器 DS18B20、红外接收头：外观还原，本仿真未驱动。');
+    hot(316, 626, 54, 40, '无线模块接口（NRF24L01）：2×4 排座，外观还原；仿真里没有射频对端，未驱动。');
+    hot(378, 630, 68, 40, '温度传感器 DS18B20：DQ 接 P3.7，单总线。右侧面板可调 -55~125℃，支持负温。');
+    hot(376, 672, 70, 32, '红外接收头：接 P3.2，配合右侧虚拟遥控器发 NEC 帧；程序用轮询或定时器都能解码。');
 
     /* 跳线帽 */
     [[300, 610], [340, 610], [196, 480], [196, 510]].forEach(function (jp) {
@@ -768,6 +772,112 @@
       host.appendChild(row);
     });
   }
+
+  /* ---------------- 板载器件：DS1302 时钟 / XPT2046 模数 ---------------- */
+  var devState = { pot: 50, ntc: 25, ldr: 500, ext: 2.5, temp: 25, batt: true };
+  function devPad(n) { return (n < 10 ? '0' : '') + n; }
+  function applyDevices() {
+    if (!hw) return;
+    hw.setXpt(devState);
+    hw.setTemp(devState.temp);
+    hw.setRtcBattery(devState.batt, vm);
+  }
+  function renderDevices() {
+    var t = $('rtc-time');
+    if (t) {
+      if (!hw) t.textContent = '--';
+      else {
+        var f = hw.ds1302Now(vm);
+        t.textContent = devPad(f.year) + '-' + devPad(f.month) + '-' + devPad(f.date)
+          + ' ' + devPad(f.hour) + ':' + devPad(f.minute) + ':' + devPad(f.second);
+      }
+    }
+    var xo = $('xpt-out');
+    if (xo) xo.textContent = '电位器 ' + devState.pot + '%';
+    var dv = $('dac-v'), dd = $('dac-duty');
+    if (hw && hw.dac) {
+      if (dv) dv.textContent = hw.dac.vout.toFixed(2) + ' V';
+      if (dd) dd.textContent = (hw.dac.duty * 100).toFixed(1) + '%';
+    } else {
+      if (dv) dv.textContent = '0.00 V';
+      if (dd) dd.textContent = '0.0%';
+    }
+  }
+  (function initDevices() {
+    function bindRange(id, key, fmt) {
+      var el = $(id), out = $(id + '-v');
+      if (!el || !el.addEventListener) return;
+      function sync() {
+        devState[key] = +el.value;
+        if (out) out.textContent = fmt(devState[key]);
+        if (hw) hw.setXpt(devState);
+        renderDevices();
+      }
+      el.addEventListener('input', sync);
+      sync();
+    }
+    bindRange('xpt-pot', 'pot', function (v) { return v + '%'; });
+    bindRange('xpt-ntc', 'ntc', function (v) { return v + '℃'; });
+    bindRange('xpt-ldr', 'ldr', function (v) { return v + 'lx'; });
+    var tEl = $('ds-temp'), tOut = $('ds-temp-v'), tB = $('ds-temp-b');
+    if (tEl && tEl.addEventListener) {
+      var syncTemp = function () {
+        devState.temp = +tEl.value;
+        var txt = devState.temp.toFixed(1) + '℃';
+        if (tOut) tOut.textContent = txt;
+        if (tB) tB.textContent = txt;
+        if (hw) hw.setTemp(devState.temp);
+      };
+      tEl.addEventListener('input', syncTemp);
+      syncTemp();
+    }
+    var batt = $('rtc-batt');
+    if (batt && batt.addEventListener) {
+      batt.addEventListener('change', function () {
+        devState.batt = batt.checked;
+        if (hw) hw.setRtcBattery(devState.batt, vm);
+        log(devState.batt ? 'DS1302 备用电池已接上：复位后继续走时。' : 'DS1302 备用电池断开：断电后时间不再走。', 'dim');
+      });
+    }
+    var syncBtn = $('rtc-sync');
+    if (syncBtn && syncBtn.addEventListener) {
+      syncBtn.addEventListener('click', function () {
+        if (!hw) return;
+        var d = new Date();
+        hw.setRtc({
+          year: d.getFullYear() % 100,
+          month: d.getMonth() + 1,
+          date: d.getDate(),
+          hour: d.getHours(),
+          minute: d.getMinutes(),
+          second: d.getSeconds(),
+          day: d.getDay() === 0 ? 7 : d.getDay()
+        }, vm);
+        renderDevices();
+        log('已把电脑当前时间写入 DS1302。', 'dim');
+      });
+    }
+    var irBtns = document.querySelectorAll('[data-ir]');
+    Array.prototype.forEach.call(irBtns, function (b) {
+      if (!b.addEventListener) return;
+      b.addEventListener('click', function () {
+        if (!hw) return;
+        var code = parseInt(b.getAttribute('data-ir'), 16);
+        hw.irSend(code, vm);
+        var out = $('ir-out');
+        if (out) out.textContent = 'NEC 0x' + ('0' + code.toString(16).toUpperCase()).slice(-2);
+        log('红外已发送 NEC 命令 0x' + ('0' + code.toString(16).toUpperCase()).slice(-2), 'dim');
+      });
+    });
+    var devToggle = $('dev-toggle'), devPanel = document.querySelector('.dev-panel');
+    if (devToggle && devPanel && devToggle.addEventListener) {
+      devToggle.addEventListener('click', function () {
+        var on = devPanel.classList.toggle('collapsed');
+        devToggle.textContent = on ? '展开' : '收起';
+      });
+    }
+    renderDevices();
+  })();
 
   /* ---------------- 例程 ---------------- */
   function requestExample(id, goPage) {
@@ -6473,6 +6583,7 @@ void keys_scan()
       codeStale = false;
       rebuildBpKeys();
       hw.syncAll(vm);
+      applyDevices();
       resetRenderCache();
       reapplyMatrix();
       lastGutterLine = -1;
@@ -7452,6 +7563,19 @@ void keys_scan()
     rLed = []; rSeg = []; rLcd = ['', '']; rPortHex = {}; rPortBits = {};
     rBuzzerFill = null; rBuzzerText = null; rVtime = null; rSteps = null;
   }
+  function paintDot8() {
+    if (!hw || !hw.dot8) return;
+    for (var r = 0; r < 8; r++) {
+      for (var c = 0; c < 8; c++) {
+        var el = dotEls[r * 8 + c];
+        if (!el) continue;
+        var on = ((hw.dot8.fb[r] >> (7 - c)) & 1) === 1;
+        if (el._on === on) continue;
+        el._on = on;
+        el.setAttribute('fill', on ? '#ff4a38' : '#282d34');
+      }
+    }
+  }
   function render() {
     var i, b;
     for (i = 0; i < 8; i++) {
@@ -7482,6 +7606,7 @@ void keys_scan()
       if (rBuzzerFill !== fill) { rBuzzerFill = fill; buzzerEl.setAttribute('fill', fill); }
       var btext = '蜂鸣器 翻转 ' + hw.buzzer.flips + ' 次';
       if (rBuzzerText !== btext) { rBuzzerText = btext; buzzerText.textContent = btext; }
+      paintDot8();
     }
     if (vm) {
       ['P0', 'P1', 'P2', 'P3'].forEach(function (p) {
@@ -7509,9 +7634,16 @@ void keys_scan()
 
   /* ---------------- 主循环 ---------------- */
   var lastTs = 0, lastScopeT = -1, lastScopeState = '';
+  var lastDevT = 0, lastRtcReal = 0;
   function frame(ts) {
     var dt = lastTs ? Math.min(60, ts - lastTs) : 16;
     lastTs = ts;
+    /* 程序没跑时 DS1302 按真实时间走；跑起来后由虚拟时间推进，避免重复计时 */
+    if (hw) {
+      var nowReal = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      if (state !== 'running' && lastRtcReal) hw.tickRtc(nowReal - lastRtcReal);
+      lastRtcReal = nowReal;
+    }
     if (state === 'running' && vm && !vm.done) {
       var pr = vm.pump(3000, dt * speed, checkBp);
       checkWin();
@@ -7562,6 +7694,11 @@ void keys_scan()
       lastScopeT = vm ? vm.vtime : -1;
       lastScopeState = state;
       drawScope();
+    }
+    /* 板载器件的时间/滑块读数：只在开发板页每 250ms 刷一次 */
+    if (curPage === 'board' && ts - lastDevT > 250) {
+      lastDevT = ts;
+      renderDevices();
     }
     requestAnimationFrame(frame);
   }

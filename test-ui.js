@@ -31,6 +31,7 @@ class El {
   removeChild(c) { this.children = this.children.filter(x => x !== c); c.parentNode = null; return c; }
   addEventListener(t, fn) { (this.handlers[t] = this.handlers[t] || []).push(fn); }
   querySelectorAll() { return []; }
+  querySelector() { return null; }
   set textContent(v) { this._text = String(v); }
   get textContent() { return this._text; }
   set innerHTML(v) { this._html = String(v); this.children = []; }
@@ -71,6 +72,7 @@ const localStorageStub = {
 
 const rafQueue = [];
 const docHandlers = {};
+const selRegistry = {};
 const sandbox = {
   console,
   document: {
@@ -78,6 +80,7 @@ const sandbox = {
     getElementById: id => registry[id] || (registry[id] = new El('div')),
     createElement: t => new El(t),
     createElementNS: (ns, t) => new El(t),
+    querySelector: sel => (selRegistry[sel] || (selRegistry[sel] = new El('div'))),
     querySelectorAll: () => [],
     addEventListener: (t, fn) => { (docHandlers[t] = docHandlers[t] || []).push(fn); }
   },

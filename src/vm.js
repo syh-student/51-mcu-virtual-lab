@@ -195,6 +195,18 @@
     e = e.replace(/\bdefined\s+([A-Za-z_]\w*)/g, function (_, n) {
       return macros[n] ? '1' : '0';
     });
+    /* 宏先展开成它的数值，#if VERSION >= 2 这种写法才能算出结果。
+       只展开对象式宏；函数式宏在 #if 里没有意义，留给下面按 0 处理。 */
+    for (var round = 0; round < 4; round++) {
+      var before = e;
+      e = e.replace(/\b([A-Za-z_]\w*)\b/g, function (name) {
+        var m = macros[name];
+        if (!m || m.params) return name;
+        var body = String(m.body || '').replace(/\/\/.*$/, '').trim();
+        return body ? '(' + body + ')' : '1';
+      });
+      if (e === before) break;
+    }
     e = e.replace(/\b[A-Za-z_]\w*\b/g, '0');
     try {
       var st = { tokens: ifTokenize(e), i: 0 };
@@ -322,14 +334,41 @@
         i += 2; continue;
       }
       if (c === '#') { while (i < n && src[i] !== '\n') i++; continue; }
-      if (/[0-9]/.test(c)) {
-        var s = '', hex = false;
+      var prevTk = toks.length ? toks[toks.length - 1] : null;
+      /* .5 这种浮点只在表达式位置成立；P3.0 的点号留给后面的成员解析 */
+      var dotStartsFloat = c === '.' && /[0-9]/.test(src[i + 1] || '')
+        && !(prevTk && (prevTk.t === 'id' || prevTk.t === 'num' || prevTk.v === ')' || prevTk.v === ']'));
+      if (/[0-9]/.test(c) || dotStartsFloat) {
+        var s = '', hex = false, fl = false;
         if (c === '0' && (src[i + 1] === 'x' || src[i + 1] === 'X')) { hex = true; i += 2; }
-        while (i < n && /[0-9a-fA-F]/.test(src[i])) s += src[i++];
-        while (i < n && /[uUlL]/.test(src[i])) i++;
-        var val = hex ? parseInt(s, 16) : parseInt(s, 10);
+        if (hex) {
+          while (i < n && /[0-9a-fA-F]/.test(src[i])) s += src[i++];
+        } else {
+          if (c === '.') { fl = true; s += src[i++]; }
+          while (i < n && /[0-9]/.test(src[i])) s += src[i++];
+          if (!fl && src[i] === '.' && /[0-9]/.test(src[i + 1] || '')) {
+            fl = true; s += src[i++];
+            while (i < n && /[0-9]/.test(src[i])) s += src[i++];
+          } else if (!fl && src[i] === '.' && !/[A-Za-z_]/.test(src[i + 1] || '')) {
+            fl = true; s += src[i++];      /* 16. 这种写法 */
+          }
+          if (src[i] === 'e' || src[i] === 'E') {
+            var ej = i + 1;
+            if (src[ej] === '+' || src[ej] === '-') ej++;
+            if (/[0-9]/.test(src[ej] || '')) {
+              fl = true;
+              s += src.slice(i, ej);
+              i = ej;
+              while (i < n && /[0-9]/.test(src[i])) s += src[i++];
+            }
+          }
+        }
+        while (i < n && /[uUlLfF]/.test(src[i])) { if (/[fF]/.test(src[i])) fl = true; i++; }
+        var val = hex ? parseInt(s, 16) : (fl ? parseFloat(s) : parseInt(s, 10));
         if (isNaN(val)) throw new VmError('数字格式有误', line);
-        toks.push({ t: 'num', v: val, line: line });
+        var numTok = { t: 'num', v: val, line: line };
+        if (fl) numTok.f = true;     /* 浮点常量：除法不能按整数截断 */
+        toks.push(numTok);
         continue;
       }
       if (c === "'") {
@@ -427,6 +466,21 @@
     }
     return { base: base || 'int', unsigned: unsigned, mods: mods };
   };
+  /* 判断 “(” 后面是不是类型：用来区分强制转换和普通括号表达式 */
+  Parser.prototype.isCastAhead = function () {
+    if (!this.is('(')) return false;
+    var k = 1, saw = false;
+    for (;;) {
+      var tk = this.peek(k);
+      if (!tk || tk.t !== 'id') break;
+      if (TYPE_WORD.test(tk.v) || BASE_WORD.test(tk.v)
+        || Object.prototype.hasOwnProperty.call(this.typedefs, tk.v)) {
+        saw = true; k++; continue;
+      }
+      break;
+    }
+    return saw && this.peek(k) && this.peek(k).v === ')';
+  };
   /* struct { 类型 名字[长度]; ... } */
   Parser.prototype.parseFields = function () {
     this.expect('{');
@@ -503,19 +557,25 @@
       this.expect('='); this.next(); this.expect(';');
       return { t: 'sfr', name: sn, line: line };
     }
+    /* 指针声明的星号在名字前面：unsigned char *p; */
+    var gptr = false;
+    while (this.is('*')) { this.next(); gptr = true; }
     var name = this.next().v;
     if (this.is('(')) {
       this.next();
       var params = [];
       if (!this.is(')')) {
         do {
-          var pt = this.parseType();
-          while (this.is('*')) this.next();
+          var pt = this.parseType(), pptr = false;
+          while (this.is('*')) { this.next(); pptr = true; }
           var pn = '';
           if (this.peek().t === 'id') pn = this.next().v;
           var isArr = false;
           if (this.is('[')) { this.next(); while (!this.is(']')) this.next(); this.next(); isArr = true; }
-          params.push({ name: pn, type: pt, isArr: isArr });
+          params.push({
+            name: pn, isArr: isArr,
+            type: pptr ? { base: pt.base, unsigned: pt.unsigned, mods: pt.mods, name: pt.name, ptr: true } : pt
+          });
         } while (this.is(',') && this.next());
       }
       this.expect(')');
@@ -526,14 +586,14 @@
       return { t: 'func', name: name, params: params, body: fbody, interrupt: interrupt,
                stat: !!(type.mods && type.mods.indexOf('static') >= 0), line: line };
     }
-    var vars = [this.parseVarDecl(type, name)];
+    var vars = [this.parseVarDecl(type, name, gptr)];
     while (this.is(',') && this.next()) vars.push(this.parseVarDecl(type));
     this.expect(';');
     return { t: 'globaldecl', vars: vars, line: line };
   };
 
-  Parser.prototype.parseVarDecl = function (type, knownName) {
-    var ptr = false;
+  Parser.prototype.parseVarDecl = function (type, knownName, knownPtr) {
+    var ptr = !!knownPtr;
     while (this.is('*')) { this.next(); ptr = true; }
     var name = knownName || this.next().v;
     var size = null, init = null;
@@ -546,6 +606,7 @@
     /* static 局部变量：函数退出后不销毁，讲义里 Timer0_Routine 里的 T0Count 就是它 */
     var stat = !!(type && type.mods && type.mods.indexOf('static') >= 0);
     var ext = !!(type && type.mods && type.mods.indexOf('extern') >= 0);
+    if (ptr) type = { base: type.base, unsigned: type.unsigned, mods: type.mods, name: type.name, fields: type.fields, ptr: true };
     return { name: name, size: size, init: init, ptr: ptr, type: type, stat: stat, ext: ext };
   };
   Parser.prototype.parseInit = function () {
@@ -696,6 +757,12 @@
   };
   Parser.prototype.parseUnary = function () {
     var v = this.peek().v, line = this.line();
+    if (v === '(' && this.isCastAhead()) {
+      this.next();
+      var ctype = this.parseType();
+      this.expect(')');
+      return { t: 'cast', type: ctype, e: this.parseUnary(), line: line };
+    }
     if (v === '+' || v === '-' || v === '!' || v === '~') {
       this.next();
       return { t: 'un', op: v, e: this.parseUnary(), line: line };
@@ -704,8 +771,14 @@
       this.next();
       return { t: 'pre', op: v, e: this.parseUnary(), line: line };
     }
-    if (v === '*' || v === '&') {
-      throw new VmError('虚拟机暂不支持指针运算符 “' + v + '”，请改用数组下标写法', line);
+    /* 取地址与解引用：指针值在运行时就是“指向某个变量/数组元素的引用” */
+    if (v === '&') {
+      this.next();
+      return { t: 'addr', e: this.parseUnary(), line: line };
+    }
+    if (v === '*') {
+      this.next();
+      return { t: 'deref', e: this.parseUnary(), line: line };
     }
     return this.parsePostfix();
   };
@@ -732,7 +805,12 @@
         var line3 = this.line();
         this.next();
         var fname = this.next().v;
-        e = { t: 'member', obj: e, name: fname, line: line3 };
+        /* P3.0 这种点号写法：等价于 P3_0，课程代码里偶尔会这么写 */
+        if (e.t === 'id' && /^P[0-3]$/.test(e.v) && /^[0-7]$/.test(String(fname))) {
+          e = { t: 'id', v: e.v + '_' + fname, line: line3 };
+        } else {
+          e = { t: 'member', obj: e, name: fname, line: line3 };
+        }
       } else if (this.is('++') || this.is('--')) {
         var op = this.next().v;
         e = { t: 'post', op: op, e: e, line: this.line() };
@@ -742,7 +820,12 @@
   };
   Parser.prototype.parsePrimary = function () {
     var tk = this.peek();
-    if (tk.t === 'num') { this.next(); return { t: 'num', v: tk.v, line: tk.line }; }
+    if (tk.t === 'num') {
+      this.next();
+      var numNode = { t: 'num', v: tk.v, line: tk.line };
+      if (tk.f) numNode.f = true;      /* 保留浮点标记，除法要靠它 */
+      return numNode;
+    }
     if (tk.t === 'str') { this.next(); return { t: 'str', v: tk.v, line: tk.line }; }
     if (tk.t === 'id') { this.next(); return { t: 'id', v: tk.v, line: tk.line }; }
     if (tk.v === '(') { this.next(); var e = this.parseExpr(); this.expect(')'); return e; }
@@ -753,17 +836,34 @@
   function truthy(v) { return Array.isArray(v) ? v.length > 0 : !!v; }
   function coerce(type, v) {
     if (v === undefined || v === null) return 0;
+    /* 数组赋给指针 = 指向首元素；这一步必须在“对象原样保留”之前 */
+    if (type && type.ptr && Array.isArray(v)) return { __ref: true, kind: 'elem', arr: v, idx: 0 };
     if (typeof v === 'object') return v;      /* 数组和结构体原样保留 */
     if (!type) return v;
     var b = type.base;
     if (b === 'char') return v & 0xFF;
-    if (b === 'int' || b === 'long') return v & 0xFFFF;
+    /* C51 的 int 是 16 位有符号：赋值时按补码截断，DS18B20 的负温要靠它 */
+    if (b === 'int') {
+      v = v & 0xFFFF;
+      return type.unsigned ? v : (v << 16) >> 16;
+    }
+    if (b === 'long') return v & 0xFFFF;
     if (b === 'bit') return v ? 1 : 0;
     return v;
   }
+  /* 表达式是不是浮点：除法靠它决定要不要按整数截断 */
+  function exprIsFloat(vm, n) {
+    if (!n || typeof n !== 'object') return false;
+    if (n.t === 'num') return !!n.f;
+    if (n.t === 'cast') return !!(n.type && n.type.base === 'float');
+    if (n.t === 'id') return vm.typeOfName(n.v) === 'float';
+    if (n.t === 'un') return exprIsFloat(vm, n.e);
+    if (n.t === 'bin') return exprIsFloat(vm, n.left) || exprIsFloat(vm, n.right);
+    if (n.t === 'cond') return exprIsFloat(vm, n.a) || exprIsFloat(vm, n.b);
+    return false;
+  }
   /* 结构体的默认值：数值 0、数组全 0、嵌套结构体递归 */
-  function structDefault(type) {
-    var o = {};
+  function structDefault(type) {    var o = {};
     (type.fields || []).forEach(function (f) {
       var n = f.size && f.size.t === 'num' ? f.size.v : 1;
       var one = (f.type && f.type.base === 'struct')
@@ -904,6 +1004,19 @@
     }
     return null;
   };
+  /* 变量的声明类型（只看浮点/整数，够 exprIsFloat 用） */
+  VM.prototype.typeOfName = function (name) {
+    for (var i = this.frames.length - 1; i >= 0; i--) {
+      var f = this.frames[i];
+      if (f.types && Object.prototype.hasOwnProperty.call(f.types, name)) {
+        return f.types[name] && f.types[name].base;
+      }
+    }
+    var sk = this.staticKey(name);
+    if (this.stype[sk]) return this.stype[sk].base;
+    if (this.gtypes[name]) return this.gtypes[name].base;
+    return '';
+  };
   VM.prototype.getVar = function (name, line) {
     var f = this.findFrame(name);
     if (f) return f.vars[name];
@@ -981,7 +1094,9 @@
     return (this.sfr.TMOD >> (nm === 'T0' ? 0 : 4)) & 3;
   };
   VM.prototype.timerSpan = function (nm) {
-    return this.timerMode(nm) === 2 ? 256 : 65536;
+    var m = this.timerMode(nm);
+    /* 模式 0 是 13 位（TH 8 位 + TL 低 5 位），模式 2 是 8 位自动重装 */
+    return m === 2 ? 256 : (m === 0 ? 8192 : 65536);
   };
   VM.prototype.timerCount = function (nm) {
     var tm = this.timers[nm];
@@ -992,16 +1107,19 @@
     var tb = TIMER_BYTE[name], nm = tb[0], hi = tb[1];
     var tm = this.timers[nm];
     if (!tm.on) return this.sfr[name] & 0xFF;
+    var mode = this.timerMode(nm);
     var cnt = this.timerCount(nm) % this.timerSpan(nm);
+    if (mode === 0) return hi ? ((cnt >> 5) & 0xFF) : (cnt & 0x1F);
     return hi ? ((cnt >> 8) & 0xFF) : (cnt & 0xFF);
   };
   VM.prototype.writeTimerByte = function (name, val) {
     var tb = TIMER_BYTE[name], nm = tb[0], hi = tb[1], b = val & 0xFF;
     this.sfr[name] = b;
     var tm = this.timers[nm];
-    var span = this.timerSpan(nm);
+    var span = this.timerSpan(nm), mode = this.timerMode(nm);
     var cur = tm.on ? (this.timerCount(nm) % span) : tm.init;
-    cur = hi ? (((cur & 0x00FF) | (b << 8)) % span) : ((cur & 0xFF00) | b);
+    if (mode === 0) cur = hi ? ((b << 5) | (cur & 0x1F)) : ((cur & ~0x1F) | (b & 0x1F));
+    else cur = hi ? (((cur & 0x00FF) | (b << 8)) % span) : ((cur & 0xFF00) | b);
     tm.init = cur;
     tm.t0 = this.vtime;      /* 写初值 = 从这一刻重新开始计数 */
   };
@@ -1012,7 +1130,7 @@
       var mode = this.timerMode(nm);
       var hi = this.sfr[nm === 'T0' ? 'TH0' : 'TH1'] & 0xFF;
       var lo = this.sfr[nm === 'T0' ? 'TL0' : 'TL1'] & 0xFF;
-      tm.init = (mode === 2 ? lo : ((hi << 8) | lo)) % this.timerSpan(nm);
+      tm.init = (mode === 2 ? lo : (mode === 0 ? ((hi << 5) | (lo & 0x1F)) : ((hi << 8) | lo))) % this.timerSpan(nm);
       tm.t0 = this.vtime;
       tm.on = true;
     } else {
@@ -1150,6 +1268,35 @@
     else if (ref.kind === 'member') ref.obj[ref.name] = v;
     else ref.arr[ref.idx] = typeof v === 'number' ? v : 0;
   };
+  /* 指针自增 / 加减偏移：只对 "指向数组元素" 的指针有意义，越界直接报错 */
+  VM.prototype.ptrStep = function (p, d, line) {
+    if (p.kind !== 'elem') throw new VmError('只有指向数组元素的指针才能做加减', line || this.line);
+    var i = p.idx + (d | 0);
+    if (i < 0 || i >= p.arr.length) {
+      throw new VmError('指针移出了数组范围（下标 ' + i + '，数组长度 ' + p.arr.length + '）', line || this.line);
+    }
+    return { __ref: true, kind: 'elem', arr: p.arr, idx: i, line: p.line };
+  };
+  VM.prototype.incValue = function (v, d, line) {
+    if (v && v.__ref) return this.ptrStep(v, d, line);
+    return v + d;
+  };
+  VM.prototype.ptrOp = function (op, a, b) {
+    var pa = !!(a && a.__ref), pb = !!(b && b.__ref);
+    if (op === '+' && pa) return this.ptrStep(a, b, this.line);
+    if (op === '-' && pa && !pb) return this.ptrStep(a, -b, this.line);
+    if (op === '-' && pa && pb) {
+      if (a.kind !== 'elem' || b.kind !== 'elem' || a.arr !== b.arr) {
+        throw new VmError('两个指针相减时，必须指向同一个数组', this.line);
+      }
+      return a.idx - b.idx;
+    }
+    if (op === '==' || op === '!=') {
+      var eq = pa && pb && a.kind === b.kind && a.arr === b.arr && a.idx === b.idx && a.name === b.name;
+      return (op === '==' ? eq : !eq) ? 1 : 0;
+    }
+    throw new VmError('指针只能做加减偏移或相等比较', this.line);
+  };
 
   VM.prototype._initGlobals = function* (ast) {
     for (var i = 0; i < ast.body.length; i++) {
@@ -1185,12 +1332,11 @@
         for (var i = 0; i < v.init.items.length; i++) items.push(yield* this.evalExpr(v.init.items[i]));
         val = items;
       } else {
-        var r = yield* this.evalExpr(v.init);
-        if (size !== null && !Array.isArray(r)) val = r;
-        else val = r;
+        val = yield* this.evalExpr(v.init);
       }
     }
-    return val;
+    /* 初始化也要按声明类型截断：int n = 0xFFF6; 必须得到 -10 */
+    return coerce(v.type, val);
   };
 
   VM.prototype.callFunction = function* (name, args, line) {
@@ -1201,7 +1347,7 @@
     var frame = newFrame(name, line);
     for (var i = 0; i < f.params.length; i++) {
       var p = f.params[i];
-      frame.vars[p.name] = p.isArr || Array.isArray(args[i]) ? args[i] : coerce(p.type, args[i]);
+      frame.vars[p.name] = p.isArr && Array.isArray(args[i]) ? args[i] : coerce(p.type, args[i]);
       frame.types[p.name] = p.type;
     }
     this.frames.push(frame);
@@ -1223,12 +1369,16 @@
   VM.prototype.tick = function* (line) {
     this.line = line;
     this.stepCount++;
+    if (this.hw && this.hw.service) this.hw.service(this);   /* 单总线等“按语句数计时”的器件 */
     if (!this.inIsr) {
       if (this.timers.T0.on || this.timers.T1.on) yield* this.serviceTimers();
       yield* this.serviceExternals();     /* 电平触发/标志位轮询式代码也要它喂 */
       if (this.rxQueue.length) yield* this.serviceSerial();
     }
-    if (this.stepCount % 200 === 0) yield { wait: 1, line: line };
+    /* 语句时间：平均 5us（12MHz 下一条语句几个机器周期）。
+       以前是每 200 条语句一次跳 1ms，红外 560us/1690us 这种时序会被抹成 1ms 网格；
+       现在每 10 条让出 50us，平均速度不变，但分辨率够解红外和单总线。 */
+    if (this.stepCount % 10 === 0) yield { wait: 0.05, line: line };
     else yield { step: 1, line: line };
   };
 
@@ -1345,6 +1495,12 @@
 
   VM.prototype.evalRef = function* (n) {
     if (n.t === 'id') return { kind: 'var', name: n.v, line: n.line };
+    if (n.t === 'deref') {
+      var pv = yield* this.evalExpr(n.e);
+      if (pv && pv.__ref) return pv;
+      if (Array.isArray(pv)) return { kind: 'elem', arr: pv, idx: 0, line: n.line };
+      throw new VmError('“*” 前面不是指针：仿真里的指针要由 &变量、&数组元素或字符串得到', n.line);
+    }
     if (n.t === 'member') {
       var base = yield* this.evalExpr(n.obj);
       if (!base || typeof base !== 'object' || Array.isArray(base)) {
@@ -1358,6 +1514,11 @@
     if (n.t === 'index') {
       var arr = yield* this.evalExpr(n.obj);
       var idx = yield* this.evalExpr(n.index);
+      if (arr && arr.__ref) {
+        if (arr.kind !== 'elem') throw new VmError('这个指针没有可用的下标（只有指向数组元素的指针能这样用）', n.line);
+        idx = arr.idx + (idx | 0);
+        arr = arr.arr;
+      }
       if (!Array.isArray(arr)) throw new VmError('只有数组才能用下标', n.line);
       idx = idx | 0;
       if (idx < 0 || idx >= arr.length) {
@@ -1378,6 +1539,14 @@
         codes.push(0);
         return codes;
       case 'id': return this.getVar(n.v, n.line);
+      case 'cast': return coerce(n.type, yield* this.evalExpr(n.e));
+      case 'addr':
+        var r = yield* this.evalRef(n.e);
+        r.__ref = true;                 /* 指针值 = 带标记的引用 */
+        return r;
+      case 'deref':
+        ref = yield* this.evalRef(n);
+        return this.refGet(ref);
       case 'index':
       case 'member':
         ref = yield* this.evalRef(n);
@@ -1406,13 +1575,13 @@
         throw new VmError('不支持的一元运算符 ' + n.op, n.line);
       case 'pre':
         ref = yield* this.evalRef(n.e);
-        a = this.refGet(ref) + (n.op === '++' ? 1 : -1);
+        a = this.incValue(this.refGet(ref), n.op === '++' ? 1 : -1, n.line);
         this.refSet(ref, a);
-        return this.refGet(ref);
+        return a;
       case 'post':
         ref = yield* this.evalRef(n.e);
         old = this.refGet(ref);
-        this.refSet(ref, old + (n.op === '++' ? 1 : -1));
+        this.refSet(ref, this.incValue(old, n.op === '++' ? 1 : -1, n.line));
         return old;
       case 'bin':
         if (n.op === '&&') {
@@ -1427,20 +1596,21 @@
         }
         a = yield* this.evalExpr(n.left);
         b = yield* this.evalExpr(n.right);
-        return this.binOp(n.op, a, b);
+        return this.binOp(n.op, a, b, exprIsFloat(this, n));
       default:
         throw new VmError('暂不支持的表达式 ' + n.t, n.line);
     }
   };
 
-  VM.prototype.binOp = function (op, a, b) {
+  VM.prototype.binOp = function (op, a, b, isFloat) {
+    if ((a && a.__ref) || (b && b.__ref)) return this.ptrOp(op, a, b);
     switch (op) {
       case '+': return a + b;
       case '-': return a - b;
       case '*': return a * b;
       case '/':
         if (b === 0) throw new VmError('除以 0：请检查除数是否可能为零', this.line);
-        return Math.trunc(a / b);
+        return isFloat ? a / b : Math.trunc(a / b);
       case '%':
         if (b === 0) throw new VmError('对 0 取余', this.line);
         return a % b;

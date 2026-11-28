@@ -724,5 +724,459 @@ void main()
     .forEach(id => check('通关不误判：' + byId(id).title, !tryWin(id, 120)));
 }
 
+/* 40. 江协库兼容：浮点常量、强制转换、Px.y 点号、整数除法不被带偏 */
+{
+  const { vm } = makeVM(`
+#include <REGX52.H>
+float f;
+int n;
+void main()
+{
+  f = 30 / 16.0;            /* 浮点除法：1.875，不能截成 1 */
+  n = (int)3.9;             /* 强制转换：3 */
+  P2 = (unsigned char)(f * 10);   /* 18.75 -> 0x12 */
+  P3.0 = 0;                 /* 点号位名，等价 P3_0 */
+  while (1) {}
+}
+`);
+  run(vm, 6);
+  check('浮点常量：30 / 16.0 = 1.875', Math.abs(vm.getVar('f') - 1.875) < 1e-9, String(vm.getVar('f')));
+  check('强制转换：(int)3.9 = 3', vm.getVar('n') === 3, String(vm.getVar('n')));
+  check('浮点结果转 unsigned char', vm.ports.P2 === 0x12, 'P2=0x' + vm.ports.P2.toString(16));
+  check('P3.0 点号等价 P3_0', (vm.ports.P3 & 1) === 0, 'P3=0x' + vm.ports.P3.toString(16));
+
+  const plain = makeVM(`
+#include <REGX52.H>
+float f;
+void main(){ int a = 7, b = 2; f = a / b; P2 = (unsigned char)(f * 10); P2 = 100 / 3; while(1){} }
+`);
+  run(plain.vm, 6);
+  check('整数除法仍然是整除', plain.vm.ports.P2 === 33, 'P2=' + plain.vm.ports.P2);
+
+  const paren = makeVM(`
+#include <REGX52.H>
+void main(){ P2 = (3 + 4) * 2; while(1){} }
+`);
+  run(paren.vm, 4);
+  check('普通括号表达式没被当成转换', paren.vm.ports.P2 === 14, 'P2=' + paren.vm.ports.P2);
+}
+
+/* 41. 江协 DS18B20 的浮点写法：Temp/16.0 不再报「0」前面不是结构体变量 */
+{
+  const { vm } = makeVM(`
+#include <REGX52.H>
+float T;
+int Temp = 424;             /* 26.5 x 16 */
+void main()
+{
+  T = Temp / 16.0;
+  P2 = (unsigned int)(T * 10);   /* 265，低 8 位 0x09 */
+  while (1) {}
+}
+`);
+  run(vm, 6);
+  check('DS18B20：Temp/16.0 算出 26.5', Math.abs(vm.getVar('T') - 26.5) < 1e-9, String(vm.getVar('T')));
+  check('DS18B20：转成 265 后低 8 位', (vm.ports.P2 & 0xFF) === (265 & 0xFF), 'P2=' + vm.ports.P2);
+}
+
+/* 42. DS1302 模型：三线移位读秒、写秒 */
+{
+  const rdWr = `
+#include <REGX52.H>
+sbit SCLK = P3^6;
+sbit IO = P3^4;
+sbit CE = P3^5;
+unsigned char rd(unsigned char cmd)
+{
+  unsigned char i, d = 0;
+  cmd |= 0x01;
+  CE = 1;
+  for (i = 0; i < 8; i++) { IO = cmd & (0x01 << i); SCLK = 0; SCLK = 1; }
+  for (i = 0; i < 8; i++) { SCLK = 1; SCLK = 0; if (IO) d |= (0x01 << i); }
+  CE = 0; IO = 0;
+  return d;
+}
+void wr(unsigned char cmd, unsigned char d)
+{
+  unsigned char i;
+  CE = 1;
+  for (i = 0; i < 8; i++) { IO = cmd & (0x01 << i); SCLK = 1; SCLK = 0; }
+  for (i = 0; i < 8; i++) { IO = d & (0x01 << i); SCLK = 1; SCLK = 0; }
+  CE = 0;
+}
+void main()
+{
+  wr(0x8E, 0x00);          /* 解除写保护 */
+  P2 = rd(0x81);           /* 读秒 */
+  wr(0x80, 0x30);          /* 写秒 = 30 */
+  P2 = rd(0x81);
+  while (1) {}
+}
+`;
+  const { vm, hw } = makeVM(rdWr);
+  hw.setRtc({ year: 26, month: 11, date: 28, hour: 12, minute: 34, second: 56, day: 5 });
+  run(vm, 10);
+  check('DS1302：写秒后读回 0x30', vm.ports.P2 === 0x30, 'P2=0x' + vm.ports.P2.toString(16));
+  check('DS1302：走时芯片同步到 30 秒', hw.ds1302Now(vm).second === 30,
+    JSON.stringify(hw.ds1302Now(vm)));
+}
+
+/* 43. XPT2046 模型：命令字 + 16 位读取，按滑块返回 */
+{
+  const adCode = `
+#include <REGX52.H>
+sbit DIN = P3^4;
+sbit CS = P3^5;
+sbit DCLK = P3^6;
+sbit DOUT = P3^7;
+unsigned int ad(unsigned char cmd)
+{
+  unsigned char i;
+  unsigned int d = 0;
+  DCLK = 0; CS = 0;
+  for (i = 0; i < 8; i++) { DIN = cmd & (0x80 >> i); DCLK = 1; DCLK = 0; }
+  for (i = 0; i < 16; i++) { DCLK = 1; DCLK = 0; if (DOUT) d |= (0x8000 >> i); }
+  CS = 1;
+  return d >> 8;
+}
+void main() { P2 = ad(0x94); while (1) {} }
+`;
+  function adAt(pot) {
+    const { vm, hw } = makeVM(adCode);
+    hw.setXpt({ pot: pot });
+    run(vm, 8);
+    return vm.ports.P2;
+  }
+  check('XPT2046：电位器 100% 读回 255', adAt(100) === 255, String(adAt(100)));
+  check('XPT2046：电位器 0% 读回 0', adAt(0) === 0, String(adAt(0)));
+  check('XPT2046：电位器 50% 读到中间值', adAt(50) >= 120 && adAt(50) <= 136, String(adAt(50)));
+}
+
+/* 44. DS18B20 单总线：复位应答 + 0xCC/0xBE 读温度 */
+{
+  const code = `
+#include <REGX52.H>
+sbit DQ = P3^7;
+unsigned char owInit(void)
+{
+  unsigned char i, a;
+  DQ = 1; DQ = 0;
+  i = 247; while (--i);
+  DQ = 1;
+  i = 32; while (--i);
+  a = DQ;
+  i = 247; while (--i);
+  return a;
+}
+void owSend(unsigned char b)
+{
+  unsigned char i, k;
+  for (i = 0; i < 8; i++)
+  {
+    DQ = 0; k = 4; while (--k);
+    DQ = b & (0x01 << i);
+    k = 24; while (--k);
+    DQ = 1;
+  }
+}
+unsigned char owRecv(void)
+{
+  unsigned char i, k, b = 0;
+  for (i = 0; i < 8; i++)
+  {
+    DQ = 0; k = 2; while (--k);
+    DQ = 1; k = 2; while (--k);
+    if (DQ) b |= (0x01 << i);
+    k = 24; while (--k);
+  }
+  return b;
+}
+float g;
+unsigned char ack;
+void main()
+{
+  unsigned char l, h;
+  int t;
+  ack = owInit();                  /* 有应答 -> 0 */
+  owInit();
+  owSend(0xCC);
+  owSend(0xBE);
+  l = owRecv();
+  h = owRecv();
+  t = (h << 8) | l;
+  g = t / 16.0;
+  P2 = (unsigned int)(g * 10);
+  while (1) {}
+}
+`;
+  const { vm, hw } = makeVM(code);
+  hw.setTemp(26.5);
+  run(vm, 20);
+  check('DS18B20：复位有应答', vm.getVar('ack') === 0, 'ack=' + vm.getVar('ack'));
+  check('DS18B20：读回 26.5 度', Math.abs(vm.getVar('g') - 26.5) < 1e-9, String(vm.getVar('g')));
+  check('DS18B20：265 的低 8 位', vm.ports.P2 === (265 & 0xFF), 'P2=' + vm.ports.P2);
+}
+
+/* 45. 8×8 点阵 + 74HC595：先移位再锁存，P0 选行 */
+{
+  const code = `
+#include <REGX52.H>
+sbit SER = P3^4;
+sbit RCLK = P3^5;
+sbit SRCLK = P3^6;
+void send(unsigned char b)
+{
+  unsigned char i;
+  for (i = 0; i < 8; i++) { SER = b & (0x80 >> i); SRCLK = 1; SRCLK = 0; }
+  RCLK = 1; RCLK = 0;
+}
+void main()
+{
+  RCLK = 0; SRCLK = 0;        /* 上电先拉低，第一次锁存才有上升沿 */
+  send(0xA5); P0 = 0x7F;      /* 第 1 行 */
+  send(0x3C); P0 = 0xBF;      /* 第 2 行 */
+  while (1) {}
+}
+`;
+  const { vm, hw } = makeVM(code);
+  run(vm, 10);
+  check('点阵：第 1 行列数据 0xA5', hw.dot8.fb[0] === 0xA5, '0x' + hw.dot8.fb[0].toString(16));
+  check('点阵：第 2 行列数据 0x3C', hw.dot8.fb[1] === 0x3C, '0x' + hw.dot8.fb[1].toString(16));
+}
+
+/* 46. LM358：P2.1 的 PWM 占空比换算成平均电压 */
+{
+  const code = `
+#include <REGX52.H>
+sbit DA = P2^1;
+void main(){ while (1) { DA = 1; Delay(1); DA = 0; Delay(1); } }
+`;
+  const { vm, hw } = makeVM(code);
+  run(vm, 30);
+  check('LM358：1ms 高 / 1ms 低 ≈ 50%', hw.dac.duty > 0.35 && hw.dac.duty < 0.65,
+    (hw.dac.duty * 100).toFixed(1) + '%');
+  check('LM358：平均电压 ≈ 2.5V', hw.dac.vout > 1.7 && hw.dac.vout < 3.3,
+    hw.dac.vout.toFixed(2) + 'V');
+}
+
+/* 47. 红外 NEC：帧结构 + P3.2 电平随时间变化 */
+{
+  const hw = HW.createHardware();
+  const fake = {
+    stepCount: 0, vtime: 0, p3: 1,
+    setInputBit: function (port, bit, v) {
+      if (port === 'P3' && bit === 2) this.p3 = v;
+    }
+  };
+  hw.irSend(0x45, fake);
+  const lv0 = fake.p3;
+  fake.vtime = 5; hw.service(fake);
+  const lv5 = fake.p3;
+  fake.vtime = 10; hw.service(fake);
+  const lv10 = fake.p3;
+  fake.vtime = 14; hw.service(fake);
+  const lv14 = fake.p3;
+  check('红外：NEC 帧有 68 段', hw.ir.frame.length === 68, String(hw.ir.frame.length));
+  check('红外：引导码 9ms 低', lv0 === 0 && lv5 === 0, lv0 + '/' + lv5);
+  check('红外：引导码 4.5ms 高', lv10 === 1, String(lv10));
+  check('红外：第一位数据拉低', lv14 === 0, String(lv14));
+}
+
+/* 48. #if 里用宏的数值做比较 */
+{
+  const { vm } = makeVM(`
+#define VER 3
+#if VER >= 2
+unsigned char a = 2;
+#else
+unsigned char a = 1;
+#endif
+#define ENABLE 0
+#if ENABLE
+unsigned char b = 1;
+#else
+unsigned char b = 0;
+#endif
+void main(){ P2 = a; P2 = b; while(1){} }
+`);
+  run(vm, 3);
+  check('#if 宏数值：VER>=2 成立', vm.getVar('a') === 2, 'a=' + vm.getVar('a'));
+  check('#if 宏数值：ENABLE 为 0 走 #else', vm.getVar('b') === 0, 'b=' + vm.getVar('b'));
+}
+
+/* 49. 有符号 int：C51 的 int 是 16 位补码 */
+{
+  const { vm } = makeVM(`
+int t;
+int n = 0xFFF6;
+int minus(int v){ return v - 20; }
+void main(){
+  t = minus(10);
+  P2 = (unsigned char)t;
+  while(1){}
+}
+`);
+  run(vm, 3);
+  check('int：10-20 得 -10', vm.getVar('t') === -10, String(vm.getVar('t')));
+  check('int：0xFFF6 按补码是 -10', vm.getVar('n') === -10, String(vm.getVar('n')));
+  check('int：-10 赋给 P2 是 0xF6', vm.ports.P2 === 0xF6, '0x' + vm.ports.P2.toString(16));
+}
+
+/* 50. 定时器模式 0：13 位（TH 8 位 + TL 低 5 位） */
+{
+  const { vm } = makeVM(`
+#include <REGX52.H>
+void main(){
+  TMOD = 0x00;              /* T0 模式 0 */
+  TH0 = 0x1F; TL0 = 0x1F;   /* 13 位初值 1023，再数 7169 个机器周期溢出 */
+  TR0 = 1;
+  while (TF0 == 0) {}
+  P2 = 0x00;
+  while (1) {}
+}
+`);
+  run(vm, 2);
+  check('定时器模式 0：13 位能溢出', vm.ports.P2 === 0x00, 'P2=0x' + vm.ports.P2.toString(16));
+  check('定时器模式 0：TF0 置位', (vm.sfr.TCON & 0x20) !== 0, 'TCON=0x' + vm.sfr.TCON.toString(16));
+}
+
+/* 51. 指针：& 取地址、* 解引用、指针传参、下标与自增 */
+{
+  const { vm } = makeVM(`
+unsigned char a[5] = {1, 2, 3, 4, 5};
+unsigned char *p;
+unsigned char sum;
+void addone(unsigned char *q){ *q = *q + 1; }
+void main(){
+  unsigned char i;
+  sum = 0;
+  p = a;
+  for (i = 0; i < 5; i++) {
+    sum += *p;
+    if (i < 4) p++;
+  }
+  addone(&sum);
+  addone(&a[0]);
+  p = &a[1];
+  *p = 0xAA;
+  P2 = sum;
+  while (1) {}
+}
+`);
+  run(vm, 5);
+  check('指针：遍历数组求和 + 传参自增 = 16', vm.getVar('sum') === 16, String(vm.getVar('sum')));
+  check('指针：*p = 0xAA 写回 a[1]', vm.getVar('a')[1] === 0xAA, '0x' + vm.getVar('a')[1].toString(16));
+  check('指针：a[0] 经 &a[0] 传参加 1', vm.getVar('a')[0] === 2, String(vm.getVar('a')[0]));
+}
+
+/* 52. DS18B20 负温：真实库写法 Temp/16.0，-10℃ */
+{
+  const code = `
+#include <REGX52.H>
+sbit DQ = P3^7;
+unsigned char owInit(void)
+{
+  unsigned char i, a;
+  DQ = 1; DQ = 0;
+  i = 247; while (--i);
+  DQ = 1;
+  i = 32; while (--i);
+  a = DQ;
+  i = 247; while (--i);
+  return a;
+}
+void owSend(unsigned char b)
+{
+  unsigned char i, k;
+  for (i = 0; i < 8; i++)
+  {
+    DQ = 0; k = 4; while (--k);
+    DQ = b & (0x01 << i);
+    k = 24; while (--k);
+    DQ = 1;
+  }
+}
+unsigned char owRecv(void)
+{
+  unsigned char i, k, b = 0;
+  for (i = 0; i < 8; i++)
+  {
+    DQ = 0; k = 2; while (--k);
+    DQ = 1; k = 2; while (--k);
+    if (DQ) b |= (0x01 << i);
+    k = 24; while (--k);
+  }
+  return b;
+}
+float g;
+unsigned char ack;
+void main()
+{
+  unsigned char l, h;
+  int t;
+  ack = owInit();
+  owInit();
+  owSend(0xCC);
+  owSend(0xBE);
+  l = owRecv();
+  h = owRecv();
+  t = (h << 8) | l;
+  g = t / 16.0;
+  P2 = (unsigned int)(g * 10);
+  while (1) {}
+}
+`;
+  const { vm, hw } = makeVM(code);
+  hw.setTemp(-10);
+  run(vm, 20);
+  check('DS18B20：-10℃ 读出负数', Math.abs(vm.getVar('g') + 10) < 1e-9, String(vm.getVar('g')));
+  check('DS18B20：负温乘 10 后低 8 位', vm.ports.P2 === ((65436) & 0xFF), 'P2=' + vm.ports.P2);
+}
+
+/* 53. 红外 NEC：轮询 P3.2 + 定时器读时间，解出 0x45 */
+{
+  const code = `
+#include <REGX52.H>
+sbit IR = P3^2;
+unsigned char d[4];
+unsigned char ok;
+unsigned int now(void){ return ((unsigned int)TH0 << 8) | TL0; }
+void main()
+{
+  unsigned char i, b = 0;
+  unsigned int t0, t1, t2, w;
+  TMOD = 0x01; TH0 = 0; TL0 = 0; TR0 = 1;
+  ok = 1;
+  while (IR == 1);                 /* 等引导码低电平 */
+  t0 = now();
+  while (IR == 0);
+  t1 = now();
+  while (IR == 1);                 /* 4.5ms 高结束 */
+  t2 = now();
+  w = t1 - t0;
+  if (w < 8000 || w > 10000) ok = 0;
+  w = t2 - t1;
+  if (w < 4000 || w > 5000) ok = 0;
+  for (i = 0; i < 32; i++) {
+    while (IR == 0);
+    t1 = now();
+    while (IR == 1);
+    t2 = now();
+    if ((t2 - t1) > 1000) b |= (1 << (i & 7));
+    if ((i & 7) == 7) { d[i >> 3] = b; b = 0; }
+  }
+  P2 = d[2];
+  while (1) {}
+}
+`;
+  const { vm, hw } = makeVM(code);
+  hw.irSend(0x45, vm);
+  run(vm, 40);
+  check('红外解码：引导码与 4.5ms 高都正确', vm.getVar('ok') === 1, 'ok=' + vm.getVar('ok'));
+  check('红外解码：32 位数据还原出 0x45', vm.getVar('d')[2] === 0x45,
+    'd2=0x' + vm.getVar('d')[2].toString(16));
+  check('红外解码：P2 显示键值', vm.ports.P2 === 0x45, 'P2=0x' + vm.ports.P2.toString(16));
+}
+
 console.log('\n结果：' + pass + ' 通过 / ' + fail + ' 失败');
 process.exit(fail ? 1 : 0);
